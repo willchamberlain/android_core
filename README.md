@@ -1,1 +1,3 @@
-See [rosjava_core](https://github.com/rosjava/rosjava_core) readme.
+Switch to `indigo` branch and follow instructions in Readme.
+
+`git checkout indigo`
