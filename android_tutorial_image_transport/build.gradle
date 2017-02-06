@@ -21,12 +21,12 @@ dependencies {
 apply plugin: 'com.android.application'
 
 android {
-  compileSdkVersion 15
+  compileSdkVersion 25
 
   defaultConfig {
-    minSdkVersion 15
+    minSdkVersion 19
     applicationId "org.ros.android.android_tutorial_image_transport"
-    targetSdkVersion 15
+    targetSdkVersion 25
     versionCode 1
     versionName "1.0"
   }
