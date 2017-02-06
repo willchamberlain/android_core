@@ -212,8 +212,13 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
       Intent notificationIntent = new Intent(this, NodeMainExecutorService.class);
       notificationIntent.setAction(NodeMainExecutorService.ACTION_SHUTDOWN);
       PendingIntent pendingIntent = PendingIntent.getService(this, 0, notificationIntent, 0);
-      notification.setLatestEventInfo(this, intent.getStringExtra(EXTRA_NOTIFICATION_TITLE),
-          "Tap to shutdown.", pendingIntent);
+//      notification.setLatestEventInfo(this, intent.getStringExtra(EXTRA_NOTIFICATION_TITLE),  // deprecated
+//          "Tap to shutdown.", pendingIntent);
+      Notification.Builder builder = new Notification.Builder(this) //  see  http://stackoverflow.com/questions/32345768/cannot-resolve-method-setlatesteventinfo
+              .setContentIntent(pendingIntent)
+              .setContentTitle(intent.getStringExtra(EXTRA_NOTIFICATION_TITLE))
+              .setContentText("Tap to shutdown.");
+      notification = builder.build();
       startForeground(ONGOING_NOTIFICATION, notification);
     }
     if (intent.getAction().equals(ACTION_SHUTDOWN)) {
