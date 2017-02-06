@@ -5,7 +5,7 @@
     <string name="use_master">Connect</string>
     <string name="cancel">Cancel</string>
     <string name="qr_code">Read QRCode</string>
-    <string name="master_uri_hint">http://localhost:11311/</string>
+    <string name="master_uri_hint">http://192.168.1.252:11311/</string>
     <string name="new_master">New Public Master</string>
     <string name="new_private_master">New Private Master</string>
     <string name="show_advanced">Show advanced options</string>
