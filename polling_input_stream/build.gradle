@@ -32,7 +32,7 @@ repositories {
 }
 
 dependencies {
-  compile 'ros.rosjava_core:rosjava:0.0.0-SNAPSHOT'
-  testCompile 'junit:junit:4.8.2'
+  compile ('ros.rosjava_core:rosjava:0.0.0-SNAPSHOT'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
+ // testCompile 'junit:junit:4.8.2'
 }
 
