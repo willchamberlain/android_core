@@ -31,3 +31,4 @@ include "docs"
 // (should they be in a java repo instead?)
 // include "compressed_map_transport"
 // include "polling_input_stream"
+include ':openCVLibrary310'
