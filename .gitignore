@@ -11,6 +11,7 @@ lint.xml
 local.properties
 proguard-project.txt
 project.properties
+/openCVLibrary310/src
 
 # These are Android Studio files, might be worth including these later.
 *.iml

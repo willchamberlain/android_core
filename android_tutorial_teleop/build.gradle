@@ -24,7 +24,7 @@ android {
   compileSdkVersion 25
 
   defaultConfig {
-    minSdkVersion 19
+    minSdkVersion 18
     applicationId "org.ros.android.android_tutorial_teleop"
     targetSdkVersion 25
     versionCode 1

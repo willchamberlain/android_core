@@ -77,7 +77,8 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
   private WifiLock wifiLock;
   private RosCore rosCore;
   private URI masterUri;
-  private String rosHostname;
+  private String rosHostname = "192.168.1.252";
+//  private String rosHostname = "localhost";
 
   /**
    * Class for clients to access. Because we know this service always runs in

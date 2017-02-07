@@ -21,7 +21,7 @@ task javadoc(type: Javadoc) {
     (it.name != 'docs') ? it : null
   }
   source javaProjects.collect { fileTree(dir: "${it.projectDir}/src/main/java") }
-  classpath = files(javaProjects.collect { it.configurations.compile })
+//  classpath = files(javaProjects.collect { it.configurations.compile })                // TODO - this broke when renaming android_sensors_driver to androidSensorsDrive for the JNI.  Don't know why.
   destinationDir = new File("${buildDir}/html", 'javadoc')
 }
 

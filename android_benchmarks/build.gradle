@@ -25,10 +25,10 @@ android {
   compileSdkVersion 25
 
   defaultConfig {
-    minSdkVersion 19
+    minSdkVersion 18
     applicationId "org.ros.android.android_benchmarks"
     targetSdkVersion 25
     versionCode 1
-    versionName "1.0"
+    versionName "1.0.0"
   }
 }
