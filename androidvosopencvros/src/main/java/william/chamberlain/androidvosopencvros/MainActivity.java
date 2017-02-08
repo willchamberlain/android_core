@@ -34,6 +34,8 @@ import android.view.MenuInflater;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 import android.util.Log;
@@ -62,6 +64,8 @@ public class MainActivity extends RosActivity
     private Mat matRgb;
     private Mat mRgbaTransposed;
     private Mat mRgbaFlipped;
+
+    Pattern tagPattern = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) ");
 
     private BaseLoaderCallback _baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -343,6 +347,9 @@ public class MainActivity extends RosActivity
         for(String tag : tags) {
             System.out.println("-------------------------------------------------------");
             System.out.print("---");System.out.print(tag);System.out.println("---");
+            Matcher matcher = tagPattern.matcher(tag);
+            System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
+            System.out.print("--- tag_id=");System.out.print(matcher.group(1));System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.println("-------------------------------------------------------");
         }
 
