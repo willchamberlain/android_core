@@ -8,6 +8,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
@@ -30,6 +32,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.view.MenuInflater;
 
+import java.io.IOException;
 import java.net.URI;
 
 
@@ -53,7 +56,7 @@ public class MainActivity extends RosActivity
     private static final String TAG = "OCVSample::Activity";
     private CameraBridgeViewBase _cameraBridgeViewBase;
 
-//    private long tagDetectorPointer; // Apriltags
+    private long tagDetectorPointer; // Apriltags
 
     private Mat matGray;
     private Mat matRgb;
@@ -110,7 +113,7 @@ public class MainActivity extends RosActivity
         // Load ndk built module, as specified
         // in moduleName in build.gradle
         System.loadLibrary("native-lib");
-//        System.loadLibrary("apriltags_kaess");
+        System.loadLibrary("apriltags_kaess");
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
@@ -123,7 +126,7 @@ public class MainActivity extends RosActivity
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
 
-//        tagDetectorPointer = newTagDetector();
+        tagDetectorPointer = newTagDetector();
     }
 
     @Override
@@ -304,7 +307,7 @@ public class MainActivity extends RosActivity
 
     public void onDestroy() {
         super.onDestroy();
-//        deleteTagDetector(tagDetectorPointer); // Apriltags
+        deleteTagDetector(tagDetectorPointer); // Apriltags
         disableCamera();
     }
 
@@ -336,7 +339,7 @@ public class MainActivity extends RosActivity
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
-//        aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
+        aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
 
 //        mRgbaTransposed = matRgb.t();
 //        Imgproc.resize(mRgbaTransposed, mRgbaFlipped, matRgb.size(),0,0,0);
@@ -359,8 +362,8 @@ public class MainActivity extends RosActivity
     public native void salt(long matAddrGray, int nbrElem);
     public native void canny(long matAddrGray);
 
-//    public native void aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
-//    public native long newTagDetector();   // Apriltags
-//    public native void deleteTagDetector(long tagDetectorPointer);     // Apriltags
+    public native long newTagDetector();   // Apriltags
+    public native void deleteTagDetector(long tagDetectorPointer);     // Apriltags
+    public native void aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
 }
 
