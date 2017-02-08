@@ -87,11 +87,16 @@ extern "C"
         jobjectArray    tags_as_strings = 0;
         jsize           detections_size = detections.size();
         int             detections_size_int = detections.size();
-        tags_as_strings = (env)->NewObjectArray(detections_size_int,(env)->FindClass("java/lang/String"),0);
+        tags_as_strings = (env)->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),0);
         for(int i=0; i<detections_size_int; i++) {
-            std::stringstream sstm;
-            sstm << "tag_" << detections[i].id ;
-            str = (env)->NewStringUTF(sstm.str().c_str());
+//            std::stringstream sstm;
+//            sstm << "tag_" << detections[i].id ;
+//            str = (env)->NewStringUTF(sstm.str().c_str());
+            char tag_and_pose_data[200];
+            sprintf(tag_and_pose_data, "tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f ",
+                    detections[i].id, translation(0), translation(1), translation(2),
+                    rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2));
+            str = (env)->NewStringUTF(tag_and_pose_data);
             (env)->SetObjectArrayElement(tags_as_strings, i, str);
         }
         return tags_as_strings;

@@ -342,7 +342,7 @@ public class MainActivity extends RosActivity
         String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
         for(String tag : tags) {
             System.out.println("-------------------------------------------------------");
-            System.out.println(tag);
+            System.out.print("---");System.out.print(tag);System.out.println("---");
             System.out.println("-------------------------------------------------------");
         }
 
