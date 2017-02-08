@@ -339,7 +339,13 @@ public class MainActivity extends RosActivity
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
-        aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
+        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
+        for(String tag : tags) {
+            System.out.println("-------------------------------------------------------");
+            System.out.println(tag);
+            System.out.println("-------------------------------------------------------");
+        }
+
 
 //        mRgbaTransposed = matRgb.t();
 //        Imgproc.resize(mRgbaTransposed, mRgbaFlipped, matRgb.size(),0,0,0);
@@ -364,6 +370,6 @@ public class MainActivity extends RosActivity
 
     public native long newTagDetector();   // Apriltags
     public native void deleteTagDetector(long tagDetectorPointer);     // Apriltags
-    public native void aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
+    public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
 }
 

@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <string>
+#include <sstream>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
@@ -35,7 +36,7 @@ extern "C"
         delete (AprilTags::TagDetector *)tagDetectorPointer;
     }
 
-    void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_aprilTags(JNIEnv *env, jobject instance,
+    jobjectArray JNIEXPORT Java_william_chamberlain_androidvosopencvros_MainActivity_aprilTags(JNIEnv *env, jobject instance,
                                                                             jlong matAddrGray,          // pointer to grayscale image matrix - input to Apriltags detection
                                                                             jlong matAddrRgb,           // pointer to RGB image matrix - input and output
                                                                             jlong tagDetectorPointer    // pointer to an AprilTags::TagDetector instance
@@ -82,6 +83,18 @@ extern "C"
                     cv::Point2f(0, 0),
                     cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(220,220,255));
 
+        jstring         str;
+        jobjectArray    tags_as_strings = 0;
+        jsize           detections_size = detections.size();
+        int             detections_size_int = detections.size();
+        tags_as_strings = (env)->NewObjectArray(detections_size_int,(env)->FindClass("java/lang/String"),0);
+        for(int i=0; i<detections_size_int; i++) {
+            std::stringstream sstm;
+            sstm << "tag_" << detections[i].id ;
+            str = (env)->NewStringUTF(sstm.str().c_str());
+            (env)->SetObjectArrayElement(tags_as_strings, i, str);
+        }
+        return tags_as_strings;
     }
 
 
