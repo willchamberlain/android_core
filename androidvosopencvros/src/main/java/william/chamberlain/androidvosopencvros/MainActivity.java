@@ -93,6 +93,7 @@ public class MainActivity extends RosActivity
     private FluidPressurePublisher fluid_pressure_pub;
     private IlluminancePublisher illuminance_pub;
     private TemperaturePublisher temperature_pub;
+    private AprilTagsPosePublisher aprilTagsPosePublisher;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -159,6 +160,8 @@ public class MainActivity extends RosActivity
         //masterURI = URI.create("http://localhost:11311/");
         //masterURI = URI.create("http://192.168.15.247:11311/");
         //masterURI = URI.create("http://10.0.1.157:11311/");
+        System.out.println("init: masterURI=");
+        System.out.println(masterURI);
 
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
@@ -220,6 +223,14 @@ public class MainActivity extends RosActivity
             nodeConfiguration6.setNodeName("android_sensors_driver_temperature");
             this.temperature_pub = new TemperaturePublisher(mSensorManager, sensorDelay, tempSensor);
             nodeMainExecutor.execute(this.temperature_pub, nodeConfiguration6);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration7 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration7.setMasterUri(masterURI);
+            nodeConfiguration7.setNodeName("androidvosopencvros_apriltags");
+            this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
+            nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
         }
     }
 
@@ -349,8 +360,11 @@ public class MainActivity extends RosActivity
             System.out.print("---");System.out.print(tag);System.out.println("---");
             Matcher matcher = tagPattern.matcher(tag);
             System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
-            System.out.print("--- tag_id=");System.out.print(matcher.group(1));System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
+            String tagId = matcher.group(1);
+            System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.println("-------------------------------------------------------");
+            aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));
+
         }
 
 
