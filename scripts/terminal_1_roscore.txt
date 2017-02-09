@@ -1,5 +1,5 @@
 #    terminal 1
-        export ANDROID_ROS_DIR=/mnt/nixbig/downloads/chulcher_ros_android
-        cd $ANDROID_ROS_DIR
-        source $ANDROID_ROS_DIR/ros_catkin_ws/devel/setup.bash
-        roscore
+export ANDROID_ROS_DIR=/mnt/nixbig/downloads/chulcher_ros_android
+cd $ANDROID_ROS_DIR
+source $ANDROID_ROS_DIR/ros_catkin_ws/devel/setup.bash
+roscore
