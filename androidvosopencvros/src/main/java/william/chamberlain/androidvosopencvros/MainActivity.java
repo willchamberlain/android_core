@@ -128,6 +128,9 @@ public class MainActivity extends RosActivity
 //                1);
 
         _cameraBridgeViewBase = (CameraBridgeViewBase) findViewById(R.id.main_surface);
+        System.out.println("MainActivity: onCreate: before running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
+        _cameraBridgeViewBase.setMaxFrameSize(640,480);  // http://stackoverflow.com/questions/17868954/android-opencv-how-to-set-camera-resolution-when-using-camerabridgeviewbase
+        System.out.println("MainActivity: onCreate: after running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
 
@@ -143,6 +146,11 @@ public class MainActivity extends RosActivity
     @Override
     public void onResume() {
         super.onResume();
+
+//        System.out.println("MainActivity: onResume: before running AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution()");
+//        AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution();
+//        System.out.println("MainActivity: onResume: after running AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution()");
+
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, _baseLoaderCallback);
@@ -332,9 +340,11 @@ public class MainActivity extends RosActivity
     }
 
     public void onCameraViewStarted(int width, int height) {
+        System.out.println("MainActivity: onCameraViewStarted("+width+","+height+"): start");
         mRgbaFlipped = new Mat(height,width, CvType.CV_8UC4);
         mRgbaTransposed = new Mat(height,width, CvType.CV_8UC4);
         matRgb = new Mat(height,width, CvType.CV_8UC4);
+        System.out.println("MainActivity: onCameraViewStarted("+width+","+height+"): end");
     }
 
     public void onCameraViewStopped() {
@@ -351,6 +361,7 @@ public class MainActivity extends RosActivity
 
         matGray = inputFrame.gray();
         matRgb  = inputFrame.rgba();
+        System.out.println("MainActivity: onCameraFrame("+matGray.size().width+","+matGray.size().height+"): start");
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
@@ -363,7 +374,8 @@ public class MainActivity extends RosActivity
             String tagId = matcher.group(1);
             System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.println("-------------------------------------------------------");
-            aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));
+            if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
+            else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
 
         }
 
