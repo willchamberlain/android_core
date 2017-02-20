@@ -14,8 +14,32 @@
  * the License.
  */
 
+
+/*
+Maybe try the change
+buildscript {
+    def f = new File("buildscript.gradle")
+    try{
+    new URL("https://github.com/rosjava/rosjava_bootstrap/raw/indigo/buildscript.gradle").withInputStream{ i -> f.withOutputStream{ it << i }}
+    } catch (all) {
+      //do nothing, keep cached script
+    }
+    apply from: "buildscript.gradle"
+}
+from http://answers.ros.org/question/226643/how-to-compile-a-rosjava-package-offline/
+to allow offline compilation with a cached version
+*/
 rootProject.buildscript {
-  apply from: "https://github.com/rosjava/rosjava_bootstrap/raw/indigo/buildscript.gradle"
+
+
+  def f = new File("github_com_rosjava_rosjava_bootstrap_raw_indigo_buildscript.gradle")
+  try{
+    new URL("https://github.com/rosjava/rosjava_bootstrap/raw/indigo/buildscript.gradle").withInputStream{ i -> f.withOutputStream{ it << i }}
+  } catch (all) {
+    //do nothing, keep cached script
+  }
+  apply from: "github_com_rosjava_rosjava_bootstrap_raw_indigo_buildscript.gradle"
+  /* apply from: "https://github.com/rosjava/rosjava_bootstrap/raw/indigo/buildscript.gradle" */
   dependencies {
     classpath "com.android.tools.build:gradle:2.2.3"
   }
