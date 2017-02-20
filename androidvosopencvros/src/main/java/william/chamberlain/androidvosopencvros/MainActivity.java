@@ -383,14 +383,21 @@ public class MainActivity extends RosActivity
         String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
         for(String tag : tags) {
             System.out.println("-------------------------------------------------------");
+            System.out.print("---");
+            System.out.print(tag);
+            System.out.println("---");
+        }
+        System.out.println("--------------------------------------------------------------------------------------------------------------");
+        for(String tag : tags) {
+            System.out.println("-------------------------------------------------------");
             System.out.print("---");System.out.print(tag);System.out.println("---");
             System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
+            System.out.println("   ... in string [[" + tag + "]]");
             Matcher matcher = tagPattern.matcher(tag);
             System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
             String tagId = matcher.group(1);
             Integer tagId_integer = Integer.parseInt(tagId);
             int tagId_int = tagId_integer.intValue();
-            System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.println("-------------------------------------------------------");
 

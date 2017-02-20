@@ -67,8 +67,11 @@ extern "C"
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
         for (int i=0; i<detections.size(); i++) {
             // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
-            detections[i].getRelativeTranslationRotationQuaternion(m_tagSize, m_fx, m_fy, m_px, m_py,
-                                                     translation, rotation, quaternion);
+            detections[i].getRelativeTranslationRotationQuaternion(
+                    m_tagSize,
+                    m_fx, m_fy,
+                    m_px, m_py,
+                    translation, rotation, quaternion);
             // also highlight in the image
             //detections[i].draw(mRgb, translation, rotation); // my code - label the tag with the x,y,z translation from the camera - clutters the image
             detections[i].draw(mRgb);
@@ -91,15 +94,19 @@ extern "C"
         jobjectArray    tags_as_strings = 0;
         jsize           detections_size = detections.size();
         int             detections_size_int = detections.size();
-        tags_as_strings = (env)->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),0);
+        tags_as_strings = (jobjectArray)env->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),env->NewStringUTF(""));
         for(int i=0; i<detections_size_int; i++) {
-//            std::stringstream sstm;
-//            sstm << "tag_" << detections[i].id ;
-//            str = (env)->NewStringUTF(sstm.str().c_str());
+            // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
+            detections[i].getRelativeTranslationRotationQuaternion(
+                    m_tagSize,
+                    m_fx, m_fy,
+                    m_px, m_py,
+                    translation, rotation, quaternion);
             char tag_and_pose_data[200];
             sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
                     rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2));
+
             str = (env)->NewStringUTF(tag_and_pose_data);
             (env)->SetObjectArrayElement(tags_as_strings, i, str);
         }
