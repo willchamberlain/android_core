@@ -66,11 +66,11 @@ public class AprilTagsPosePublisher implements NodeMain {
     }
 
     public void publishAprilTagId() {
-        System.out.println("AprilTagsPosePublisher: publishAprilTagId: start");
+        System.out.println("AprilTagsPosePublisher: publishRobotLocation: start");
         std_msgs.String message_string = publisher.newMessage();
         message_string.setData(Integer.toString(tagid));
         publisher.publish(message_string);
-        System.out.println("AprilTagsPosePublisher: publishAprilTagId: end");
+        System.out.println("AprilTagsPosePublisher: publishRobotLocation: end");
     }
 
     @Override

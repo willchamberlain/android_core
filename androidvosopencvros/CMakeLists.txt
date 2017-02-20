@@ -7,6 +7,9 @@ cmake_minimum_required(VERSION 3.4.1)
 include_directories(/mnt/nixbig/downloads/opencv_android_sdk/OpenCV-android-sdk_3_1_0/sdk/native/jni/include)
 include_directories(/mnt/nixbig/downloads/apriltags_kaess/apriltags/)
 include_directories(/mnt/nixbig/downloads/apriltags_kaess/apriltags/AprilTags/)
+
+include_directories(/mnt/nixbig/downloads/apriltags_kaess/apriltags/)
+
 add_library( lib_opencv SHARED IMPORTED )
 # add_library( lib_eigen SHARED IMPORTED )
 set_target_properties(lib_opencv PROPERTIES IMPORTED_LOCATION /mnt/nixbig/build_workspaces/androidapriltagsros/app/src/main/jniLibs/${ANDROID_ABI}/libopencv_java3.so)

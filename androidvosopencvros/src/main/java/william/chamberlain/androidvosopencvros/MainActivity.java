@@ -22,6 +22,7 @@ import android.widget.Toast;
 import org.opencv.core.CvType;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
+import org.ros.internal.message.RawMessage;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMainExecutor;
 
@@ -45,6 +46,11 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.ros.rosjava_geometry.Transform;
+
+import geometry_msgs.Point;
+import geometry_msgs.Pose;
+import geometry_msgs.Quaternion;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -65,7 +71,7 @@ public class MainActivity extends RosActivity
     private Mat mRgbaTransposed;
     private Mat mRgbaFlipped;
 
-    Pattern tagPattern = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) ");
+    Pattern tagPattern = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
 
     private BaseLoaderCallback _baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -94,6 +100,7 @@ public class MainActivity extends RosActivity
     private IlluminancePublisher illuminance_pub;
     private TemperaturePublisher temperature_pub;
     private AprilTagsPosePublisher aprilTagsPosePublisher;
+    private DetectedFeaturesClient detectedFeaturesClient;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -240,6 +247,14 @@ public class MainActivity extends RosActivity
             this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
             nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
         }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName("androidvosopencvros_detectedfeatures_serviceclient_node");
+            this.detectedFeaturesClient = new DetectedFeaturesClient();
+            nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
+        }
     }
 
     @Override
@@ -369,13 +384,45 @@ public class MainActivity extends RosActivity
         for(String tag : tags) {
             System.out.println("-------------------------------------------------------");
             System.out.print("---");System.out.print(tag);System.out.println("---");
+            System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
             Matcher matcher = tagPattern.matcher(tag);
             System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
             String tagId = matcher.group(1);
+            Integer tagId_integer = Integer.parseInt(tagId);
+            int tagId_int = tagId_integer.intValue();
+            System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
             System.out.println("-------------------------------------------------------");
+
             if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
             else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
+
+            if(null != detectedFeaturesClient) {
+
+// ("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+
+                double x = Double.parseDouble(matcher.group(2));
+                double y = Double.parseDouble(matcher.group(3));
+                double z = Double.parseDouble(matcher.group(4));
+                double roll  = Double.parseDouble(matcher.group(5));
+                double pitch = Double.parseDouble(matcher.group(6));
+                double yaw   = Double.parseDouble(matcher.group(7));
+                double qx = Double.parseDouble(matcher.group(8));
+                double qy = Double.parseDouble(matcher.group(9));
+                double qz = Double.parseDouble(matcher.group(10));
+                double qw = Double.parseDouble(matcher.group(11));
+                detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
+                System.out.print("--- tag_id=");System.out.print(tagId);
+                    System.out.print(" :  x=");System.out.print(matcher.group(2));System.out.print(" y=");System.out.print(matcher.group(3));System.out.print(" z=");System.out.print(matcher.group(4));
+                    System.out.print(" :  roll=");System.out.print(matcher.group(5));System.out.print(" pitch=");System.out.print(matcher.group(6));System.out.print(" yaw=");System.out.print(matcher.group(7));
+                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
+                    System.out.println("---");
+                System.out.println("-------------------------------------------------------");
+            }
+            else {
+                System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags"); System.out.println(tagId);
+                System.out.println("-------------------------------------------------------");}
 
         }
 

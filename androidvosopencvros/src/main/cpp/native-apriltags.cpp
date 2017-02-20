@@ -60,19 +60,23 @@ extern "C"
         Eigen::Vector3d translation;    // translation vector from camera to the April tag - see TagDetection.cc
         Eigen::Matrix3d rotation;       // orientation of April tag with respect to camera - see TagDetection.cc
         Eigen::Vector3d rollPitchYaw;
+        Eigen::Quaterniond quaternion;
+        const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
+        const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
 
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
         for (int i=0; i<detections.size(); i++) {
             // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
-            detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py,
-                                                     translation, rotation);
+            detections[i].getRelativeTranslationRotationQuaternion(m_tagSize, m_fx, m_fy, m_px, m_py,
+                                                     translation, rotation, quaternion);
             // also highlight in the image
             //detections[i].draw(mRgb, translation, rotation); // my code - label the tag with the x,y,z translation from the camera - clutters the image
             detections[i].draw(mRgb);
             rollPitchYaw = rotation.eulerAngles(0, 2, 1);
-            LOGI( "tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f ",
+            LOGI( quaternion_format_as_string_c_str,
                   detections[i].id, translation(0), translation(1), translation(2),
-                  rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2));
+                  rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
+                    quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
             std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
 //            detections[i].draw(mRgb);
         }
@@ -93,7 +97,7 @@ extern "C"
 //            sstm << "tag_" << detections[i].id ;
 //            str = (env)->NewStringUTF(sstm.str().c_str());
             char tag_and_pose_data[200];
-            sprintf(tag_and_pose_data, "tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f ",
+            sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
                     rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2));
             str = (env)->NewStringUTF(tag_and_pose_data);
