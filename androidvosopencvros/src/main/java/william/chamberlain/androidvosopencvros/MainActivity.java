@@ -63,6 +63,7 @@ public class MainActivity extends RosActivity
 
     private static final String TAG = "OCVSample::Activity";
     private CameraBridgeViewBase _cameraBridgeViewBase;
+    private static final String NODE_NAMESPACE = "android_vos_aa1_" + Integer.toString((new java.util.Random()).nextInt(90000)) + "_";
 
     private long tagDetectorPointer; // Apriltags
 
@@ -106,9 +107,9 @@ public class MainActivity extends RosActivity
     private SensorManager mSensorManager;
 
 
-    public MainActivity()
-    {
+    public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
+
     }
 
 
@@ -195,7 +196,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName("android_sensors_driver_magnetic_field");
+            nodeConfiguration.setNodeName(NODE_NAMESPACE+"android_sensors_driver_magnetic_field");
             this.magnetic_field_pub = new MagneticFieldPublisher(mSensorManager, sensorDelay);
             nodeMainExecutor.execute(this.magnetic_field_pub, nodeConfiguration);
         }
@@ -203,7 +204,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration2 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration2.setMasterUri(masterURI);
-            nodeConfiguration2.setNodeName("android_sensors_driver_nav_sat_fix");
+            nodeConfiguration2.setNodeName(NODE_NAMESPACE+"android_sensors_driver_nav_sat_fix");
             this.fix_pub = new NavSatFixPublisher(mLocationManager);
             nodeMainExecutor.execute(this.fix_pub, nodeConfiguration2);
         }
@@ -211,7 +212,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration3 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration3.setMasterUri(masterURI);
-            nodeConfiguration3.setNodeName("android_sensors_driver_imu");
+            nodeConfiguration3.setNodeName(NODE_NAMESPACE+"android_sensors_driver_imu");
             this.imu_pub = new ImuPublisher(mSensorManager, sensorDelay);
             nodeMainExecutor.execute(this.imu_pub, nodeConfiguration3);
         }
@@ -219,7 +220,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration4 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration4.setMasterUri(masterURI);
-            nodeConfiguration4.setNodeName("android_sensors_driver_pressure");
+            nodeConfiguration4.setNodeName(NODE_NAMESPACE+"android_sensors_driver_pressure");
             this.fluid_pressure_pub = new FluidPressurePublisher(mSensorManager, sensorDelay);
             nodeMainExecutor.execute(this.fluid_pressure_pub, nodeConfiguration4);
         }
@@ -227,7 +228,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration5 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration5.setMasterUri(masterURI);
-            nodeConfiguration5.setNodeName("android_sensors_driver_illuminance");
+            nodeConfiguration5.setNodeName(NODE_NAMESPACE+"android_sensors_driver_illuminance");
             this.illuminance_pub = new IlluminancePublisher(mSensorManager, sensorDelay);
             nodeMainExecutor.execute(this.illuminance_pub, nodeConfiguration5);
         }
@@ -235,7 +236,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration6 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration6.setMasterUri(masterURI);
-            nodeConfiguration6.setNodeName("android_sensors_driver_temperature");
+            nodeConfiguration6.setNodeName(NODE_NAMESPACE+"android_sensors_driver_temperature");
             this.temperature_pub = new TemperaturePublisher(mSensorManager, sensorDelay, tempSensor);
             nodeMainExecutor.execute(this.temperature_pub, nodeConfiguration6);
         }
@@ -243,7 +244,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration7 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration7.setMasterUri(masterURI);
-            nodeConfiguration7.setNodeName("androidvosopencvros_apriltags");
+            nodeConfiguration7.setNodeName(NODE_NAMESPACE+"apriltags_pose_publisher");
             this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
             nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
         }
@@ -251,7 +252,7 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration8.setMasterUri(masterURI);
-            nodeConfiguration8.setNodeName("androidvosopencvros_detectedfeatures_serviceclient_node");
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"detectedfeatures_serviceclient_node");
             this.detectedFeaturesClient = new DetectedFeaturesClient();
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }

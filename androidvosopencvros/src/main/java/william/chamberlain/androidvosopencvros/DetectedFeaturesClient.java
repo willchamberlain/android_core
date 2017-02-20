@@ -35,6 +35,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     private ReportDetectedFeaturesResponseListener responseListener;
     private ServiceClient<DetectedFeatureRequest, DetectedFeatureResponse> featureServiceClient;
     private ReportDetectedFeatureResponseListener featureResponseListener;
+    private ConnectedNode connectedNode;
 
     @Override
     public GraphName getDefaultNodeName() {
@@ -42,26 +43,32 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     }
 
     @Override
-    public void onStart(ConnectedNode connectedNode) {
+    public void onStart(ConnectedNode connectedNode_) {
         System.out.println("DetectedFeaturesClient: onStart");
         try {
 //            serviceClient = connectedNode.newServiceClient("/androidvosopencvros/detected_features", DetectedFeatures._TYPE);
 //            responseListener = new ReportDetectedFeaturesResponseListener();
 //            responseListener.setConnectedNode(connectedNode);
-            featureServiceClient = connectedNode.newServiceClient("/androidvosopencvros/detected_feature", DetectedFeature._TYPE);
+            featureServiceClient = connectedNode_.newServiceClient("/androidvosopencvros/detected_feature", DetectedFeature._TYPE);  // TODO: un-hardcode the service URL
             featureResponseListener = new ReportDetectedFeatureResponseListener();
-            featureResponseListener.setConnectedNode(connectedNode);
+            featureResponseListener.setConnectedNode(connectedNode_);
+            connectedNode = connectedNode_;
         } catch (ServiceNotFoundException e) {
             System.out.println("DetectedFeaturesClient: onStart: fail ServiceNotFoundException");
+            e.printStackTrace();
+            connectedNode.getLog().error("DetectedFeaturesClient: onStart: fail ServiceNotFoundException");
             throw new RosRuntimeException(e);
         } catch (Exception e) {
-            if (connectedNode != null) {
-                connectedNode.getLog().fatal(e);
+            if (connectedNode_ != null) {
+                System.out.println("DetectedFeaturesClient: onStart: fail Exception");
+                e.printStackTrace();
+                connectedNode_.getLog().fatal(e);
             } else {
                 System.out.println("DetectedFeaturesClient: onStart: fail Exception");
                 e.printStackTrace();
             }
         }
+//        connectedNode.getLog().info("DetectedFeaturesClient: onStart: success");
         System.out.println("DetectedFeaturesClient: onStart: success");
     }
 
@@ -78,7 +85,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
         PoseStamped cameraPose = serviceRequest.getCameraPose();
-//        cameraPose.getHeader().setFrameId("/map");
+        cameraPose.getHeader().setFrameId(connectedNode.getName().toGlobal().toString());
 
         VisualFeature visualFeature = serviceRequest.getVisualFeature();
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
@@ -124,19 +131,20 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
     @Override
     public void onShutdown(Node node) {
-        System.out.println("DetectedFeaturesClient: onShutdown");
+        connectedNode.getLog().info("DetectedFeaturesClient: onShutdown");
         responseListener.shutDown();
     }
 
     @Override
     public void onShutdownComplete(Node node) {
-        System.out.println("DetectedFeaturesClient: onShutdownComplete");
+        connectedNode.getLog().info("DetectedFeaturesClient: onShutdownComplete");
 
     }
 
     @Override
     public void onError(Node node, Throwable throwable) {
-        System.out.println("DetectedFeaturesClient: onError");
+        throwable.printStackTrace();
+        connectedNode.getLog().error("DetectedFeaturesClient: onError");
     }
 
 
@@ -160,8 +168,9 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
         @Override
         public void onFailure(RemoteException e) {
-            connectedNode.getLog().info("ReportDetectedFeaturesResponseListener: onFailure");   // - can't tie the response to the request - see http://rosjava.github.io/rosjava_core/0.1.6/getting_started.html for an alternative
+            connectedNode.getLog().error("ReportDetectedFeaturesResponseListener: onFailure");   // - can't tie the response to the request - see http://rosjava.github.io/rosjava_core/0.1.6/getting_started.html for an alternative
             System.out.println("ReportDetectedFeaturesResponseListener: onFailure");
+            e.printStackTrace();
             throw new RosRuntimeException(e);
         }
     }
@@ -187,8 +196,9 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
         @Override
         public void onFailure(RemoteException e) {
-            connectedNode.getLog().info("ReportDetectedFeatureResponseListener: onFailure");   // - can't tie the response to the request - see http://rosjava.github.io/rosjava_core/0.1.6/getting_started.html for an alternative
+            connectedNode.getLog().error("ReportDetectedFeatureResponseListener: onFailure");   // - can't tie the response to the request - see http://rosjava.github.io/rosjava_core/0.1.6/getting_started.html for an alternative
             System.out.println("ReportDetectedFeatureResponseListener: onFailure");
+            e.printStackTrace();
             throw new RosRuntimeException(e);
         }
     }
