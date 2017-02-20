@@ -254,6 +254,7 @@ public class MainActivity extends RosActivity
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"detectedfeatures_serviceclient_node");
             this.detectedFeaturesClient = new DetectedFeaturesClient();
+            detectedFeaturesClient.setPrefix(NODE_NAMESPACE);
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
     }
@@ -420,13 +421,13 @@ public class MainActivity extends RosActivity
                 double qz = Double.parseDouble(matcher.group(10));
                 double qw = Double.parseDouble(matcher.group(11));
                 detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
-                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
-                System.out.print("--- tag_id=");System.out.print(tagId);
-                    System.out.print(" :  x=");System.out.print(matcher.group(2));System.out.print(" y=");System.out.print(matcher.group(3));System.out.print(" z=");System.out.print(matcher.group(4));
-                    System.out.print(" :  roll=");System.out.print(matcher.group(5));System.out.print(" pitch=");System.out.print(matcher.group(6));System.out.print(" yaw=");System.out.print(matcher.group(7));
-                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
-                    System.out.println("---");
-                System.out.println("-------------------------------------------------------");
+//                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
+//                System.out.print("--- tag_id=");System.out.print(tagId);
+//                    System.out.print(" :  x=");System.out.print(matcher.group(2));System.out.print(" y=");System.out.print(matcher.group(3));System.out.print(" z=");System.out.print(matcher.group(4));
+//                    System.out.print(" :  roll=");System.out.print(matcher.group(5));System.out.print(" pitch=");System.out.print(matcher.group(6));System.out.print(" yaw=");System.out.print(matcher.group(7));
+//                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
+//                    System.out.println("---");
+//                System.out.println("-------------------------------------------------------");
             }
             else {
                 System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags"); System.out.println(tagId);

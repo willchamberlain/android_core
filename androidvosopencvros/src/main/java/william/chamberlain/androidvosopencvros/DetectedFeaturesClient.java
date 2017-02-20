@@ -36,6 +36,11 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     private ServiceClient<DetectedFeatureRequest, DetectedFeatureResponse> featureServiceClient;
     private ReportDetectedFeatureResponseListener featureResponseListener;
     private ConnectedNode connectedNode;
+    private String prefix;
+
+    public void setPrefix(String NODE_NAMESPACE_) {
+        prefix = NODE_NAMESPACE_;
+    }
 
     @Override
     public GraphName getDefaultNodeName() {
@@ -85,7 +90,15 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
         PoseStamped cameraPose = serviceRequest.getCameraPose();
-        cameraPose.getHeader().setFrameId(connectedNode.getName().toGlobal().toString());
+        cameraPose.getHeader().setFrameId(prefix+"_camera");
+        Point cameraPositionInWorld = cameraPose.getPose().getPosition();
+        cameraPositionInWorld.setX(0);
+        cameraPositionInWorld.setY(0);
+        cameraPositionInWorld.setZ(0);
+        cameraPose.getPose().getOrientation().setX(0.1);
+        cameraPose.getPose().getOrientation().setY(0.1);
+        cameraPose.getPose().getOrientation().setZ(0.1);
+        cameraPose.getPose().getOrientation().setW(0.1);  //TODO - unit Quaternion --> zero rotation
 
         VisualFeature visualFeature = serviceRequest.getVisualFeature();
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;

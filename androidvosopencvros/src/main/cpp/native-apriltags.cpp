@@ -105,7 +105,8 @@ extern "C"
             char tag_and_pose_data[200];
             sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
-                    rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2));
+                    rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
+                    quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
 
             str = (env)->NewStringUTF(tag_and_pose_data);
             (env)->SetObjectArrayElement(tags_as_strings, i, str);
