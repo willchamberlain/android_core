@@ -151,6 +151,11 @@ public abstract class RosActivity extends Activity {
     super.startActivityForResult(new Intent(this, MasterChooser.class), 0);
   }
 
+  public int getCamNum() {
+    Preconditions.checkNotNull(nodeMainExecutorService);
+    return nodeMainExecutorService.getCamNum();
+  }
+
   public URI getMasterUri() {
     Preconditions.checkNotNull(nodeMainExecutorService);
     return nodeMainExecutorService.getMasterUri();
@@ -171,6 +176,14 @@ public abstract class RosActivity extends Activity {
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     super.onActivityResult(requestCode, resultCode, data);
     if (resultCode == RESULT_OK) {
+      int camNum;
+      try {
+        camNum = Integer.parseInt(data.getStringExtra("CAM_NUM"));
+      } catch (NumberFormatException nfe) {
+System.out.println("RosActivity: onActivityResult: " + data.getStringExtra("CAM_NUM") + " is not a valid camera number");
+        throw new RosRuntimeException(nfe);
+      }
+System.out.println("RosActivity: onActivityResult: camNum=" + camNum);
       if (requestCode == MASTER_CHOOSER_REQUEST_CODE) {
         String host;
         String networkInterfaceName = data.getStringExtra("ROS_MASTER_NETWORK_INTERFACE");
@@ -193,9 +206,15 @@ public abstract class RosActivity extends Activity {
           try {
             uri = new URI(data.getStringExtra("ROS_MASTER_URI"));
           } catch (URISyntaxException e) {
+e.printStackTrace();
+System.out.println(" onActivityResult BEFORE --> nodeMainExecutorService.setCamNum(" + camNum + "); ");
             throw new RosRuntimeException(e);
           }
           nodeMainExecutorService.setMasterUri(uri);
+System.out.println("------------------------");
+System.out.println(" onActivityResult --> nodeMainExecutorService.setCamNum(" + camNum + "); ");
+          nodeMainExecutorService.setCamNum(camNum);
+System.out.println("------------------------");
         }
         // Run init() in a new thread as a convenience since it often requires network access.
         new AsyncTask<Void, Void, Void>() {

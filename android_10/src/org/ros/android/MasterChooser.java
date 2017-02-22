@@ -72,7 +72,9 @@ public class MasterChooser extends Activity {
    * The key with which the last used {@link URI} will be stored as a
    * preference.
    */
-  private static final String PREFS_KEY_NAME = "URI_KEY";
+  private static final String MASTER_URI_PREFS_KEY_NAME = "URI_KEY";
+  private static final String CAM_NUM_PREFS_KEY_NAME = "CAM_NUM_KEY";
+  private static final int DEFAULT_CAM_NUM = 1;
 
   /**
    * Package name of the QR code reader used to scan QR codes.
@@ -82,6 +84,7 @@ public class MasterChooser extends Activity {
 
   private String selectedInterface;
   private EditText uriText;
+  private EditText camNumText;
   private Button connectButton;
 
   private class StableArrayAdapter extends ArrayAdapter<String> {
@@ -112,6 +115,7 @@ public class MasterChooser extends Activity {
     super.onCreate(savedInstanceState);
     setContentView(R.layout.master_chooser);
     uriText = (EditText) findViewById(R.id.master_chooser_uri);
+    camNumText = (EditText) findViewById(R.id.cam_num_chooser_num);
     connectButton = (Button) findViewById(R.id.master_chooser_ok);
     uriText.addTextChangedListener(new TextWatcher() {
       @Override
@@ -161,9 +165,13 @@ public class MasterChooser extends Activity {
     // Get the URI from preferences and display it. Since only primitive types
     // can be saved in preferences the URI is stored as a string.
     String uri =
-        getPreferences(MODE_PRIVATE).getString(PREFS_KEY_NAME,
+        getPreferences(MODE_PRIVATE).getString(MASTER_URI_PREFS_KEY_NAME,
             NodeConfiguration.DEFAULT_MASTER_URI.toString());
     uriText.setText(uri);
+    String camNumPreference =
+            getPreferences(MODE_PRIVATE).getString(CAM_NUM_PREFS_KEY_NAME,
+                    Integer.toString(DEFAULT_CAM_NUM));
+    camNumText.setText(camNumPreference);
   }
 
   @Override
@@ -185,6 +193,7 @@ public class MasterChooser extends Activity {
     uriText.setEnabled(false);
     connectButton.setEnabled(false);
     final String uri = uriText.getText().toString();
+    final String camNum = camNumText.getText().toString();
 
     // Make sure the URI can be parsed correctly and that the master is
     // reachable.
@@ -192,10 +201,14 @@ public class MasterChooser extends Activity {
       @Override
       protected Boolean doInBackground(Void... params) {
         try {
+System.out.println("----------------------------------------");
+System.out.println("MasterChooser: okButtonClicked: Trying to reach master...");
           toast("Trying to reach master...");
           MasterClient masterClient = new MasterClient(new URI(uri));
           masterClient.getUri(GraphName.of("android/master_chooser_activity"));
           toast("Connected!");
+          System.out.println("MasterChooser: okButtonClicked: connected to master ");
+System.out.println("----------------------------------------");
           return true;
         } catch (URISyntaxException e) {
           toast("Invalid URI.");
@@ -211,13 +224,15 @@ public class MasterChooser extends Activity {
         if (result) {
           // If the displayed URI is valid then pack that into the intent.
           SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
-          editor.putString(PREFS_KEY_NAME, uri);
+          editor.putString(MASTER_URI_PREFS_KEY_NAME, uri);
+          editor.commit();
+          editor.putString(CAM_NUM_PREFS_KEY_NAME, camNum);
           editor.commit();
           // Package the intent to be consumed by the calling activity.
           Intent intent = createNewMasterIntent(false, true);
           setResult(RESULT_OK, intent);
           finish();
-        } else {
+        } else { // Reset the buttons for further clicks.
           connectButton.setEnabled(true);
           uriText.setEnabled(true);
         }
@@ -262,10 +277,12 @@ public class MasterChooser extends Activity {
   public Intent createNewMasterIntent(boolean newMaster, boolean isPrivate) {
     Intent intent = new Intent();
     final String uri = uriText.getText().toString();
+    final String cam_num = camNumText.getText().toString();
     intent.putExtra("ROS_MASTER_CREATE_NEW", newMaster);
     intent.putExtra("ROS_MASTER_PRIVATE", isPrivate);
     intent.putExtra("ROS_MASTER_URI", uri);
     intent.putExtra("ROS_MASTER_NETWORK_INTERFACE", selectedInterface);
+    intent.putExtra("CAM_NUM", cam_num);
     return intent;
   }
 

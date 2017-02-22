@@ -1,6 +1,5 @@
 package william.chamberlain.androidvosopencvros;
 
-
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
@@ -63,7 +62,7 @@ public class MainActivity extends RosActivity
 
     private static final String TAG = "OCVSample::Activity";
     private CameraBridgeViewBase _cameraBridgeViewBase;
-    private static final String NODE_NAMESPACE = "android_vos_aa1_" + Integer.toString((new java.util.Random()).nextInt(90000)) + "_";
+
 
     private long tagDetectorPointer; // Apriltags
 
@@ -109,7 +108,7 @@ public class MainActivity extends RosActivity
 
     public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
-
+//        super("VOS AA1", "VOS AA1", URI.create("http://192.168.1.164:11311"));  //TODO // see http://wiki.ros.org/android/Tutorials/indigo/RosActivity , http://answers.ros.org/question/55874/skip-master-chooser/
     }
 
 
@@ -176,8 +175,10 @@ public class MainActivity extends RosActivity
         //masterURI = URI.create("http://localhost:11311/");
         //masterURI = URI.create("http://192.168.15.247:11311/");
         //masterURI = URI.create("http://10.0.1.157:11311/");
-        System.out.println("init: masterURI=");
-        System.out.println(masterURI);
+        System.out.print("init: masterURI=");System.out.println(masterURI);
+        int camNum = getCamNum();
+        final String NODE_NAMESPACE = "cam_" + camNum + "_";
+        System.out.print("init: camNum=");System.out.print(camNum); System.out.print("NODE_NAMESPACE = ");System.out.println(NODE_NAMESPACE);
 
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
@@ -257,6 +258,7 @@ public class MainActivity extends RosActivity
             detectedFeaturesClient.setPrefix(NODE_NAMESPACE);
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
+
     }
 
     @Override
@@ -460,5 +462,8 @@ public class MainActivity extends RosActivity
     public native long newTagDetector();   // Apriltags
     public native void deleteTagDetector(long tagDetectorPointer);     // Apriltags
     public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
+
+
+
 }
 

@@ -61,7 +61,7 @@
             <!-- android:host="*"   ?id=org.ros.android.sensors_driver  android:pathPattern="*org.ros.android.sensors_driver"     android:pathPrefix="/.*org.ros.android.sensors_driver.*"-->
         </activity>
         
-        <activity android:name="org.ros.android.MasterChooser">
+        <activity android:name="org.ros.android.MasterChooser"> <!-- choose the ROS Master URI -->
         </activity>
 
         <service android:name="org.ros.android.NodeMainExecutorService" />

@@ -13,5 +13,7 @@
     <string name="show_advanced">Show advanced options</string>
     <string name="select_interface">Select network interface</string>
     <string name="uri_text">Master URI:</string>
+    <string name="cam_num_text">Cam number:</string>
+    <string name="cam_num_hint">1</string>
 
 </resources>

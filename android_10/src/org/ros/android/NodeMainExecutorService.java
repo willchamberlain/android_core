@@ -77,6 +77,7 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
   private WifiLock wifiLock;
   private RosCore rosCore;
   private URI masterUri;
+  private int camNum;
 //  private String rosHostname = "192.168.1.252";
 //  private String rosHostname = "localhost";
   private String rosHostname = "192.168.1.164";
@@ -241,6 +242,15 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
   public void setMasterUri(URI uri) {
     masterUri = uri;
   }
+
+  public void setCamNum(int camNum_) {
+    camNum = camNum_;
+  }
+
+  public int getCamNum() {
+    return camNum;
+  }
+
 
   public void setRosHostname(String hostname) {
     rosHostname = hostname;
