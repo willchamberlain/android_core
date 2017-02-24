@@ -1,10 +1,8 @@
 package william.chamberlain.androidvosopencvros;
 
-import org.ros.concurrent.CancellableLoop;
 import org.ros.exception.RemoteException;
 import org.ros.exception.RosRuntimeException;
 import org.ros.exception.ServiceNotFoundException;
-import org.ros.internal.message.service.ServiceRequestMessageFactory;
 import org.ros.message.MessageFactory;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
@@ -21,7 +19,6 @@ import geometry_msgs.Twist;
 import vos_aa1.DetectedFeature;
 import vos_aa1.DetectedFeatureRequest;
 import vos_aa1.DetectedFeatureResponse;
-import vos_aa1.DetectedFeatures;
 import vos_aa1.DetectedFeaturesRequest;
 import vos_aa1.DetectedFeaturesResponse;
 import vos_aa1.VisualFeature;
@@ -36,10 +33,10 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     private ServiceClient<DetectedFeatureRequest, DetectedFeatureResponse> featureServiceClient;
     private ReportDetectedFeatureResponseListener featureResponseListener;
     private ConnectedNode connectedNode;
-    private String prefix;
+    private String cameraFrameId;
 
-    public void setPrefix(String NODE_NAMESPACE_) {
-        prefix = NODE_NAMESPACE_;
+    public void setCameraFrameId(String NODE_NAMESPACE_) {
+        cameraFrameId = NODE_NAMESPACE_;
     }
 
     @Override
@@ -90,29 +87,19 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
         PoseStamped cameraPose = serviceRequest.getCameraPose();
-        cameraPose.getHeader().setFrameId(prefix+"_camera");
+        cameraPose.getHeader().setFrameId(cameraFrameId);
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
-        cameraPositionInWorld.setX(0);
-        cameraPositionInWorld.setY(0);
-        cameraPositionInWorld.setZ(0);
-        cameraPose.getPose().getOrientation().setX(0.1);
-        cameraPose.getPose().getOrientation().setY(0.1);
-        cameraPose.getPose().getOrientation().setZ(0.1);
-        cameraPose.getPose().getOrientation().setW(0.1);  //TODO - unit Quaternion --> zero rotation
+        Geometry.applyTranslationParams(0, 0, 0, cameraPositionInWorld);
+        Geometry.applyQuaternionParams(0.1, 0.1, 0.1, 0.1, cameraPose.getPose().getOrientation());
 
         VisualFeature visualFeature = serviceRequest.getVisualFeature();
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
-        featureOrientation.setX(qx);
-        featureOrientation.setY(qy);
-        featureOrientation.setZ(qz);
-        featureOrientation.setW(qw);
+        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
 
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
-        translationToFeature.setX(x);
-        translationToFeature.setY(y);
-        translationToFeature.setZ(z);
+        Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
-        visualFeature.setAlgorithm("AprilTags_Kaess_36h11");
+        visualFeature.setAlgorithm("t"); //"AprilTags_Kaess_36h11");
         visualFeature.setId(tagId);
 
         serviceRequest.setCameraPose(cameraPose);
@@ -120,6 +107,8 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
         featureServiceClient.call(serviceRequest,featureResponseListener);
     }
+
+
 
 
     public void reportDetectedFeatures(geometry_msgs.PoseStamped cameraPose_, java.util.List<vos_aa1.VisualFeature> visualFeaturesToReport_) {

@@ -1,38 +1,31 @@
 package william.chamberlain.androidvosopencvros;
 
-import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
-import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.support.v4.app.ActivityCompat;
 import android.view.SurfaceView;
 import android.widget.Toast;
 
 import org.opencv.core.CvType;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
-import org.ros.internal.message.RawMessage;
+import org.ros.message.Time;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMainExecutor;
 
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.SubMenu;
-import android.view.Window;
 import android.view.WindowManager;
 import android.view.MenuInflater;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -45,11 +38,6 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.ros.rosjava_geometry.Transform;
-
-import geometry_msgs.Point;
-import geometry_msgs.Pose;
-import geometry_msgs.Quaternion;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -61,6 +49,8 @@ public class MainActivity extends RosActivity
         implements CameraBridgeViewBase.CvCameraViewListener2 {
 
     private static final String TAG = "OCVSample::Activity";
+    public static final String MARKER_NAMESPACE = "apriltags_marker_publisher/tag_markers";
+
     private CameraBridgeViewBase _cameraBridgeViewBase;
 
 
@@ -101,6 +91,7 @@ public class MainActivity extends RosActivity
     private TemperaturePublisher temperature_pub;
     private AprilTagsPosePublisher aprilTagsPosePublisher;
     private DetectedFeaturesClient detectedFeaturesClient;
+    private MarkerPublisherNode markerPublisherNode;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -176,9 +167,8 @@ public class MainActivity extends RosActivity
         //masterURI = URI.create("http://192.168.15.247:11311/");
         //masterURI = URI.create("http://10.0.1.157:11311/");
         System.out.print("init: masterURI=");System.out.println(masterURI);
-        int camNum = getCamNum();
-        final String NODE_NAMESPACE = "cam_" + camNum + "_";
-        System.out.print("init: camNum=");System.out.print(camNum); System.out.print("NODE_NAMESPACE = ");System.out.println(NODE_NAMESPACE);
+        final String NODE_NAMESPACE = Naming.cameraNamespace(getCamNum());
+        System.out.print("init: camNum=");System.out.print(getCamNum()); System.out.print("NODE_NAMESPACE = ");System.out.println(NODE_NAMESPACE);
 
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
@@ -255,11 +245,21 @@ public class MainActivity extends RosActivity
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"detectedfeatures_serviceclient_node");
             this.detectedFeaturesClient = new DetectedFeaturesClient();
-            detectedFeaturesClient.setPrefix(NODE_NAMESPACE);
+            detectedFeaturesClient.setCameraFrameId(Naming.cameraFrameId(NODE_NAMESPACE));
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
 
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration.setMasterUri(masterURI);
+            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
+            this.markerPublisherNode = new MarkerPublisherNode();
+            markerPublisherNode.setPrefix(NODE_NAMESPACE);
+            nodeMainExecutor.execute(this.markerPublisherNode, nodeConfiguration);
+        }
+
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -392,26 +392,31 @@ public class MainActivity extends RosActivity
             System.out.println("---");
         }
         System.out.println("--------------------------------------------------------------------------------------------------------------");
+
+        Time timeNow = Date.nowAsTime();
         for(String tag : tags) {
-            System.out.println("-------------------------------------------------------");
-            System.out.print("---");System.out.print(tag);System.out.println("---");
-            System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
-            System.out.println("   ... in string [[" + tag + "]]");
+            {
+                System.out.println("-------------------------------------------------------");
+                System.out.print("---"); System.out.print(tag); System.out.println("---");
+                System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
+                System.out.println("   ... in string [[" + tag + "]]");
+            }
             Matcher matcher = tagPattern.matcher(tag);
-            System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
+            {
+                System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
+            }
             String tagId = matcher.group(1);
             Integer tagId_integer = Integer.parseInt(tagId);
             int tagId_int = tagId_integer.intValue();
-            System.out.print("--- tag_id=");System.out.print(tagId);System.out.print(" x=");System.out.print(matcher.group(2));System.out.println("---");
-            System.out.println("-------------------------------------------------------");
-
+            {
+                System.out.print("--- tag_id="); System.out.print(tagId); System.out.print(" x=");  System.out.print(matcher.group(2)); System.out.println("---");
+                System.out.println("-------------------------------------------------------");
+            }
             if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
             else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
 
             if(null != detectedFeaturesClient) {
-
 // ("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
-
                 double x = Double.parseDouble(matcher.group(2));
                 double y = Double.parseDouble(matcher.group(3));
                 double z = Double.parseDouble(matcher.group(4));
@@ -430,11 +435,18 @@ public class MainActivity extends RosActivity
 //                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
 //                    System.out.println("---");
 //                System.out.println("-------------------------------------------------------");
+                {
+                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
+                    markerPublisherNode.publishMarker(MARKER_NAMESPACE, tagId_int, tagId, x, y, z, qx, qy, qz, qw, Naming.cameraFrameId(getCamNum()), timeNow);
+                    // TODO - use same variable for this and aa1_vos_android_catkin_ws___src/vos_aa1/src/vos_aa1/detect_feature_server.py
+                    // TODO - publish markers in detected_feature_server.py - once I have figured out what is going on with the RPY in that Python code
+                    // TODO -   ... or use C++ as detected_feature_server.cpp
+                }
             }
             else {
                 System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags"); System.out.println(tagId);
-                System.out.println("-------------------------------------------------------");}
-
+                System.out.println("-------------------------------------------------------");
+            }
         }
 
 
@@ -455,6 +467,7 @@ public class MainActivity extends RosActivity
 //        }
 //        return matGray;
     }
+
 
     public native void salt(long matAddrGray, int nbrElem);
     public native void canny(long matAddrGray);
