@@ -76,6 +76,7 @@ public class MainActivity extends RosActivity
                     // Load ndk built module, as specified in moduleName in build.gradle
                     // after opencv initialization
                     System.loadLibrary("native-lib");
+                    System.loadLibrary("apriltags_kaess");
                     _cameraBridgeViewBase.enableView();
                 }
                 break;
@@ -137,6 +138,12 @@ public class MainActivity extends RosActivity
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
 
+        if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, _baseLoaderCallback)){  // http://stackoverflow.com/questions/24732504/live-stream-video-processing-in-android-using-opencv
+            Log.e("OPENCV", "onCreate: Cannot connect to OpenCV Manager");
+        }else {
+            Log.i("OPENCV", "onCreate: opencv successfull");
+        }
+
         tagDetectorPointer = newTagDetector();
     }
 
@@ -157,6 +164,7 @@ public class MainActivity extends RosActivity
         if (!OpenCVLoader.initDebug()) {
             Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
             OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, _baseLoaderCallback);
+//            _cameraBridgeViewBase.enableView();
         } else {
             Log.d(TAG, "OpenCV library found inside package. Using it!");
             _baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);

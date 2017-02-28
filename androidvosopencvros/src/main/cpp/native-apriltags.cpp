@@ -67,11 +67,18 @@ extern "C"
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
         for (int i=0; i<detections.size(); i++) {
             // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
-            detections[i].getRelativeTranslationRotationQuaternion(
-                    m_tagSize,
-                    m_fx, m_fy,
-                    m_px, m_py,
-                    translation, rotation, quaternion);
+//            detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py, translation,rotation);
+            Eigen::Matrix4d transform = detections[i].getRelativeTransform(m_tagSize, m_fx, m_fy, m_px, m_py);  // see /mnt/nixbig/build_workspaces/apriltags_ros/src/apriltags_ros/apriltags_ros/src/apriltag_detector.cpp
+            translation[0] = transform(0, 3);
+            translation[1] = transform(1, 3);
+            translation[2] = transform(2, 3);
+            rotation = transform.block(0, 0, 3, 3);
+            quaternion = Eigen::Quaternion<double>(rotation);
+//            detections[i].getRelativeTranslationRotationQuaternion(
+//                    m_tagSize,
+//                    m_fx, m_fy,
+//                    m_px, m_py,
+//                    translation, rotation, quaternion);
             // also highlight in the image
             //detections[i].draw(mRgb, translation, rotation); // my code - label the tag with the x,y,z translation from the camera - clutters the image
             detections[i].draw(mRgb);
@@ -82,6 +89,7 @@ extern "C"
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
             LOGI("  -->  rpy degrees:  roll=%.4f pitch=%.4f yaw=%.4f", rollPitchYaw(0)*180.0/3.14159265, rollPitchYaw(1)*180.0/3.14159265, rollPitchYaw(2)*180.0/3.14159265 );
             std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
+            std::cout.flush();
 //            detections[i].draw(mRgb);
         }
 //        rotate_90n(mRgb,mRgb,270);
