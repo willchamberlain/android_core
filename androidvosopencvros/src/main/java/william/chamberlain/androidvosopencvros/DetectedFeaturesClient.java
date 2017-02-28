@@ -34,14 +34,15 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     private ReportDetectedFeatureResponseListener featureResponseListener;
     private ConnectedNode connectedNode;
     private String cameraFrameId;
+    private PosedEntity posedEntity;
 
-    public void setCameraFrameId(String NODE_NAMESPACE_) {
-        cameraFrameId = NODE_NAMESPACE_;
+    public void setCameraFrameId(String cameraFrameId_) {
+        this.cameraFrameId = cameraFrameId_;
     }
 
     @Override
     public GraphName getDefaultNodeName() {
-        return GraphName.of("androidvosopencvros/april_tags_publisher");
+        return GraphName.of("androidvosopencvros/detected_feature_client");
     }
 
     @Override
@@ -88,14 +89,14 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
         PoseStamped cameraPose = serviceRequest.getCameraPose();
         cameraPose.getHeader().setFrameId(cameraFrameId);
+        Quaternion cameraOrientationInWorld = cameraPose.getPose().getOrientation();
+        Geometry.applyQuaternionParams(posedEntity.getOrientation(), cameraOrientationInWorld);
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
-        Geometry.applyTranslationParams(0, 0, 0, cameraPositionInWorld);
-        Geometry.applyQuaternionParams(0.1, 0.1, 0.1, 0.1, cameraPose.getPose().getOrientation());
+        Geometry.applyTranslationParams(posedEntity.getPosition(), cameraPositionInWorld);
 
         VisualFeature visualFeature = serviceRequest.getVisualFeature();
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
         Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
-
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
         Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
@@ -205,5 +206,8 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         }
     }
 
+    public void setPosedEntity(PosedEntity posedEntity) {
+        this.posedEntity = posedEntity;
+    }
 
 }

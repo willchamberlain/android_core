@@ -19,7 +19,7 @@ public class MarkerPublisherNode extends AbstractNodeMain {
     private String prefix;
 //    public static final String MARKER_PUBLISHER_TOPIC_NAME
 
-    public void setPrefix(String NODE_NAMESPACE_) {
+    public void setNodeNamespace(String NODE_NAMESPACE_) {
         prefix = NODE_NAMESPACE_;
     }
 

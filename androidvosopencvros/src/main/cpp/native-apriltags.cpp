@@ -49,13 +49,13 @@ extern "C"
 
         Mat &mGr = *(Mat *) matAddrGray;
         Mat &mRgb = *(Mat *) matAddrRgb;
-        int m_width = mGr.cols; // image size in pixels
+        int m_width = mGr.cols;    // image size in pixels
         int m_height = mGr.rows;
-        double m_tagSize = 0.168; // April tag side length in meters of square black frame
+        double m_tagSize = 0.168;  // April tag side length in meters of square black frame
         // linear camera model
-        double m_fx = 1098.002914; // camera focal length in pixels - http://ksimek.github.io/2013/08/13/intrinsic/ - https://en.wikipedia.org/wiki/Camera_matrix
-        double m_fy = 1096.498477; // see https://cloudstor.aarnet.edu.au/plus/index.php/apps/files/?dir=%2Fproject_AA1__1_1%2Fresults%2F2016_12_04_callibrate_in_ROS%2Fcalibrationdata_131#editor
-        double m_px = m_width/2; // camera principal point
+        double m_fx = 1098.002914; // TODO - check calibration - camera focal length in pixels - http://ksimek.github.io/2013/08/13/intrinsic/ - https://en.wikipedia.org/wiki/Camera_matrix
+        double m_fy = 1096.498477; // TODO - check calibration - see https://cloudstor.aarnet.edu.au/plus/index.php/apps/files/?dir=%2Fproject_AA1__1_1%2Fresults%2F2016_12_04_callibrate_in_ROS%2Fcalibrationdata_131#editor
+        double m_px = m_width/2;   // TODO - use proper camera principal point
         double m_py = m_height/2;
         Eigen::Vector3d translation;    // translation vector from camera to the April tag - see TagDetection.cc
         Eigen::Matrix3d rotation;       // orientation of April tag with respect to camera - see TagDetection.cc
@@ -80,6 +80,7 @@ extern "C"
                   detections[i].id, translation(0), translation(1), translation(2),
                   rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
+            LOGI("  -->  rpy degrees:  roll=%.4f pitch=%.4f yaw=%.4f", rollPitchYaw(0)*180.0/3.14159265, rollPitchYaw(1)*180.0/3.14159265, rollPitchYaw(2)*180.0/3.14159265 );
             std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
 //            detections[i].draw(mRgb);
         }

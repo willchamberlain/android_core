@@ -46,7 +46,8 @@ import org.opencv.core.Mat;
 
 
 public class MainActivity extends RosActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2 {
+        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity {
+
 
     private static final String TAG = "OCVSample::Activity";
     public static final String MARKER_NAMESPACE = "apriltags_marker_publisher/tag_markers";
@@ -62,6 +63,9 @@ public class MainActivity extends RosActivity
     private Mat mRgbaFlipped;
 
     Pattern tagPattern = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+
+    private double[] position    = {0.0,0.0,1.0};     // = new double[3]
+    private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
 
     private BaseLoaderCallback _baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -92,6 +96,7 @@ public class MainActivity extends RosActivity
     private AprilTagsPosePublisher aprilTagsPosePublisher;
     private DetectedFeaturesClient detectedFeaturesClient;
     private MarkerPublisherNode markerPublisherNode;
+    private SetPoseServer setPoseServer;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -245,7 +250,8 @@ public class MainActivity extends RosActivity
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"detectedfeatures_serviceclient_node");
             this.detectedFeaturesClient = new DetectedFeaturesClient();
-            detectedFeaturesClient.setCameraFrameId(Naming.cameraFrameId(NODE_NAMESPACE));
+            detectedFeaturesClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
+            detectedFeaturesClient.setPosedEntity(this);
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
 
@@ -254,8 +260,18 @@ public class MainActivity extends RosActivity
             nodeConfiguration.setMasterUri(masterURI);
             nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
             this.markerPublisherNode = new MarkerPublisherNode();
-            markerPublisherNode.setPrefix(NODE_NAMESPACE);
+            markerPublisherNode.setNodeNamespace(NODE_NAMESPACE);
             nodeMainExecutor.execute(this.markerPublisherNode, nodeConfiguration);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration.setMasterUri(masterURI);
+            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
+            this.setPoseServer = new SetPoseServer();
+            setPoseServer.setNodeNamespace(NODE_NAMESPACE);
+            setPoseServer.setPosedEntity(this);
+            nodeMainExecutor.execute(this.setPoseServer, nodeConfiguration);
         }
 
     }
@@ -466,6 +482,21 @@ public class MainActivity extends RosActivity
 //            salt(matGray.getNativeObjAddr(), 3000);
 //        }
 //        return matGray;
+    }
+
+
+    @Override
+    public void setPose(double[] poseXyz, double[] orientationQuaternion_) {
+        this.position = poseXyz;
+        this.orientation = orientationQuaternion_;
+    }
+
+    public double[] getPosition() {
+        return position;
+    }
+
+    public double[] getOrientation() {
+        return orientation;
     }
 
 

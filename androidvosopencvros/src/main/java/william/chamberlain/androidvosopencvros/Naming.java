@@ -7,18 +7,25 @@ import android.support.annotation.NonNull;
  */
 
 public class Naming {
+
+    @NonNull
+    public static String cameraNamespace(int camNum) {
+        return "cam_" + camNum;
+    }
+
+
     @NonNull
     public static String cameraFrameId(String suffix_) {
-        return "c_" + suffix_;
+        return "c" + suffix_;
     }
 
     @NonNull
     public static String cameraFrameId(int camNum) {
-        return "c_" + cameraNamespace(camNum);
+        return cameraFrameId(Integer.toString(camNum));
     }
 
     @NonNull
-    public static String cameraNamespace(int camNum) {
-        return "cam_" + camNum + "_";
+    public static String cameraBaseFrameId(int camNum) {
+        return "b_" + camNum;
     }
 }
