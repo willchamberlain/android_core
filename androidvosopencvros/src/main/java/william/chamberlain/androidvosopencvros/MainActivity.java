@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.view.SurfaceView;
+import android.view.Window;
 import android.widget.Toast;
 
 import org.opencv.core.CvType;
@@ -421,9 +422,46 @@ public class MainActivity extends RosActivity
         if (!screenLocked && framesProcessed>=20 && framesProcessed<40) {
             System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed);
             screenLocked = true;
+
+            // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
+//            WindowManager.LayoutParams params = this.getWindow().getAttributes();
+//            /** Turn off: */
+//            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+//            //TODO Store original brightness value
+//            params.screenBrightness = 0.1f;
+//            this.getWindow().setAttributes(params);
+
+            final WindowManager.LayoutParams params = this.getWindow().getAttributes();
+            /** Turn off: */
+            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+            //TODO restoring from original value
+            params.screenBrightness = 0.1f;
+            final Window w = this.getWindow();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    w.setAttributes(params);
+                }
+            });
+
         } else if (screenLocked && framesProcessed>=40) {
             System.out.println("onCameraFrame: screenLocked = false at frame "+framesProcessed);
             screenLocked = false;
+
+            // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
+
+            final WindowManager.LayoutParams params = this.getWindow().getAttributes();
+            /** Turn on: */
+            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+            //TODO restoring from original value
+            params.screenBrightness = 0.9f;
+            final Window w = this.getWindow();
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    w.setAttributes(params);
+                }
+            });
         }
 //        if (framesProcessed>=20 && framesProcessed<40 && !screenLock.isHeld()) {
 //            System.out.println("onCameraFrame: acquiring lock on frame "+framesProcessed);
