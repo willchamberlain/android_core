@@ -19,7 +19,24 @@
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
 
+void translationRotationWithoutAxisChange(double m_tagSize, double m_fx, double m_fy, double m_px,
+                                          double m_py,
+                                          const vector<AprilTags::TagDetection> &detections, int i,
+                                          Eigen::Vector3d &translation, Eigen::Matrix3d &rotation);
+
 using namespace std;
+
+void translationRotationWithoutAxisChange(double m_tagSize, double m_fx, double m_fy, double m_px,
+                                          double m_py,
+                                          AprilTags::TagDetection &tagDetection,
+                                          Eigen::Vector3d &translation, Eigen::Matrix3d &rotation) {
+    Eigen::Matrix4d transform = tagDetection.getRelativeTransform(m_tagSize, m_fx, m_fy, m_px, m_py);  // see /mnt/nixbig/build_workspaces/apriltags_ros/src/apriltags_ros/apriltags_ros/src/apriltag_detector.cpp
+    translation[0] = transform(0, 3);
+    translation[1] = transform(1, 3);
+    translation[2] = transform(2, 3);
+    rotation = transform.block(0, 0, 3, 3);
+}
+
 using namespace cv;
 
 
@@ -65,15 +82,47 @@ extern "C"
         const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
 
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
+
+        jstring         str;
+        jobjectArray    tags_as_strings = 0;
+        jsize           detections_size = detections.size();
+        int             detections_size_int = detections.size();
+        tags_as_strings = (jobjectArray)env->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),env->NewStringUTF(""));
+
+//        Eigen::Matrix3d rotationReflectZ;
+//        rotationReflectZ << 1.0, 0.0, 0.0,
+//                0.0, 1.0, 0.0,
+//                0.0, 0.0, -1.0;
+
         for (int i=0; i<detections.size(); i++) {
             // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
-//            detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py, translation,rotation);
-            Eigen::Matrix4d transform = detections[i].getRelativeTransform(m_tagSize, m_fx, m_fy, m_px, m_py);  // see /mnt/nixbig/build_workspaces/apriltags_ros/src/apriltags_ros/apriltags_ros/src/apriltag_detector.cpp
-            translation[0] = transform(0, 3);
-            translation[1] = transform(1, 3);
-            translation[2] = transform(2, 3);
-            rotation = transform.block(0, 0, 3, 3);
+            // robotic to opencv camera
+            // -90 Z then -90 X
+            // or 90 Y then -90 Z
+
+            // from getRelativeTransform tag to robot, with x toward robot, and Z upward, and Y toward robot right
+            //
+
+            // for _relative orientation of tag
+//            detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py, translation, rotation);
+
+            // for _non-relative orientation of tag
+//            Eigen::Vector3d unchangedTranslation;
+//            Eigen::Matrix3d unchangedRotation;
+            translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+//            Eigen::Matrix3d m;
+//            m = Eigen::AngleAxisd(3.142, Eigen::Vector3d::UnitZ());
+//            Eigen::Matrix3d rotationRotated = m*unchangedRotation;
+//            rotation = rotationRotated;
+
+            // for _relative orientation of tag
+//            Eigen::Matrix4d transform = detections[i].getRelativeTransform(m_tagSize, m_fx, m_fy, m_px, m_py);  // see /mnt/nixbig/build_workspaces/apriltags_ros/src/apriltags_ros/apriltags_ros/src/apriltag_detector.cpp
+//            rotation = transform.block(0, 0, 3, 3);
+
+//            rotation = rotationReflectZ*rotation;
+
             quaternion = Eigen::Quaternion<double>(rotation);
+
 //            detections[i].getRelativeTranslationRotationQuaternion(
 //                    m_tagSize,
 //                    m_fx, m_fy,
@@ -91,26 +140,6 @@ extern "C"
             std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
             std::cout.flush();
 //            detections[i].draw(mRgb);
-        }
-//        rotate_90n(mRgb,mRgb,270);
-        std::ostringstream strStx;
-        strStx << "0,0";
-        cv::putText(mRgb, strStx.str(),
-                    cv::Point2f(0, 0),
-                    cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(220,220,255));
-
-        jstring         str;
-        jobjectArray    tags_as_strings = 0;
-        jsize           detections_size = detections.size();
-        int             detections_size_int = detections.size();
-        tags_as_strings = (jobjectArray)env->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),env->NewStringUTF(""));
-        for(int i=0; i<detections_size_int; i++) {
-            // NOTE: inverse - camera pose relative to tag - would be the inverse rotation then the inverse translation, I think
-            detections[i].getRelativeTranslationRotationQuaternion(
-                    m_tagSize,
-                    m_fx, m_fy,
-                    m_px, m_py,
-                    translation, rotation, quaternion);
             char tag_and_pose_data[200];
             sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
@@ -120,6 +149,12 @@ extern "C"
             str = (env)->NewStringUTF(tag_and_pose_data);
             (env)->SetObjectArrayElement(tags_as_strings, i, str);
         }
+//        rotate_90n(mRgb,mRgb,270);
+        std::ostringstream strStx;
+        strStx << "0,0";
+        cv::putText(mRgb, strStx.str(),
+                    cv::Point2f(0, 0),
+                    cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(220,220,255));
         return tags_as_strings;
     }
 
