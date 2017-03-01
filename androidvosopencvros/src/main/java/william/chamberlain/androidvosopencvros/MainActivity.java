@@ -11,10 +11,12 @@ import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.view.SurfaceView;
 import android.widget.Toast;
 
 import org.opencv.core.CvType;
+import org.opencv.core.Scalar;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
 import org.ros.message.Time;
@@ -49,7 +51,7 @@ public class MainActivity extends RosActivity
         implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity {
 
 
-    private static final String TAG = "OCVSample::Activity";
+    private static final String TAG = "vos_aa1::MainActivity";
     public static final String MARKER_NAMESPACE = "apriltags_marker_publisher/tag_markers";
 
     private CameraBridgeViewBase _cameraBridgeViewBase;
@@ -66,6 +68,10 @@ public class MainActivity extends RosActivity
 
     private double[] position    = {0.0,0.0,1.0};     // = new double[3]
     private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
+
+    int framesProcessed = 0;
+//    PowerManager.WakeLock screenLock;
+
 
     private BaseLoaderCallback _baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -125,6 +131,14 @@ public class MainActivity extends RosActivity
         System.loadLibrary("apriltags_kaess");
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
+
+
+//      Does not work to turn the screen off programmatically
+//      - can set the wake_setting time to 1 second,
+//          but that can cause problems if the application is stopped or fails before reseting it to something reasonable like 10 minutes:
+//          if the user has to restart they have no time to do anything before the screen turns off
+//        screenLock =    ((PowerManager)getSystemService(POWER_SERVICE)).newWakeLock(
+//                PowerManager.PARTIAL_WAKE_LOCK, "MainActivity.onCameraFrame");
 
 //        // Permissions for Android 6+
 //        ActivityCompat.requestPermissions(MainActivity.this,
@@ -397,7 +411,30 @@ public class MainActivity extends RosActivity
         if( null != mRgbaTransposed) { mRgbaTransposed.release(); }
     }
 
+
+    boolean screenLocked = false;
+
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+
+        framesProcessed++;
+
+        if (!screenLocked && framesProcessed>=20 && framesProcessed<40) {
+            System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed);
+            screenLocked = true;
+        } else if (screenLocked && framesProcessed>=40) {
+            System.out.println("onCameraFrame: screenLocked = false at frame "+framesProcessed);
+            screenLocked = false;
+        }
+//        if (framesProcessed>=20 && framesProcessed<40 && !screenLock.isHeld()) {
+//            System.out.println("onCameraFrame: acquiring lock on frame "+framesProcessed);
+//            screenLock.acquire();
+//            System.out.println("onCameraFrame: acquired lock on frame "+framesProcessed);
+//        } else if (framesProcessed>=40 && screenLock.isHeld()) {
+//            System.out.println("onCameraFrame: releasing lock on frame "+framesProcessed);
+//            screenLock.release();
+//            System.out.println("onCameraFrame: released lock on frame "+framesProcessed);
+//        }
+
 //        Display display = ((WindowManager) this.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
 //        int rotation = display.getRotation();
 //        Log.d(TAG, "rotation = " + rotation);
@@ -478,6 +515,11 @@ public class MainActivity extends RosActivity
 //        Imgproc.resize(mRgbaTransposed, mRgbaFlipped, matRgb.size(),0,0,0);
 //        Core.flip(mRgbaFlipped, matRgb, 1); // see - http://answers.opencv.org/question/20325/how-can-i-change-orientation-without-ruin-camera-settings/
 
+        if (screenLocked) {
+            System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed+": setting output matrices to black");
+            Scalar blackScalar = new org.opencv.core.Scalar(0); //,CvType.CV_8UC4
+            matRgb.setTo(blackScalar);
+        }
         return matRgb;
 //
 //        if(Surface.ROTATION_0==rotation) {
