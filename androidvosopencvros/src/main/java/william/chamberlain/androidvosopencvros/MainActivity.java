@@ -30,6 +30,9 @@ import android.view.WindowManager;
 import android.view.MenuInflater;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,7 +52,7 @@ import org.opencv.core.Mat;
 
 
 public class MainActivity extends RosActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity {
+        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen {
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -105,6 +108,7 @@ public class MainActivity extends RosActivity
     private DetectedFeaturesClient detectedFeaturesClient;
     private MarkerPublisherNode markerPublisherNode;
     private SetPoseServer setPoseServer;
+    private VisionSourceManagementListener visionSourceManagementListener;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -290,11 +294,21 @@ public class MainActivity extends RosActivity
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
+            nodeConfiguration.setNodeName(NODE_NAMESPACE+"pose_server");
             this.setPoseServer = new SetPoseServer();
             setPoseServer.setNodeNamespace(NODE_NAMESPACE);
             setPoseServer.setPosedEntity(this);
             nodeMainExecutor.execute(this.setPoseServer, nodeConfiguration);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration.setMasterUri(masterURI);
+            nodeConfiguration.setNodeName(NODE_NAMESPACE+"vision_source_management_topic_listener");
+            this.visionSourceManagementListener = new VisionSourceManagementListener();
+            visionSourceManagementListener.setNodeNamespace(NODE_NAMESPACE);
+            visionSourceManagementListener.setDimmableScreen(this);
+            nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
         }
 
     }
@@ -416,62 +430,7 @@ public class MainActivity extends RosActivity
     boolean screenLocked = false;
 
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-
         framesProcessed++;
-
-        if (!screenLocked && framesProcessed>=20 && framesProcessed<40) {
-            System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed);
-            screenLocked = true;
-
-            // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
-//            WindowManager.LayoutParams params = this.getWindow().getAttributes();
-//            /** Turn off: */
-//            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-//            //TODO Store original brightness value
-//            params.screenBrightness = 0.1f;
-//            this.getWindow().setAttributes(params);
-
-            final WindowManager.LayoutParams params = this.getWindow().getAttributes();
-            /** Turn off: */
-            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            //TODO restoring from original value
-            params.screenBrightness = 0.1f;
-            final Window w = this.getWindow();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    w.setAttributes(params);
-                }
-            });
-
-        } else if (screenLocked && framesProcessed>=40) {
-            System.out.println("onCameraFrame: screenLocked = false at frame "+framesProcessed);
-            screenLocked = false;
-
-            // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
-
-            final WindowManager.LayoutParams params = this.getWindow().getAttributes();
-            /** Turn on: */
-            params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
-            //TODO restoring from original value
-            params.screenBrightness = 0.9f;
-            final Window w = this.getWindow();
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    w.setAttributes(params);
-                }
-            });
-        }
-//        if (framesProcessed>=20 && framesProcessed<40 && !screenLock.isHeld()) {
-//            System.out.println("onCameraFrame: acquiring lock on frame "+framesProcessed);
-//            screenLock.acquire();
-//            System.out.println("onCameraFrame: acquired lock on frame "+framesProcessed);
-//        } else if (framesProcessed>=40 && screenLock.isHeld()) {
-//            System.out.println("onCameraFrame: releasing lock on frame "+framesProcessed);
-//            screenLock.release();
-//            System.out.println("onCameraFrame: released lock on frame "+framesProcessed);
-//        }
 
 //        Display display = ((WindowManager) this.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
 //        int rotation = display.getRotation();
@@ -570,6 +529,49 @@ public class MainActivity extends RosActivity
 //            salt(matGray.getNativeObjAddr(), 3000);
 //        }
 //        return matGray;
+    }
+
+    @Override
+    public void screenOff() {
+        screenLocked = true;
+
+        final WindowManager.LayoutParams params = this.getWindow().getAttributes();
+        params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+        //TODO Store original brightness value
+        params.screenBrightness = 0.1f;
+        final Window w = this.getWindow();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                w.setAttributes(params);
+            }
+        });
+    }
+
+    @Override
+    public void screenOn() {
+        //TODO restore from original brightness value
+        screenOn(1.0f);
+    }
+
+    public void screenOn(float percentBrightness) {
+        screenLocked = false;
+        if(0.0 > percentBrightness) {
+            percentBrightness = 0.0f;
+        } else if (1.0 < percentBrightness) {
+            percentBrightness = 1.0f;
+        }
+        // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
+        final WindowManager.LayoutParams params = this.getWindow().getAttributes();
+        params.flags = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON;
+        params.screenBrightness = percentBrightness;
+        final Window w = this.getWindow();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                w.setAttributes(params);
+            }
+        });
     }
 
 
