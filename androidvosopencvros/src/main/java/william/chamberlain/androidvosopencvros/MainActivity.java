@@ -52,7 +52,7 @@ import org.opencv.core.Mat;
 
 
 public class MainActivity extends RosActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen {
+        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen, VariableResolution {
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -308,6 +308,7 @@ public class MainActivity extends RosActivity
             this.visionSourceManagementListener = new VisionSourceManagementListener();
             visionSourceManagementListener.setNodeNamespace(NODE_NAMESPACE);
             visionSourceManagementListener.setDimmableScreen(this);
+            visionSourceManagementListener.setVariableResolution(this);
             nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
         }
 
@@ -598,6 +599,50 @@ public class MainActivity extends RosActivity
     public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
 
 
+    @Override
+    public void lowResolution() {
+        AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution();
+    }
 
+    @Override
+    public void highResolution() {
+        AndroidCameraAdapterForDepricatedApi.setCameraToHighestResolution();
+    }
+
+    public void resolutionMax(final int width, final int height) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                _cameraBridgeViewBase.setMaxFrameSize(width, height);
+                _cameraBridgeViewBase.disableView();
+                _cameraBridgeViewBase.enableView();
+            }
+        });
+    }
+
+    public void resolutionMin(final int width, final int height) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+            _cameraBridgeViewBase.setMinimumWidth(width);
+            _cameraBridgeViewBase.setMinimumHeight(height);
+            _cameraBridgeViewBase.disableView();
+            _cameraBridgeViewBase.enableView();
+            }
+        });
+    }
+
+    public void resolutionMinMax(final int minWidth, final int minHeight, final int maxWidth, final int maxHeight) { // TODO - final ?
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                _cameraBridgeViewBase.setMinimumWidth(minWidth);
+                _cameraBridgeViewBase.setMinimumHeight(minHeight);
+                _cameraBridgeViewBase.setMaxFrameSize(maxWidth, maxHeight);
+                _cameraBridgeViewBase.disableView();
+                _cameraBridgeViewBase.enableView();
+            }
+        });
+    }
 }
 

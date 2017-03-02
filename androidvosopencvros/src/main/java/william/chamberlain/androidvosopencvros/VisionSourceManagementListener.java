@@ -24,8 +24,13 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
     private Log log;
     private Subscriber<String> subscriber;
     private DimmableScreen dimmableScreen;
+    private VariableResolution variableResolution;
     private java.lang.String nodeNamespace;
 
+
+    public void setVariableResolution(VariableResolution variableResolution) {
+        this.variableResolution = variableResolution;
+    }
 
     public void setDimmableScreen(DimmableScreen dimmableScreen) {
         this.dimmableScreen = dimmableScreen;
@@ -89,6 +94,15 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             break;
                         case SCREEN_OFF:
                             dimmableScreen.screenOff();
+                            break;
+                        case RESOLUTION_HIGH:
+                            variableResolution.resolutionMinMax(600,450,700,550); // --> 640x480
+                            break;
+                        case RESOLUTION_LOW:
+                            variableResolution.resolutionMinMax(100,100,400,300); // --> 320x240
+                            break;
+                        case RESOLUTION_LIMITS:
+                            variableResolution.resolutionMinMax(100,100,700,550);
                             break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");
