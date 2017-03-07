@@ -56,8 +56,11 @@ extern "C"
     jobjectArray JNIEXPORT Java_william_chamberlain_androidvosopencvros_MainActivity_aprilTags(JNIEnv *env, jobject instance,
                                                                             jlong matAddrGray,          // pointer to grayscale image matrix - input to Apriltags detection
                                                                             jlong matAddrRgb,           // pointer to RGB image matrix - input and output
-                                                                            jlong tagDetectorPointer    // pointer to an AprilTags::TagDetector instance
-        ) {
+                                                                            jlong tagDetectorPointer,    // pointer to an AprilTags::TagDetector instance
+                                                                            jdouble tagSize_metres,
+                                                                            jdouble fx_pixels,
+                                                                            jdouble fy_pixels
+    ) {
         AprilTags::TagDetector *m_tagDetector = (AprilTags::TagDetector *)tagDetectorPointer;
 //        AprilTags::TagCodes m_tagCodes;
 //        m_tagCodes = AprilTags::tagCodes36h11;
@@ -68,10 +71,12 @@ extern "C"
         Mat &mRgb = *(Mat *) matAddrRgb;
         int m_width = mGr.cols;    // image size in pixels
         int m_height = mGr.rows;
-        double m_tagSize = 0.168;  // April tag side length in meters of square black frame
+        double m_tagSize = tagSize_metres;  // April tag side length in meters of square black frame
         // linear camera model
-        double m_fx = 1098.002914; // TODO - check calibration - camera focal length in pixels - http://ksimek.github.io/2013/08/13/intrinsic/ - https://en.wikipedia.org/wiki/Camera_matrix
-        double m_fy = 1096.498477; // TODO - check calibration - see https://cloudstor.aarnet.edu.au/plus/index.php/apps/files/?dir=%2Fproject_AA1__1_1%2Fresults%2F2016_12_04_callibrate_in_ROS%2Fcalibrationdata_131#editor
+        double m_fx = fx_pixels; // TODO - check calibration - camera focal length in pixels - http://ksimek.github.io/2013/08/13/intrinsic/ - https://en.wikipedia.org/wiki/Camera_matrix
+        double m_fy = fy_pixels; // TODO - check calibration - see https://cloudstor.aarnet.edu.au/plus/index.php/apps/files/?dir=%2Fproject_AA1__1_1%2Fresults%2F2016_12_04_callibrate_in_ROS%2Fcalibrationdata_131#editor
+        // m_fx = 519.902859;       // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        //m_fy = 518.952669;
         double m_px = m_width/2;   // TODO - use proper camera principal point
         double m_py = m_height/2;
         Eigen::Vector3d translation;    // translation vector from camera to the April tag - see TagDetection.cc
@@ -104,12 +109,19 @@ extern "C"
             //
 
             // for _relative orientation of tag
-//            detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py, translation, rotation);
+// 2017_03_03           detections[i].getRelativeTranslationRotation(m_tagSize, m_fx, m_fy, m_px, m_py, translation, rotation);
+//            Eigen::Matrix3d m;
+//            m <<  1, 0, 0,
+//                  0,-1, 0,
+//                  0, 0, 1;
+//            Eigen::Matrix3d rotationRotated;
+//            rotationRotated = m*rotation;
+//            rotation = rotationRotated;
 
             // for _non-relative orientation of tag
 //            Eigen::Vector3d unchangedTranslation;
 //            Eigen::Matrix3d unchangedRotation;
-            translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+           translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
 //            Eigen::Matrix3d m;
 //            m = Eigen::AngleAxisd(3.142, Eigen::Vector3d::UnitZ());
 //            Eigen::Matrix3d rotationRotated = m*unchangedRotation;

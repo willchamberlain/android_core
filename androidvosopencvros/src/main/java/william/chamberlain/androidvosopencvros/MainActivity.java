@@ -6,8 +6,10 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.hardware.camera2.CameraManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,6 +19,7 @@ import android.view.Window;
 import android.widget.Toast;
 
 import org.opencv.core.CvType;
+import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
@@ -45,6 +48,9 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import static java.lang.Math.PI;
+import static java.lang.Math.tan;
+
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
  * @author axelfurlan@gmail.com (Axel Furlan)
@@ -52,7 +58,7 @@ import org.opencv.core.Mat;
 
 
 public class MainActivity extends RosActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen, VariableResolution {
+        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen, VariableResolution, VisionSource {
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -113,12 +119,17 @@ public class MainActivity extends RosActivity
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
 
+    private boolean runImageProcessing = true;
+
 
     public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
 //        super("VOS AA1", "VOS AA1", URI.create("http://192.168.1.164:11311"));  //TODO // see http://wiki.ros.org/android/Tutorials/indigo/RosActivity , http://answers.ros.org/question/55874/skip-master-chooser/
     }
 
+    CameraManager cameraManager() {
+        return (CameraManager) this.getSystemService(CAMERA_SERVICE);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -128,6 +139,7 @@ public class MainActivity extends RosActivity
 
         mLocationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
         mSensorManager = (SensorManager)this.getSystemService(SENSOR_SERVICE);
+        //  cameraManager().getCameraCharacteristics();  -- requires API 21
 
 
         // Load ndk built module, as specified
@@ -408,8 +420,9 @@ public class MainActivity extends RosActivity
     }
 
     public void disableCamera() {
-        if (_cameraBridgeViewBase != null)
+        if (_cameraBridgeViewBase != null) {
             _cameraBridgeViewBase.disableView();
+        }
     }
 
     public void onCameraViewStarted(int width, int height) {
@@ -433,6 +446,13 @@ public class MainActivity extends RosActivity
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         framesProcessed++;
 
+
+        // TODO - needs API 21
+//        float[] f = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+//        for (float d : f) {
+//            Logger.logGeneral("LENS_INFO_AVAILABLE_FOCAL_LENGTHS : " + d);
+//        }
+
 //        Display display = ((WindowManager) this.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
 //        int rotation = display.getRotation();
 //        Log.d(TAG, "rotation = " + rotation);
@@ -440,10 +460,90 @@ public class MainActivity extends RosActivity
         matGray = inputFrame.gray();
         matRgb  = inputFrame.rgba();
         System.out.println("MainActivity: onCameraFrame("+matGray.size().width+","+matGray.size().height+"): start");
+
+
+//        getWindow().getContext().getSystemService()
+        double focal_length_in_pixels_x;
+        double focal_length_in_pixels_y;
+        Camera camera = AndroidCameraAdapterForDepricatedApi.getCameraInstance();
+//        if(null == camera) {
+//            try { camera = _cameraBridgeViewBase.camera(); }
+//            catch (Exception e) {
+//                System.out.println("MainActivity: onCameraFrame: exception in camera = _cameraBridgeViewBase.camera() : "+e.getMessage());
+//            }
+//        }
+        if(null!=camera) {
+            float focalLengthInMetres = camera.getParameters().getFocalLength();
+            System.out.println("MainActivity: onCameraFrame: focalLengthInMetres="+focalLengthInMetres);
+            float horizontalAngleView = camera.getParameters().getHorizontalViewAngle();
+            System.out.println("MainActivity: onCameraFrame: horizontalAngleView="+horizontalAngleView);
+            double focal_length_in_pixels = (camera.getParameters().getPictureSize().width * 0.5) / tan(horizontalAngleView * 0.5 * PI/180.0);
+            System.out.println("MainActivity: onCameraFrame: focal_length_in_pixels="+focal_length_in_pixels);
+        } else {
+            System.out.println("MainActivity: onCameraFrame: AndroidCameraAdapterForDepricatedApi.getCameraInstance() returns null");
+            boolean connected = false;
+            for (int camIdx = 0; camIdx < Camera.getNumberOfCameras(); ++camIdx) {      //  see /mnt/nixbig/downloads/chulcher_ros_android_will_fork/android_core/openCVLibrary310/src/main/java/org/opencv/android/JavaCameraView.java:85
+                Log.d(TAG, "Trying to open camera with new open(" + Integer.valueOf(camIdx) + ")");
+                try {
+                    camera = Camera.open(camIdx);
+                    connected = true;
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Camera #" + camIdx + "failed to open: " + e.getLocalizedMessage());
+                }
+                if (connected) break;
+            }
+            if(connected) {
+                float focalLengthInMetres = camera.getParameters().getFocalLength();
+                System.out.println("MainActivity: onCameraFrame: focalLengthInMetres="+focalLengthInMetres);
+                float horizontalAngleView = camera.getParameters().getHorizontalViewAngle();
+                System.out.println("MainActivity: onCameraFrame: horizontalAngleView="+horizontalAngleView);
+                focal_length_in_pixels_x = (camera.getParameters().getPictureSize().width * 0.5) / tan(horizontalAngleView * 0.5 * PI/180.0);
+                System.out.println("MainActivity: onCameraFrame: focal_length_in_pixels_x="+focal_length_in_pixels_x);
+                float verticalAngleView = camera.getParameters().getVerticalViewAngle();
+                System.out.println("MainActivity: onCameraFrame: getVerticalViewAngle()="+verticalAngleView);
+                focal_length_in_pixels_y = (camera.getParameters().getPictureSize().width * 0.5) / tan(verticalAngleView* 0.5 * PI/180.0);
+                System.out.println("MainActivity: onCameraFrame: focal_length_in_pixels_y="+focal_length_in_pixels_y);
+            } else {
+                System.out.println("MainActivity: onCameraFrame: could not get a camera at all : using the Camera 1 API");
+            }
+        }
+
+                /*
+                See  https://play.google.com/books/reader?id=hb8FCgAAQBAJ&printsec=frontcover&output=reader&hl=en_GB&pg=GBS.PA103.w.12.0.0  pp124-126
+                */
+                /* Get the focal length in pixels for AprilTags --> position calculation. */
+        float[] estimatedFocusedDistances = {9000.0f,9000.0f,9000.0f};      // dummy values, overridden in cameraParameters().getFocusDistances(estimatedFocusedDistances)
+        cameraParameters().getFocusDistances(estimatedFocusedDistances);    // focus distances in meters. the distances from the camera to where an object appears to be in focus. The object is sharpest at the optimal focus distance. The depth of field is the far focus distance minus near focus distance.param 'output' must be a float array with three elements. Near focus distance, optimal focus distance, and far focus distance will be filled in the array
+        System.out.println("MainActivity: onCameraFrame: estimatedFocusedDistances = "+ Arrays.toString(estimatedFocusedDistances));
+        MatOfDouble mProjectionCV = new MatOfDouble();
+        mProjectionCV.create(3,3,CvType.CV_64FC1);
+        final double fovAspectRatio = fieldOfViewX() / fieldOfViewY();
+        double diagonalPixels = Math.sqrt( (Math.pow(matGray.size().width, 2.0)) + (Math.pow(matGray.size().width/fovAspectRatio, 2.0)) );
+        double diagonalFov = Math.sqrt( (Math.pow(fieldOfViewX(), 2.0)) + (Math.pow(fieldOfViewY(), 2.0)) );
+        double focalLengthPixels = diagonalPixels / (2.0 * Math.tan(0.5 * diagonalFov * Math.PI/180.0f ));
+        focal_length_in_pixels_x = ( matGray.size().width / (2.0 * Math.tan(0.5 * fieldOfViewX() * Math.PI/180.0f)) );
+        focal_length_in_pixels_y = ( matGray.size().height / (2.0 * Math.tan(0.5 * fieldOfViewY() * Math.PI/180.0f)) );
+        System.out.println("MainActivity: onCameraFrame: "
+                +"  OpenCV matrix: width pixels="+matGray.size().width+", height pixels="+matGray.size().height
+                +", preview: width pixels="+cameraParameters().getPreviewSize().width+", height pixels="+cameraParameters().getPreviewSize().height
+                +", zoom value="+cameraParameters().getZoom()+", zoom as percentage="+cameraParameters().getZoomRatios().get(cameraParameters().getZoom()).intValue()
+                +", fieldOfView: X rads="+fieldOfViewX()+", Y rads="+fieldOfViewY()
+                +", fovAspectRatio="+fovAspectRatio+", diagonalPixels="+diagonalPixels
+                +", diagonalFov rads="+diagonalFov+", focalLengthPixels - diagonal="+focalLengthPixels);
+        System.out.println("MainActivity: onCameraFrame: "
+                +", focal length x = "+  focal_length_in_pixels_x
+                +", focal length y = "+  focal_length_in_pixels_y );
+
+
+
+
+        focal_length_in_pixels_x = 519.902859;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        focal_length_in_pixels_y = 518.952669;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
-        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer);
+        double tagSize_metres = 0.168d;
+        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
         for(String tag : tags) {
             System.out.println("-------------------------------------------------------");
             System.out.print("---");
@@ -596,7 +696,7 @@ public class MainActivity extends RosActivity
 
     public native long newTagDetector();   // Apriltags
     public native void deleteTagDetector(long tagDetectorPointer);     // Apriltags
-    public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer);  // Apriltags
+    public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags
 
 
     @Override
@@ -643,6 +743,65 @@ public class MainActivity extends RosActivity
                 _cameraBridgeViewBase.enableView();
             }
         });
+    }
+
+    @Override
+    public void start() {
+        runImageProcessing = true;
+    }
+
+    @Override
+    public void stop() {
+        runImageProcessing = false;
+    }
+
+
+    /*
+    See http://stackoverflow.com/questions/3261776/determine-angle-of-view-of-smartphone-camera/12118760#12118760
+     */
+    private static double zoomAngle(double degrees, int zoom) {
+        double theta = Math.toRadians(degrees);
+        return 2d * Math.atan(100d * Math.tan(theta / 2d) / zoom);
+    }
+
+
+    /*
+    See http://stackoverflow.com/questions/3261776/determine-angle-of-view-of-smartphone-camera/12118760#12118760
+     */
+    public void calculateViewAngles() {
+        Camera.Parameters p = _cameraBridgeViewBase.camera().getParameters();
+        int zoom = p.getZoomRatios().get(p.getZoom()).intValue();
+        Camera.Size sz = p.getPreviewSize();
+        double aspect = (double) sz.width / (double) sz.height;
+        double thetaV = Math.toRadians(p.getVerticalViewAngle());
+        double thetaH = 2d * Math.atan(aspect * Math.tan(thetaV / 2));
+        thetaV = 2d * Math.atan(100d * Math.tan(thetaV / 2d) / zoom);
+        thetaH = 2d * Math.atan(100d * Math.tan(thetaH / 2d) / zoom);
+    }
+
+    public double fieldOfViewX() {
+        Camera.Parameters p = _cameraBridgeViewBase.camera().getParameters();
+        int zoom = p.getZoomRatios().get(p.getZoom()).intValue();
+        Camera.Size sz = p.getPreviewSize();
+        double aspect = (double) sz.width / (double) sz.height;
+        double thetaV = Math.toRadians(p.getVerticalViewAngle());
+        double thetaH = 2d * Math.atan(aspect * Math.tan(thetaV / 2));
+        thetaH = 2d * Math.atan(100d * Math.tan(thetaH / 2d) / zoom);
+        return thetaH;
+    }
+
+    public double fieldOfViewY() {
+        Camera.Parameters p = _cameraBridgeViewBase.camera().getParameters();
+        int zoom = p.getZoomRatios().get(p.getZoom()).intValue();
+        Camera.Size sz = p.getPreviewSize();
+        double aspect = (double) sz.width / (double) sz.height;
+        double thetaV = Math.toRadians(p.getVerticalViewAngle());
+        thetaV = 2d * Math.atan(100d * Math.tan(thetaV / 2d) / zoom);
+        return thetaV;
+    }
+
+    public Camera.Parameters cameraParameters() {
+        return _cameraBridgeViewBase.camera().getParameters();
     }
 }
 
