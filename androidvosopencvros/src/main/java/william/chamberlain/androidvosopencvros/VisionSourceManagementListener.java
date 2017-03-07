@@ -95,6 +95,12 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case SCREEN_OFF:
                             dimmableScreen.screenOff();
                             break;
+                        case PROCESSING_ON:
+                            dimmableScreen.screenOn();
+                            break;
+                        case PROCESSING_OFF:
+                            dimmableScreen.screenOff();
+                            break;
                         case RESOLUTION_HIGH:
                             variableResolution.resolutionMinMax(600,450,700,550); // --> 640x480
                             break;

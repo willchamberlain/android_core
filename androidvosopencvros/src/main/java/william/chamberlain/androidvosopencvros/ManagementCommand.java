@@ -3,6 +3,8 @@ package william.chamberlain.androidvosopencvros;
 public enum ManagementCommand {
         SCREEN_ON("screen on"),
         SCREEN_OFF("screen off"),
+        PROCESSING_ON("run"),
+        PROCESSING_OFF("stop"),
         RESOLUTION_HIGH("high res"),
         RESOLUTION_LOW("low res"),
         RESOLUTION_LIMITS("res limits");
