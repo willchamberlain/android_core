@@ -21,7 +21,7 @@ import vos_aa1.DetectedFeatureRequest;
 import vos_aa1.DetectedFeatureResponse;
 import vos_aa1.DetectedFeaturesRequest;
 import vos_aa1.DetectedFeaturesResponse;
-import vos_aa1.VisualFeature;
+import vos_aa1.VisualFeatureObservation;
 
 /**
  * Created by will on 16/02/17.
@@ -94,13 +94,13 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
         Geometry.applyTranslationParams(posedEntity.getPosition(), cameraPositionInWorld);
 
-        VisualFeature visualFeature = serviceRequest.getVisualFeature();
+        VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
         Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
         Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
-        visualFeature.setAlgorithm("t"); //"AprilTags_Kaess_36h11");
+        visualFeature.setAlgorithm("AprilTags_Kaess_36h11");
         visualFeature.setId(tagId);
 
         serviceRequest.setCameraPose(cameraPose);
@@ -112,7 +112,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 
 
 
-    public void reportDetectedFeatures(geometry_msgs.PoseStamped cameraPose_, java.util.List<vos_aa1.VisualFeature> visualFeaturesToReport_) {
+    public void reportDetectedFeatures(geometry_msgs.PoseStamped cameraPose_, java.util.List<vos_aa1.VisualFeatureObservation> visualFeaturesToReport_) {
         System.out.println("DetectedFeaturesClient: reportDetectedFeatures: start");
         DetectedFeaturesRequest serviceRequest = serviceClient.newMessage();
         PoseStamped cameraPoseInRequest = serviceRequest.getCameraPose();

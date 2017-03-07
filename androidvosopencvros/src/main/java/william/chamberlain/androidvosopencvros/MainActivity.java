@@ -57,8 +57,11 @@ import static java.lang.Math.tan;
  */
 
 
-public class MainActivity extends RosActivity
-        implements CameraBridgeViewBase.CvCameraViewListener2, PosedEntity, DimmableScreen, VariableResolution, VisionSource {
+public class MainActivity
+        extends         RosActivity
+        implements      CameraBridgeViewBase.CvCameraViewListener2,
+            PosedEntity,  // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
+            DimmableScreen, VariableResolution, VisionSource {
 
 
     private static final String TAG = "vos_aa1::MainActivity";
