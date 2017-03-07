@@ -48,6 +48,8 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import geometry_msgs.Pose;
+
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 
@@ -118,6 +120,7 @@ public class MainActivity
     private MarkerPublisherNode markerPublisherNode;
     private SetPoseServer setPoseServer;
     private VisionSourceManagementListener visionSourceManagementListener;
+    private LocaliseFromAFeatureClient localiseFromAFeatureClient;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -325,6 +328,16 @@ public class MainActivity
             visionSourceManagementListener.setDimmableScreen(this);
             visionSourceManagementListener.setVariableResolution(this);
             nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceclient_node");
+            this.localiseFromAFeatureClient = new LocaliseFromAFeatureClient();
+            localiseFromAFeatureClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
+            localiseFromAFeatureClient.setPosedEntity(this);
+            nodeMainExecutor.execute(this.localiseFromAFeatureClient, nodeConfiguration8);
         }
 
     }
@@ -590,6 +603,9 @@ public class MainActivity
                 double qz = Double.parseDouble(matcher.group(10));
                 double qw = Double.parseDouble(matcher.group(11));
                 detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+
+                localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+
 //                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
 //                System.out.print("--- tag_id=");System.out.print(tagId);
 //                    System.out.print(" :  x=");System.out.print(matcher.group(2));System.out.print(" y=");System.out.print(matcher.group(3));System.out.print(" z=");System.out.print(matcher.group(4));
@@ -683,6 +699,12 @@ public class MainActivity
     public void setPose(double[] poseXyz, double[] orientationQuaternion_) {
         this.position = poseXyz;
         this.orientation = orientationQuaternion_;
+    }
+
+    public void setPose(Pose pose_) {
+        setPose(
+                new double[]{pose_.getPosition().getX(),pose_.getPosition().getY(),pose_.getPosition().getZ()},
+                new double[]{pose_.getOrientation().getX(),pose_.getOrientation().getY(),pose_.getOrientation().getZ(),pose_.getOrientation().getW()});
     }
 
     public double[] getPosition() {

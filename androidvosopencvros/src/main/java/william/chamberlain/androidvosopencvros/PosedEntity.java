@@ -8,6 +8,7 @@ import geometry_msgs.Pose;
 
 public interface PosedEntity {
     void setPose(double[] poseXyz, double[] orientationQuaternion_);
+    void setPose(Pose pose);
     double[] getPosition();
     double[] getOrientation();
 }
