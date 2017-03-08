@@ -37,6 +37,14 @@ void translationRotationWithoutAxisChange(double m_tagSize, double m_fx, double 
     rotation = transform.block(0, 0, 3, 3);
 }
 
+
+void translationRotationWithAxisChange(double m_tagSize, double m_fx, double m_fy, double m_px,
+                                          double m_py,
+                                          AprilTags::TagDetection &tagDetection,
+                                          Eigen::Vector3d &translation, Eigen::Matrix3d &rotation) {
+    tagDetection.getRelativeTranslationRotation(m_tagSize,m_fx,m_fy,m_px,m_py,translation,rotation);
+}
+
 using namespace cv;
 
 
@@ -121,7 +129,10 @@ extern "C"
             // for _non-relative orientation of tag
 //            Eigen::Vector3d unchangedTranslation;
 //            Eigen::Matrix3d unchangedRotation;
-           translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+
+//            translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+            translationRotationWithAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+
 //            Eigen::Matrix3d m;
 //            m = Eigen::AngleAxisd(3.142, Eigen::Vector3d::UnitZ());
 //            Eigen::Matrix3d rotationRotated = m*unchangedRotation;
@@ -144,11 +155,24 @@ extern "C"
             //detections[i].draw(mRgb, translation, rotation); // my code - label the tag with the x,y,z translation from the camera - clutters the image
             detections[i].draw(mRgb);
             rollPitchYaw = rotation.eulerAngles(0, 2, 1);
+            Eigen::Quaterniond& q = quaternion;  // q is alias for quaternion
+
+            // Individual angles, rather than Euler angles, see http://stackoverflow.com/a/37560411/1200764
+            double bank     = atan2(2.0 * (q.x() * q.y() + q.w() * q.x()) , 1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));        // isolated roll
+            double attitude = asin(2.0 * (q.y() * q.w() - q.x() * q.x()));    // isolated pitch
+            double heading  = atan2(2.0 * (q.x() * q.w() + q.x() * q.y()) , - 1.0 + 2.0 * (q.w() * q.w() + q.x() * q.x()));        // isolated yaw
+            LOGI("  native: --  bank=%.4f, attitude=%.4f, heading=%.4f",180*bank/3.14159265,180*attitude/3.14159265,180*heading/3.14159265);
+            // see http://stackoverflow.com/a/18115837/1200764
+            bank = atan2(2.0*(q.x()*q.y() + q.w()*q.z()), q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
+            heading = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
+            attitude = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
+            LOGI("  native: --  bank=%.4f, attitude=%.4f, heading=%.4f",180*bank/3.14159265,180*attitude/3.14159265,180*heading/3.14159265);
+
             LOGI( quaternion_format_as_string_c_str,
                   detections[i].id, translation(0), translation(1), translation(2),
                   rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
-            LOGI("  -->  rpy degrees:  roll=%.4f pitch=%.4f yaw=%.4f", rollPitchYaw(0)*180.0/3.14159265, rollPitchYaw(1)*180.0/3.14159265, rollPitchYaw(2)*180.0/3.14159265 );
+            LOGI("  native: --  rpy degrees:  roll=%.4f pitch=%.4f yaw=%.4f", rollPitchYaw(0)*180.0/3.14159265, rollPitchYaw(1)*180.0/3.14159265, rollPitchYaw(2)*180.0/3.14159265 );
             std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
             std::cout.flush();
 //            detections[i].draw(mRgb);

@@ -96,7 +96,9 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
             connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: onSuccess");   //      String.format("%d + %d = %d", request.getA(), request.getB(), response.getSum()));    - can't tie the response to the request
             System.out.println("LocaliseFromAFeatureResponseListener: onSuccess");
 //  TODO - this closes the loop to set the camera pose as the location supplied by the service
-//              posedEntity.setPose(response.getPose());
+            if (response.getPoseFound()) {
+                posedEntity.setPose(response.getPose());
+            }
         }
 
         @Override

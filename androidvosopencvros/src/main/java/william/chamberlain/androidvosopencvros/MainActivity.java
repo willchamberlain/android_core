@@ -560,32 +560,32 @@ public class MainActivity
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
         double tagSize_metres = 0.168d;
         String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
-        for(String tag : tags) {
-            System.out.println("-------------------------------------------------------");
-            System.out.print("---");
-            System.out.print(tag);
-            System.out.println("---");
-        }
-        System.out.println("--------------------------------------------------------------------------------------------------------------");
+//        for(String tag : tags) {
+//            System.out.println("-------------------------------------------------------");
+//            System.out.print("---");
+//            System.out.print(tag);
+//            System.out.println("---");
+//        }
+        System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
         Time timeNow = Date.nowAsTime();
         for(String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
-                System.out.print("---"); System.out.print(tag); System.out.println("---");
-                System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
-                System.out.println("   ... in string [[" + tag + "]]");
+                System.out.print("---: "); System.out.print(tag); System.out.println(" :---");
+//                System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
+//                System.out.println("   ... in string [[" + tag + "]]");
             }
             Matcher matcher = tagPattern.matcher(tag);
             {
-                System.out.print("--- matcher matches ? "); System.out.println(matcher.matches());
+                System.out.print("--- matcher matches regex in the string? : "); System.out.println(matcher.matches());
             }
             String tagId = matcher.group(1);
             Integer tagId_integer = Integer.parseInt(tagId);
             int tagId_int = tagId_integer.intValue();
             {
-                System.out.print("--- tag_id="); System.out.print(tagId); System.out.print(" x=");  System.out.print(matcher.group(2)); System.out.println("---");
-                System.out.println("-------------------------------------------------------");
+                System.out.print("--- matched tag_id="); System.out.print(tagId); System.out.print(", matched x=");  System.out.print(matcher.group(2)); System.out.println("---");
+//                System.out.println("-------------------------------------------------------");
             }
             if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
             else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
@@ -604,7 +604,7 @@ public class MainActivity
                 double qw = Double.parseDouble(matcher.group(11));
                 detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
 
-                localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+//                localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x,y,z,qx,qy,qz,qw);
 
 //                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
 //                System.out.print("--- tag_id=");System.out.print(tagId);
