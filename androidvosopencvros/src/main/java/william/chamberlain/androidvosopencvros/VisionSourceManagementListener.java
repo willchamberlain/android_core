@@ -25,6 +25,7 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
     private Subscriber<String> subscriber;
     private DimmableScreen dimmableScreen;
     private VariableResolution variableResolution;
+    private VisionSource visionSource;
     private java.lang.String nodeNamespace;
 
 
@@ -97,9 +98,11 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             break;
                         case PROCESSING_ON:
                             dimmableScreen.screenOn();
+                            visionSource.start();
                             break;
                         case PROCESSING_OFF:
                             dimmableScreen.screenOff();
+                            visionSource.stop();
                             break;
                         case RESOLUTION_HIGH:
                             variableResolution.resolutionMinMax(600,450,700,550); // --> 640x480
@@ -152,4 +155,7 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
         throwable.printStackTrace();
     }
 
+    public void setVisionSource(VisionSource visionSource) {
+        this.visionSource = visionSource;
+    }
 }

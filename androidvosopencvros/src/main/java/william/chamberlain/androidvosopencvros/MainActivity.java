@@ -125,7 +125,7 @@ public class MainActivity
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
 
-    private boolean runImageProcessing = true;
+    private boolean runImageProcessing = false;
 
 
     public MainActivity() {
@@ -327,6 +327,7 @@ public class MainActivity
             visionSourceManagementListener.setNodeNamespace(NODE_NAMESPACE);
             visionSourceManagementListener.setDimmableScreen(this);
             visionSourceManagementListener.setVariableResolution(this);
+            visionSourceManagementListener.setVisionSource(this);
             nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
         }
 
@@ -463,6 +464,7 @@ public class MainActivity
         framesProcessed++;
 
 
+
         // TODO - needs API 21
 //        float[] f = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
 //        for (float d : f) {
@@ -477,6 +479,10 @@ public class MainActivity
         matRgb  = inputFrame.rgba();
         System.out.println("MainActivity: onCameraFrame("+matGray.size().width+","+matGray.size().height+"): start");
 
+//      should be able to use  disableView()
+//        if(!runImageProcessing){
+//            return matRgb;
+//        }
 
 //        getWindow().getContext().getSystemService()
         double focal_length_in_pixels_x;
@@ -773,11 +779,13 @@ public class MainActivity
     @Override
     public void start() {
         runImageProcessing = true;
+        _cameraBridgeViewBase.enableView();
     }
 
     @Override
     public void stop() {
         runImageProcessing = false;
+        _cameraBridgeViewBase.disableView();
     }
 
 
