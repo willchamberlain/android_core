@@ -16,6 +16,8 @@ import vos_aa1.LocaliseFromAFeatureRequest;
 import vos_aa1.LocaliseFromAFeatureResponse;
 import vos_aa1.VisualFeatureObservation;
 
+import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+
 /**
  * Created by will on 7/03/17.
  */
@@ -67,7 +69,7 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
         Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
-        visualFeature.setAlgorithm("AprilTags_Kaess_36h11");
+        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11);
         visualFeature.setId(tagId);
 
         visualFeature.getPose().getHeader().setFrameId(cameraFrameId);
@@ -97,7 +99,12 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
             System.out.println("LocaliseFromAFeatureResponseListener: onSuccess");
 //  TODO - this closes the loop to set the camera pose as the location supplied by the service
             if (response.getPoseFound()) {
+                connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: pose found");
+                connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: pose found = ");
+                connectedNode.getLog().info(response.getPose());
                 posedEntity.setPose(response.getPose());
+            } else {
+                connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: NO POSE FOUND");
             }
         }
 

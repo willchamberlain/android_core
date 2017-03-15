@@ -84,11 +84,16 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                 log.info("management message received: \"" + commandsFromTopic + "\"");
                 java.lang.String[] commandParts = parse(commandsFromTopic);
 //  TODO - check that the first part of the command matches this camera name e.g. c1
-                if(null == commandParts || 0 == commandParts.length) {
+                if(null == commandParts || 2 > commandParts.length) {
                     log.warn("management message not matched to pattern: \"" + commandsFromTopic + "\"");
+                    return;
                 }
                 if (commandParts[0].equals("all") || commandParts[0].equals(nodeNamespace)) {
                     ManagementCommand command = ManagementCommand.findByKey(commandParts[1]);
+                    if (null == command) {
+                        log.warn("management message command \"" + commandParts[1] + "\" not recognised.");
+                        return;
+                    }
                     switch (command) {
                         case SCREEN_ON:
                             dimmableScreen.screenOn();
@@ -112,6 +117,9 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             break;
                         case RESOLUTION_LIMITS:
                             variableResolution.resolutionMinMax(100,100,700,550);
+                            break;
+                        case RELOCALISE:
+                            visionSource.relocalise();
                             break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");

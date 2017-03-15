@@ -7,4 +7,5 @@ package william.chamberlain.androidvosopencvros;
 public interface VisionSource {
     void start();
     void stop();
+    void relocalise();
 }

@@ -36,6 +36,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -49,9 +50,12 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
 import geometry_msgs.Pose;
+import geometry_msgs.Quaternion;
+import vos_aa1.RegisterVisionSource;
 
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
+import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -63,6 +67,7 @@ public class MainActivity
         extends         RosActivity
         implements      CameraBridgeViewBase.CvCameraViewListener2,
             PosedEntity,  // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
+            DetectedFeaturesHolder,
             DimmableScreen, VariableResolution, VisionSource {
 
 
@@ -83,6 +88,7 @@ public class MainActivity
 
     private double[] position    = {0.0,0.0,1.0};     // = new double[3]
     private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
+    private boolean  poseKnown   = false;
 
     int framesProcessed = 0;
 //    PowerManager.WakeLock screenLock;
@@ -109,18 +115,20 @@ public class MainActivity
     };
 
 
-    private NavSatFixPublisher fix_pub;
-    private ImuPublisher imu_pub;
-    private MagneticFieldPublisher magnetic_field_pub;
-    private FluidPressurePublisher fluid_pressure_pub;
-    private IlluminancePublisher illuminance_pub;
-    private TemperaturePublisher temperature_pub;
-    private AprilTagsPosePublisher aprilTagsPosePublisher;
+//    private NavSatFixPublisher fix_pub;
+//    private ImuPublisher imu_pub;
+//    private MagneticFieldPublisher magnetic_field_pub;
+//    private FluidPressurePublisher fluid_pressure_pub;
+//    private IlluminancePublisher illuminance_pub;
+//    private TemperaturePublisher temperature_pub;
+//    private AprilTagsPosePublisher aprilTagsPosePublisher;
     private DetectedFeaturesClient detectedFeaturesClient;
-    private MarkerPublisherNode markerPublisherNode;
+//    private MarkerPublisherNode markerPublisherNode;
     private SetPoseServer setPoseServer;
     private VisionSourceManagementListener visionSourceManagementListener;
     private LocaliseFromAFeatureClient localiseFromAFeatureClient;
+    private RegisterVisionSourceClient registerVisionSourceClient;
+    private LocaliseFromAFeatureServer localiseFromAFeatureServer;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -223,72 +231,72 @@ public class MainActivity
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
         int sensorDelay = 20000; // 20,000 us == 50 Hz for Android 3.1 and above
-        if(currentapiVersion <= android.os.Build.VERSION_CODES.HONEYCOMB){
-            sensorDelay = SensorManager.SENSOR_DELAY_UI; // 16.7Hz for older devices.  They only support enum values, not the microsecond version.
-        }
-
-        @SuppressWarnings("deprecation")
-        int tempSensor = Sensor.TYPE_TEMPERATURE; // Older temperature
-        if(currentapiVersion <= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH){
-            tempSensor = Sensor.TYPE_AMBIENT_TEMPERATURE; // Use newer temperature if possible
-        }
-
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName(NODE_NAMESPACE+"android_sensors_driver_magnetic_field");
-            this.magnetic_field_pub = new MagneticFieldPublisher(mSensorManager, sensorDelay);
-            nodeMainExecutor.execute(this.magnetic_field_pub, nodeConfiguration);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration2 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration2.setMasterUri(masterURI);
-            nodeConfiguration2.setNodeName(NODE_NAMESPACE+"android_sensors_driver_nav_sat_fix");
-            this.fix_pub = new NavSatFixPublisher(mLocationManager);
-            nodeMainExecutor.execute(this.fix_pub, nodeConfiguration2);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration3 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration3.setMasterUri(masterURI);
-            nodeConfiguration3.setNodeName(NODE_NAMESPACE+"android_sensors_driver_imu");
-            this.imu_pub = new ImuPublisher(mSensorManager, sensorDelay);
-            nodeMainExecutor.execute(this.imu_pub, nodeConfiguration3);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration4 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration4.setMasterUri(masterURI);
-            nodeConfiguration4.setNodeName(NODE_NAMESPACE+"android_sensors_driver_pressure");
-            this.fluid_pressure_pub = new FluidPressurePublisher(mSensorManager, sensorDelay);
-            nodeMainExecutor.execute(this.fluid_pressure_pub, nodeConfiguration4);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration5 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration5.setMasterUri(masterURI);
-            nodeConfiguration5.setNodeName(NODE_NAMESPACE+"android_sensors_driver_illuminance");
-            this.illuminance_pub = new IlluminancePublisher(mSensorManager, sensorDelay);
-            nodeMainExecutor.execute(this.illuminance_pub, nodeConfiguration5);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration6 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration6.setMasterUri(masterURI);
-            nodeConfiguration6.setNodeName(NODE_NAMESPACE+"android_sensors_driver_temperature");
-            this.temperature_pub = new TemperaturePublisher(mSensorManager, sensorDelay, tempSensor);
-            nodeMainExecutor.execute(this.temperature_pub, nodeConfiguration6);
-        }
-
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration7 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration7.setMasterUri(masterURI);
-            nodeConfiguration7.setNodeName(NODE_NAMESPACE+"apriltags_pose_publisher");
-            this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
-            nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
-        }
+//        if(currentapiVersion <= android.os.Build.VERSION_CODES.HONEYCOMB){
+//            sensorDelay = SensorManager.SENSOR_DELAY_UI; // 16.7Hz for older devices.  They only support enum values, not the microsecond version.
+//        }
+//
+//        @SuppressWarnings("deprecation")
+//        int tempSensor = Sensor.TYPE_TEMPERATURE; // Older temperature
+//        if(currentapiVersion <= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH){
+//            tempSensor = Sensor.TYPE_AMBIENT_TEMPERATURE; // Use newer temperature if possible
+//        }
+//
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration.setMasterUri(masterURI);
+//            nodeConfiguration.setNodeName(NODE_NAMESPACE+"android_sensors_driver_magnetic_field");
+//            this.magnetic_field_pub = new MagneticFieldPublisher(mSensorManager, sensorDelay);
+//            nodeMainExecutor.execute(this.magnetic_field_pub, nodeConfiguration);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration2 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration2.setMasterUri(masterURI);
+//            nodeConfiguration2.setNodeName(NODE_NAMESPACE+"android_sensors_driver_nav_sat_fix");
+//            this.fix_pub = new NavSatFixPublisher(mLocationManager);
+//            nodeMainExecutor.execute(this.fix_pub, nodeConfiguration2);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration3 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration3.setMasterUri(masterURI);
+//            nodeConfiguration3.setNodeName(NODE_NAMESPACE+"android_sensors_driver_imu");
+//            this.imu_pub = new ImuPublisher(mSensorManager, sensorDelay);
+//            nodeMainExecutor.execute(this.imu_pub, nodeConfiguration3);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration4 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration4.setMasterUri(masterURI);
+//            nodeConfiguration4.setNodeName(NODE_NAMESPACE+"android_sensors_driver_pressure");
+//            this.fluid_pressure_pub = new FluidPressurePublisher(mSensorManager, sensorDelay);
+//            nodeMainExecutor.execute(this.fluid_pressure_pub, nodeConfiguration4);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration5 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration5.setMasterUri(masterURI);
+//            nodeConfiguration5.setNodeName(NODE_NAMESPACE+"android_sensors_driver_illuminance");
+//            this.illuminance_pub = new IlluminancePublisher(mSensorManager, sensorDelay);
+//            nodeMainExecutor.execute(this.illuminance_pub, nodeConfiguration5);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration6 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration6.setMasterUri(masterURI);
+//            nodeConfiguration6.setNodeName(NODE_NAMESPACE+"android_sensors_driver_temperature");
+//            this.temperature_pub = new TemperaturePublisher(mSensorManager, sensorDelay, tempSensor);
+//            nodeMainExecutor.execute(this.temperature_pub, nodeConfiguration6);
+//        }
+//
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration7 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration7.setMasterUri(masterURI);
+//            nodeConfiguration7.setNodeName(NODE_NAMESPACE+"apriltags_pose_publisher");
+//            this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
+//            nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
+//        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
@@ -300,14 +308,14 @@ public class MainActivity
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
 
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
-            this.markerPublisherNode = new MarkerPublisherNode();
-            markerPublisherNode.setNodeNamespace(NODE_NAMESPACE);
-            nodeMainExecutor.execute(this.markerPublisherNode, nodeConfiguration);
-        }
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration.setMasterUri(masterURI);
+//            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
+//            this.markerPublisherNode = new MarkerPublisherNode();
+//            markerPublisherNode.setNodeNamespace(NODE_NAMESPACE);
+//            nodeMainExecutor.execute(this.markerPublisherNode, nodeConfiguration);
+//        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
@@ -339,6 +347,26 @@ public class MainActivity
             localiseFromAFeatureClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
             localiseFromAFeatureClient.setPosedEntity(this);
             nodeMainExecutor.execute(this.localiseFromAFeatureClient, nodeConfiguration8);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"registervisionsource_serviceclient_node");
+            this.registerVisionSourceClient = new RegisterVisionSourceClient();
+            registerVisionSourceClient.setBaseUrl(Naming.cameraNamespace(getCamNum()));
+            nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceserver_node");
+            this.localiseFromAFeatureServer = new LocaliseFromAFeatureServer();
+            localiseFromAFeatureServer.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
+            localiseFromAFeatureServer.setPosedEntity(this);
+            localiseFromAFeatureServer.setDetectedFeaturesHolder(this);
+            nodeMainExecutor.execute(this.localiseFromAFeatureServer, nodeConfiguration8);
         }
 
     }
@@ -459,11 +487,17 @@ public class MainActivity
 
 
     boolean screenLocked = false;
+    boolean registeredAsVisionSource = false;
+    List<DetectedFeature> detectedFeatures = Collections.synchronizedList(new ArrayList<DetectedFeature>());
 
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         framesProcessed++;
 
-
+        if (!registeredAsVisionSource & null != registerVisionSourceClient) {
+            Log.i(TAG,"onCameraFrame: registering as a vision source.");
+            registerVisionSourceClient.registerVisionSource();
+            registeredAsVisionSource = true;
+        }
 
         // TODO - needs API 21
 //        float[] f = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
@@ -575,6 +609,8 @@ public class MainActivity
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
         Time timeNow = Date.nowAsTime();
+        detectedFeatures.clear();
+
         for(String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
@@ -593,8 +629,8 @@ public class MainActivity
                 System.out.print("--- matched tag_id="); System.out.print(tagId); System.out.print(", matched x=");  System.out.print(matcher.group(2)); System.out.println("---");
 //                System.out.println("-------------------------------------------------------");
             }
-            if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
-            else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
+//            if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
+//            else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
 
             if(null != detectedFeaturesClient) {
 // ("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
@@ -608,9 +644,22 @@ public class MainActivity
                 double qy = Double.parseDouble(matcher.group(9));
                 double qz = Double.parseDouble(matcher.group(10));
                 double qw = Double.parseDouble(matcher.group(11));
+
+                org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(x,y,z);
+        //  NOTE !!
+                // this corresponds to the fix in detect_feature_server.py line 278,
+                // caused by Kaess' mixed coordinate system conventions in TagDetection.cc lines 142-145:
+                // the quaternion is in camera-/optical-coordinate-system conventions ( rot = T.block ... rather than rot = MT.block ... ) ,
+                // while the translation is in robot-coordinate-system convention (TagDetection.cc lines 133-141 :-  trans = MT.col(3).head(3)  )
+                org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz,-qx,-qy,qw);
+                DetectedFeature feature = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11, tagId, translation_to_tag_in_robot_convention, quaternion_rotation_to_tag);
+                detectedFeatures.add(feature);
+
                 detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
 
-//                localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+                if (!poseKnown) {
+                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, qx, qy, qz, qw);
+                }
 
 //                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
 //                System.out.print("--- tag_id=");System.out.print(tagId);
@@ -619,13 +668,13 @@ public class MainActivity
 //                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
 //                    System.out.println("---");
 //                System.out.println("-------------------------------------------------------");
-                {
-                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
-                    markerPublisherNode.publishMarker(MARKER_NAMESPACE, tagId_int, tagId, x, y, z, qx, qy, qz, qw, Naming.cameraFrameId(getCamNum()), timeNow);
-                    // TODO - use same variable for this and aa1_vos_android_catkin_ws___src/vos_aa1/src/vos_aa1/detect_feature_server.py
-                    // TODO - publish markers in detected_feature_server.py - once I have figured out what is going on with the RPY in that Python code
-                    // TODO -   ... or use C++ as detected_feature_server.cpp
-                }
+//                {
+//                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
+//                    markerPublisherNode.publishMarker(MARKER_NAMESPACE, tagId_int, tagId, x, y, z, qx, qy, qz, qw, Naming.cameraFrameId(getCamNum()), timeNow);
+//                    // TODO - use same variable for this and aa1_vos_android_catkin_ws___src/vos_aa1/src/vos_aa1/detect_feature_server.py
+//                    // TODO - publish markers in detected_feature_server.py - once I have figured out what is going on with the RPY in that Python code
+//                    // TODO -   ... or use C++ as detected_feature_server.cpp
+//                }
             }
             else {
                 System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags"); System.out.println(tagId);
@@ -705,6 +754,7 @@ public class MainActivity
     public void setPose(double[] poseXyz, double[] orientationQuaternion_) {
         this.position = poseXyz;
         this.orientation = orientationQuaternion_;
+        this.poseKnown = true;
     }
 
     public void setPose(Pose pose_) {
@@ -719,6 +769,10 @@ public class MainActivity
 
     public double[] getOrientation() {
         return orientation;
+    }
+
+    public boolean poseKnown(){
+        return poseKnown;
     }
 
 
@@ -788,6 +842,13 @@ public class MainActivity
         _cameraBridgeViewBase.disableView();
     }
 
+    @Override
+    public void relocalise() {
+        poseKnown = false;
+        position    = new double[]{0.0,0.0,1.0};
+        orientation = new double[]{0.0,0.0,0.0,1.0};
+    }
+
 
     /*
     See http://stackoverflow.com/questions/3261776/determine-angle-of-view-of-smartphone-camera/12118760#12118760
@@ -835,6 +896,10 @@ public class MainActivity
 
     public Camera.Parameters cameraParameters() {
         return _cameraBridgeViewBase.camera().getParameters();
+    }
+
+    public List<DetectedFeature> detectedFeatureList() {
+        return detectedFeatures;
     }
 }
 

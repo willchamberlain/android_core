@@ -61,6 +61,14 @@ extern "C"
         delete (AprilTags::TagDetector *)tagDetectorPointer;
     }
 
+    Eigen::Vector3d translation;    // translation vector from camera to the April tag - see TagDetection.cc
+    Eigen::Matrix3d rotation;       // orientation of April tag with respect to camera - see TagDetection.cc
+    Eigen::Vector3d rollPitchYaw;
+    Eigen::Quaterniond quaternion;
+    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
+    const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
+
+
     jobjectArray JNIEXPORT Java_william_chamberlain_androidvosopencvros_MainActivity_aprilTags(JNIEnv *env, jobject instance,
                                                                             jlong matAddrGray,          // pointer to grayscale image matrix - input to Apriltags detection
                                                                             jlong matAddrRgb,           // pointer to RGB image matrix - input and output
@@ -87,12 +95,6 @@ extern "C"
         //m_fy = 518.952669;
         double m_px = m_width/2;   // TODO - use proper camera principal point
         double m_py = m_height/2;
-        Eigen::Vector3d translation;    // translation vector from camera to the April tag - see TagDetection.cc
-        Eigen::Matrix3d rotation;       // orientation of April tag with respect to camera - see TagDetection.cc
-        Eigen::Vector3d rollPitchYaw;
-        Eigen::Quaterniond quaternion;
-        const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
-        const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
 
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
 

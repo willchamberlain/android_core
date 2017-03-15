@@ -23,6 +23,8 @@ import vos_aa1.DetectedFeaturesRequest;
 import vos_aa1.DetectedFeaturesResponse;
 import vos_aa1.VisualFeatureObservation;
 
+import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+
 /**
  * Created by will on 16/02/17.
  */
@@ -100,7 +102,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
         Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
-        visualFeature.setAlgorithm("AprilTags_Kaess_36h11");
+        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11);
         visualFeature.setId(tagId);
 
         serviceRequest.setCameraPose(cameraPose);

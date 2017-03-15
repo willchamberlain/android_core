@@ -11,4 +11,5 @@ public interface PosedEntity {
     void setPose(Pose pose);
     double[] getPosition();
     double[] getOrientation();
+    boolean poseKnown();
 }
