@@ -42,6 +42,13 @@ void translationRotationWithAxisChange(double m_tagSize, double m_fx, double m_f
                                           double m_py,
                                           AprilTags::TagDetection &tagDetection,
                                           Eigen::Vector3d &translation, Eigen::Matrix3d &rotation) {
+    // for detect_feature_server_2.py
+//    tagDetection.robotCoordinateConventionFacingAway(m_tagSize,m_fx,m_fy,m_px,m_py,translation,rotation);
+    // not sure whether this is right yet: use the above which is Kaess' convention first, then fix that convention .
+//    tagDetection.robotCoordinateConvention(m_tagSize,m_fx,m_fy,m_px,m_py,translation,rotation);
+
+
+    // for detect_feature_server.py
     tagDetection.getRelativeTranslationRotation(m_tagSize,m_fx,m_fy,m_px,m_py,translation,rotation);
 }
 
