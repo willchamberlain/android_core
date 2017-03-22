@@ -368,6 +368,15 @@ public class MainActivity
             localiseFromAFeatureServer.setDetectedFeaturesHolder(this);
             nodeMainExecutor.execute(this.localiseFromAFeatureServer, nodeConfiguration8);
         }
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+//            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceserver_node");
+//            this.imagePublisher = new ImagePublisher();
+//            imagePublisher.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
+//            nodeMainExecutor.execute(this.imagePublisher, nodeConfiguration8);
+//  TODO  -  IMAGEPUBLISHER
+        }
 
     }
 
@@ -844,9 +853,13 @@ public class MainActivity
 
     @Override
     public void relocalise() {
-        poseKnown = false;
+        poseKnown   = false;
         position    = new double[]{0.0,0.0,1.0};
         orientation = new double[]{0.0,0.0,0.0,1.0};
+    }
+
+    public void publishCurrentFrame() {
+
     }
 
 

@@ -8,4 +8,5 @@ public interface VisionSource {
     void start();
     void stop();
     void relocalise();
+    void publishCurrentFrame();
 }
