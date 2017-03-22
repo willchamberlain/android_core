@@ -10,7 +10,7 @@ include_directories(/mnt/nixbig/downloads/apriltags_kaess/apriltags/AprilTags/)
 
 include_directories(/mnt/nixbig/downloads/apriltags_kaess/apriltags/)
 
-add_library( lib_opencv SHARED IMPORTED )
+add_library( lib_opencv  SHARED IMPORTED )
 # add_library( lib_eigen SHARED IMPORTED )
 set_target_properties(lib_opencv PROPERTIES IMPORTED_LOCATION /mnt/nixbig/build_workspaces/androidapriltagsros/app/src/main/jniLibs/${ANDROID_ABI}/libopencv_java3.so)
 # set_target_properties(lib_eigen PROPERTIES IMPORTED_LOCATION /Users/will/projects/OpencvTestAndroidStudio/app/src/main/jniLibs/${ANDROID_ABI}/libopencv_java3.so)

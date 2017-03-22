@@ -58,6 +58,8 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
                     assets.srcDirs "assets"
                     java.srcDirs "src"
                 }
+                compileSdkVersion 25
+                buildToolsVersion '25.0.2'
             }
 
             // Copy JAR dependencies into the libs directory for Eclipse.
@@ -82,7 +84,8 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
     }
 }
 
-configure(subprojects.findAll { it.name.startsWith("androidvosopencvros") }) {
+//  androidvosopencvros, androidvosopencv
+configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
     /*
      * The android plugin configures a few things:
      *
@@ -111,6 +114,8 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencvros") }) {
                     assets.srcDirs "assets"
                     java.srcDirs "src"
                 }
+                compileSdkVersion 25
+                buildToolsVersion '25.0.2'
             }
 
             // Copy JAR dependencies into the libs directory for Eclipse.

@@ -15,9 +15,15 @@
  */
 
 dependencies {
-  compile ('org.ros.rosjava_core:rosjava_geometry:[0.2,0.3)'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
-  compile ('com.android.support:support-v4:21.0.3'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
-  compile ('org.ros.rosjava_messages:visualization_msgs:[1.11,1.12)'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
+  compile('org.ros.rosjava_core:rosjava_geometry:[0.2,0.3)') {
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+  }
+  compile('com.android.support:support-v4:21.0.3') {
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+  }
+  compile('org.ros.rosjava_messages:visualization_msgs:[1.11,1.12)') {
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+  }
   compile project(':android_10')
 }
 
@@ -25,11 +31,13 @@ apply plugin: 'com.android.library'
 
 android {
   compileSdkVersion 25
-
   defaultConfig {
     minSdkVersion 18
     targetSdkVersion 25
     versionCode 1
     versionName "1.0"
+  }
+  buildToolsVersion '25.0.2'
+  productFlavors {
   }
 }

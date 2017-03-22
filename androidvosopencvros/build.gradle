@@ -47,6 +47,8 @@ android {
 //            path "apriltags_kaess/CMakeLists.txt"  // TODO - should work out how to set these up as separate C++ libraries at the same level
         }
     }
+    productFlavors {
+    }
 }
 
 dependencies {
