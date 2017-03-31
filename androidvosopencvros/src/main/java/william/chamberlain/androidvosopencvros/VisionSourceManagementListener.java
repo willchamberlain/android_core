@@ -13,6 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import std_msgs.String;
+import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 
 /**
  * Listens for management commands on the /management topic.

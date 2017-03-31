@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Created by will on 14/02/17.
  */
-class CameraResolutionComparator {
+public class CameraResolutionComparator {
     private Camera.Parameters cameraParameters;
 
     public CameraResolutionComparator(Camera.Parameters cameraParameters) {

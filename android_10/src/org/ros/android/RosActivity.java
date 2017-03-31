@@ -47,6 +47,7 @@ public abstract class RosActivity extends Activity {
   private final String notificationTitle;
 
   protected NodeMainExecutorService nodeMainExecutorService;
+  protected boolean readyToProcessImages = false;
 
   private final class NodeMainExecutorServiceConnection implements ServiceConnection {
 
@@ -214,6 +215,7 @@ System.out.println(" onActivityResult BEFORE --> nodeMainExecutorService.setCamN
 System.out.println("------------------------");
 System.out.println(" onActivityResult --> nodeMainExecutorService.setCamNum(" + camNum + "); ");
           nodeMainExecutorService.setCamNum(camNum);
+          readyToProcessImages = true;
 System.out.println("------------------------");
         }
         // Run init() in a new thread as a convenience since it often requires network access.
