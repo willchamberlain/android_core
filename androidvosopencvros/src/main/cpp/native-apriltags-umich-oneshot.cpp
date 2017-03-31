@@ -7,6 +7,7 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include "opencv2/opencv.hpp"
 
 #include <android/log.h>
 #include <common/image_u8.h>
@@ -18,6 +19,7 @@
 #include "tag36artoolkit.h"
 #include "tag25h9.h"
 #include "tag25h7.h"
+#include "tag16h5.h"
 
 #include "common/getopt.h"
 
@@ -28,7 +30,6 @@
 #define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,LOG_TAG,__VA_ARGS__)
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
 
-apriltag_detector_t *createDetector(const apriltag_family_t *tagFamily);
 
 using namespace cv;
 
@@ -50,6 +51,36 @@ static double now_us(void) {
 
 extern "C"
 {
+
+// draw one April tag detection on actual image
+void draw(cv::Mat& image, const int id, const double xc, const double yc, const double x1, const double y1, const double x2, const double y2, const double x3, const double y3, const double x4, const double y4 )
+     {
+    std::pair<float, float> cxy = std::pair<float, float>(xc,yc);
+
+    // use corner points detected by line intersection
+    std::pair<float, float> p1 = std::pair<float, float>(x1,y1);
+    std::pair<float, float> p2 = std::pair<float, float>(x2,y2);
+    std::pair<float, float> p3 = std::pair<float, float>(x3,y3);
+    std::pair<float, float> p4 = std::pair<float, float>(x4,y4);
+
+    // plot outline
+    cv::line(image, cv::Point2f(p1.first, p1.second), cv::Point2f(p2.first, p2.second), cv::Scalar(255,0,0,0) );
+    cv::line(image, cv::Point2f(p2.first, p2.second), cv::Point2f(p3.first, p3.second), cv::Scalar(0,255,0,0) );
+    cv::line(image, cv::Point2f(p3.first, p3.second), cv::Point2f(p4.first, p4.second), cv::Scalar(0,0,255,0) );
+    cv::line(image, cv::Point2f(p4.first, p4.second), cv::Point2f(p1.first, p1.second), cv::Scalar(255,0,255,0) );
+
+    // mark center
+    cv::circle(image, cv::Point2f(cxy.first, cxy.second), 8, cv::Scalar(0,0,255,0), 2);
+
+    // print ID
+    std::ostringstream strSt;
+    strSt << "#" << id;
+    cv::putText(image, strSt.str(),
+                cv::Point2f(cxy.first + 10, cxy.second + 10),
+                cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(0,0,255));
+}
+
+
 //    #include    "jpeglib.h"
     // First, just call the function to get the timing
     // Second, call it and bring back the tag values
@@ -58,7 +89,7 @@ extern "C"
     // see apriltag_v4l_integration_demo.c for example of invocation
     jlong JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_aprilTagsUmichOneShot(JNIEnv *env, jobject instance,
                                             jlong matAddrGray,              // pointer to grayscale image matrix - input to Apriltags detection
-//                                            jlong matAddrRgb,               // pointer to RGB image matrix - input and output
+                                            jlong matAddrRgb,               // pointer to RGB image matrix - input and output
                                             jlong tagDetectorPointer,       // pointer to an AprilTags::TagDetector instance
                                             jdouble tagSize_metres,
                                             jdouble fx_pixels,
@@ -76,10 +107,9 @@ extern "C"
         getopt_add_bool(getopt, 'h', "help", 0, "Show this help");
         getopt_add_bool(getopt, 'd', "debug", 0, "Enable debugging output (slow)");
         getopt_add_bool(getopt, 'q', "quiet", 0, "Reduce output");
-        getopt_add_string(getopt, 'f', "family", "tag36h11", "Tag family to use");
+        getopt_add_string(getopt, 'f', "family", "tag16h5", "Tag family to use");
         getopt_add_int(getopt, '\0', "border", "1", "Set tag family border size");
-        getopt_add_int(getopt, 'i', "iters", "1", "Repeat processing on input set this many times");
-        getopt_add_int(getopt, 't', "threads", "4", "Use this many CPU threads");
+        getopt_add_int(getopt, 't', "threads", "8", "Use this many CPU threads");
         getopt_add_double(getopt, 'x', "decimate", "1.0", "Decimate input image by this factor");
         getopt_add_double(getopt, 'b', "blur", "0.0", "Apply low-pass blur to input; negative sharpens");
         getopt_add_bool(getopt, '0', "refine-edges", 1, "Spend more time trying to align edges of tags");
@@ -91,7 +121,7 @@ extern "C"
         const zarray_t *inputs = getopt_get_extra_args(getopt);
 
         apriltag_family_t *tagFamily = NULL;
-        const char *famname = "tag36h11";
+        const char *famname = "tag16h5";
         if (!strcmp(famname, "tag36h11"))
             tagFamily = tag36h11_create();
         else if (!strcmp(famname, "tag36h10"))
@@ -102,6 +132,8 @@ extern "C"
             tagFamily = tag25h9_create();
         else if (!strcmp(famname, "tag25h7"))
             tagFamily = tag25h7_create();
+        else if (!strcmp(famname, "tag16h5"))
+            tagFamily = tag16h5_create();
         else {
             printf("Unrecognized tag family name. Use e.g. \"tag36h11\".\n");
             LOGI("MainActivity_aprilTagsUmichOneShot: Unrecognized tag family name: %s .",famname);
@@ -116,8 +148,6 @@ extern "C"
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: created apriltag_detector_t: %f ms.", (time_now-time_then));
         apriltag_detector_add_family(tagDetector, tagFamily);
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: added tag family: %f ms.", (time_now-time_then));
-        apriltag_detector_add_family(tagDetector, tagFamily);
-        time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: added tag family the second time: %f ms.", (time_now-time_then));
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector: %f ms.", (time_now-time_then));
         tagDetector->quad_decimate = getopt_get_double(getopt, "decimate");
         tagDetector->quad_sigma = getopt_get_double(getopt, "blur");
@@ -126,17 +156,8 @@ extern "C"
         tagDetector->refine_edges = getopt_get_bool(getopt, "refine-edges");
         tagDetector->refine_decode = getopt_get_bool(getopt, "refine-decode");
         tagDetector->refine_pose = getopt_get_bool(getopt, "refine-pose");
+
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector set attributes: %f ms.", (time_now-time_then));
-
-//    LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector has %d tag families loaded", tagDetector->tag_families->size );
-
-//    apriltag_detector_clear_families_leave_initialised(tagDetector);
-//    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: apriltag_detector_clear_families_leave_initialised: %f ms.", (time_now-time_then));
-
-//    LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector has %d tag families loaded", tagDetector->tag_families->size );
-
-    apriltag_detector_add_family(tagDetector, tagFamily);
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: apriltag_detector_add_family: %f ms.", (time_now-time_then));
 
     LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector has %d tag families loaded", tagDetector->tag_families->size );
 
@@ -186,6 +207,10 @@ extern "C"
         hamm_hist[det->hamming]++;
         total_hamm_hist[det->hamming]++;
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: list tag detection attributes: %f ms  for tag detection %d.", (time_now-time_then), i);
+
+        Mat &matRgb = *(Mat *) matAddrRgb;
+        draw(matRgb, det->id, det->c[0],det->c[1], det->p[0][0], det->p[0][1], det->p[1][0], det->p[1][1], det->p[2][0], det->p[2][1], det->p[3][0], det->p[3][1]);
+        time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: draw(matRgb, ...): %f ms.", (time_now-time_then));
     }
 
     apriltag_detections_destroy(detections);
@@ -206,26 +231,7 @@ extern "C"
     }
 
 
-
-void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_deleteTagDetectorUmichOneShot(
-        JNIEnv *, jobject, jlong tagDetectorPointer, jlong tagFamilyPointer) {
-    double start_ms = now_ms(); // start time
-    double time_then = start_ms;
-    double time_now = time_then;
-    apriltag_detector_t *tagDetector = (apriltag_detector_t *)tagDetectorPointer;
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: cast tagDetector pointer: %f ms.", (time_now-time_then));
-    apriltag_detector_clear_families_leave_initialised(tagDetector);
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: apriltag_detector_clear_families_leave_initialised: %f ms.", (time_now-time_then));
-    apriltag_family_t *tagFamily = (apriltag_family_t *)tagFamilyPointer;
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: cast tagFamily pointer: %f ms.", (time_now-time_then));
-    apriltag_detector_add_family(tagDetector, tagFamily);
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: apriltag_detector_add_family: %f ms.", (time_now-time_then));
-    apriltag_detector_destroy( (apriltag_detector_t *)tagDetectorPointer );
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: apriltag_detector_destroy: %f ms.", (time_now-time_then));
-
-//    tag36h11_destroy(tagFamily);
 }
 
 
 
-}

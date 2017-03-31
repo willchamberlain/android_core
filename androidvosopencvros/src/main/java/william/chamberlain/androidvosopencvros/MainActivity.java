@@ -484,7 +484,7 @@ public class MainActivity
 
     public void onDestroy() {
         super.onDestroy();
-        deleteTagDetectorUmichOneShot(tagDetectorPointer); // Apriltags
+//        deleteTagDetectorUmichOneShot(tagDetectorPointer); // Apriltags
         disableCamera();
     }
 
@@ -835,7 +835,6 @@ public class MainActivity
     public native long newTagDetectorUmich();   // Apriltags
     public native void deleteTagDetectorUmich(long tagDetectorPointer, long tagFamilyPointer);     // Apriltags
     public native long aprilTagsUmich(       long matAddrGray, long matAddrRgb, long tagDetectorPointer, long tagFamilyPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
-    public native void deleteTagDetectorUmichOneShot(long tagDetectorPointer);     // Apriltags
     public native long aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
 
 

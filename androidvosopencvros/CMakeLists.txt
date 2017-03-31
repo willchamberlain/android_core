@@ -96,6 +96,7 @@ target_link_libraries(
 target_link_libraries(
                        apriltags_umich      # Specifies the target library.
                        ${log_library}       # Links the target library to the log library included in the NDK.
+                       lib_opencv           # Links the target library to OpenCV
                        )
 
 # target_link_libraries(
