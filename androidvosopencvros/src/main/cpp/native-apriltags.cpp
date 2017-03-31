@@ -9,6 +9,8 @@
 #include <AprilTags/TagDetector.h>
 #include "AprilTags/Tag36h11.h"
 
+#include <time.h>
+
 #include <android/log.h>
 
 #define  LOG_TAG    "native-apriltags"
@@ -17,6 +19,22 @@
 #define  LOGW(...)  __android_log_print(ANDROID_LOG_WARN,LOG_TAG,__VA_ARGS__)
 #define  LOGD(...)  __android_log_print(ANDROID_LOG_DEBUG,LOG_TAG,__VA_ARGS__)
 #define  LOGI(...)  __android_log_print(ANDROID_LOG_INFO,LOG_TAG,__VA_ARGS__)
+
+
+// from android samples
+/* return current time in milliseconds */
+static double now_ms(void) {
+    struct timespec res;
+    clock_gettime(CLOCK_REALTIME, &res);
+    return 1000.0 * res.tv_sec + (double) res.tv_nsec / 1e6;
+
+}
+static double now_us(void) {
+    struct timespec res;
+    clock_gettime(CLOCK_REALTIME, &res);
+    return 1000000.0 * res.tv_sec + (double) res.tv_nsec / 1e3;
+
+}
 
 
 void translationRotationWithoutAxisChange(double m_tagSize, double m_fx, double m_fy, double m_px,
@@ -60,11 +78,11 @@ extern "C"
 {
     void rotate_90n(cv::Mat const &src, cv::Mat &dst, int angle);
 
-    jlong JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_newTagDetector(JNIEnv *, jobject) {
+    jlong JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_newTagDetectorKaess(JNIEnv *, jobject) {
         return (long)(new AprilTags::TagDetector(AprilTags::tagCodes36h11));
     }
 
-    void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_deleteTagDetector(JNIEnv *, jobject, jlong tagDetectorPointer) {
+    void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_deleteTagDetectorKaess(JNIEnv *, jobject, jlong tagDetectorPointer) {
         delete (AprilTags::TagDetector *)tagDetectorPointer;
     }
 
@@ -84,6 +102,7 @@ extern "C"
                                                                             jdouble fx_pixels,
                                                                             jdouble fy_pixels
     ) {
+        double start_ms = now_ms(); // start time
         AprilTags::TagDetector *m_tagDetector = (AprilTags::TagDetector *)tagDetectorPointer;
 //        AprilTags::TagCodes m_tagCodes;
 //        m_tagCodes = AprilTags::tagCodes36h11;
@@ -103,13 +122,20 @@ extern "C"
         double m_px = m_width/2;   // TODO - use proper camera principal point
         double m_py = m_height/2;
 
+        double before_extractTags_ms = now_ms();
+        LOGI("MainActivity_aprilTags: took %f ms to reach m_tagDetector->extractTags.", (before_extractTags_ms - start_ms) );
         vector<AprilTags::TagDetection> detections = m_tagDetector->extractTags(mGr);
+        double after_extractTags_ms = now_ms();
+        LOGI("MainActivity_aprilTags: took %f ms to extractTags.", (after_extractTags_ms - before_extractTags_ms) );
 
         jstring         str;
         jobjectArray    tags_as_strings = 0;
         jsize           detections_size = detections.size();
         int             detections_size_int = detections.size();
         tags_as_strings = (jobjectArray)env->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),env->NewStringUTF(""));
+        double time_then = after_extractTags_ms;
+        double time_now = now_ms();
+        LOGI("MainActivity_aprilTags: took %f ms to create jobjectArray.", (time_now - time_then) );
 
 //        Eigen::Matrix3d rotationReflectZ;
 //        rotationReflectZ << 1.0, 0.0, 0.0,
@@ -141,6 +167,9 @@ extern "C"
 
 //            translationRotationWithoutAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
             translationRotationWithAxisChange(m_tagSize, m_fx, m_fy, m_px, m_py, detections[i], translation, rotation);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for translationRotationWithAxisChange on iteration %d.", (time_now - time_then), i );
 
 //            Eigen::Matrix3d m;
 //            m = Eigen::AngleAxisd(3.142, Eigen::Vector3d::UnitZ());
@@ -163,36 +192,52 @@ extern "C"
             // also highlight in the image
             //detections[i].draw(mRgb, translation, rotation); // my code - label the tag with the x,y,z translation from the camera - clutters the image
             detections[i].draw(mRgb);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for detections[i].draw(mRgb) on iteration %d.", (time_now - time_then), i );
             rollPitchYaw = rotation.eulerAngles(0, 2, 1);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  rollPitchYaw = rotation.eulerAngles(0, 2, 1);  on iteration %d.", (time_now - time_then), i );
             Eigen::Quaterniond& q = quaternion;  // q is alias for quaternion
 
             // Individual angles, rather than Euler angles, see http://stackoverflow.com/a/37560411/1200764
             double bank     = atan2(2.0 * (q.x() * q.y() + q.w() * q.x()) , 1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y()));        // isolated roll
             double attitude = asin(2.0 * (q.y() * q.w() - q.x() * q.x()));    // isolated pitch
             double heading  = atan2(2.0 * (q.x() * q.w() + q.x() * q.y()) , - 1.0 + 2.0 * (q.w() * q.w() + q.x() * q.x()));        // isolated yaw
-            LOGI("  native: --  bank=%.4f, attitude=%.4f, heading=%.4f",180*bank/3.14159265,180*attitude/3.14159265,180*heading/3.14159265);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  bank, attitude, heading 1 on iteration %d.", (time_now - time_then), i );
             // see http://stackoverflow.com/a/18115837/1200764
             bank = atan2(2.0*(q.x()*q.y() + q.w()*q.z()), q.w()*q.w() + q.x()*q.x() - q.y()*q.y() - q.z()*q.z());
             heading = atan2(2.0*(q.y()*q.z() + q.w()*q.x()), q.w()*q.w() - q.x()*q.x() - q.y()*q.y() + q.z()*q.z());
             attitude = asin(-2.0*(q.x()*q.z() - q.w()*q.y()));
-            LOGI("  native: --  bank=%.4f, attitude=%.4f, heading=%.4f",180*bank/3.14159265,180*attitude/3.14159265,180*heading/3.14159265);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  bank, attitude, heading 2 on iteration %d.", (time_now - time_then), i );
 
             LOGI( quaternion_format_as_string_c_str,
                   detections[i].id, translation(0), translation(1), translation(2),
                   rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
-            LOGI("  native: --  rpy degrees:  roll=%.4f pitch=%.4f yaw=%.4f", rollPitchYaw(0)*180.0/3.14159265, rollPitchYaw(1)*180.0/3.14159265, rollPitchYaw(2)*180.0/3.14159265 );
-            std::cout << "tag " << detections[i].id << " at x=" << translation(0) << " y=" << translation(1) << " z=" << translation(2) << std::endl;
-            std::cout.flush();
 //            detections[i].draw(mRgb);
             char tag_and_pose_data[200];
             sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
                     rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  logging, char[] creation, char[] population on iteration %d.", (time_now - time_then), i );
 
             str = (env)->NewStringUTF(tag_and_pose_data);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  str = (env)->NewStringUTF(tag_and_pose_data)  on iteration %d.", (time_now - time_then), i );
             (env)->SetObjectArrayElement(tags_as_strings, i, str);
+            time_then = time_now;
+            time_now = now_ms();
+            LOGI("MainActivity_aprilTags: took %f ms for  (env)->SetObjectArrayElement(tags_as_strings, i, str)  on iteration %d.", (time_now - time_then), i );
         }
 //        rotate_90n(mRgb,mRgb,270);
         std::ostringstream strStx;
@@ -200,6 +245,9 @@ extern "C"
         cv::putText(mRgb, strStx.str(),
                     cv::Point2f(0, 0),
                     cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(220,220,255));
+        time_then = time_now;
+        time_now = now_ms();
+        LOGI("MainActivity_aprilTags: took %f ms for  cv::putText %d.", (time_now - time_then) );
         return tags_as_strings;
     }
 

@@ -38,7 +38,7 @@ android {
     }
     sourceSets {
         main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
+            jniLibs.srcDirs = ['src/main/jniLibs']      // symlink to OpenCV JNI code
         }
     }
     externalNativeBuild {
