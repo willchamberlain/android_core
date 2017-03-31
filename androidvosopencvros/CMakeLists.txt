@@ -54,6 +54,7 @@ add_library(
             ${apriltags_umich_dir}/common/getopt.c ${apriltags_umich_dir}/common/image_f32.c ${apriltags_umich_dir}/common/image_u8x3.c ${apriltags_umich_dir}/common/matd.c ${apriltags_umich_dir}/common/pjpeg.c ${apriltags_umich_dir}/common/pnm.c ${apriltags_umich_dir}/common/svd22.c ${apriltags_umich_dir}/common/unionfind.c ${apriltags_umich_dir}/common/zarray.c ${apriltags_umich_dir}/common/zmaxheap.c
             ${apriltags_umich_dir}/example/apriltag_v4l_integration_demo.c
             src/main/cpp/native-apriltags-umich.cpp    # JNI calls - core of this library
+            src/main/cpp/native-apriltags-umich-oneshot.cpp    # JNI calls - core of this library
            )
 
 # set(apriltags_swatbotics_dir "/mnt/nixbig/downloads/apriltags_swatbotics/apriltags-cpp/src/" )

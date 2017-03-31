@@ -186,6 +186,9 @@ public class MainActivity
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
 
+        resolutionMinMax(100,100,400,300);
+        Log.i("onCreate", "onCreate: set resolution low");
+
         if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, _baseLoaderCallback)){  // http://stackoverflow.com/questions/24732504/live-stream-video-processing-in-android-using-opencv
             Log.e("onCreate", "onCreate: Cannot connect to OpenCV Manager");
         }else {
@@ -481,7 +484,7 @@ public class MainActivity
 
     public void onDestroy() {
         super.onDestroy();
-        deleteTagDetectorUmich(tagDetectorPointer); // Apriltags
+        deleteTagDetectorUmichOneShot(tagDetectorPointer); // Apriltags
         disableCamera();
     }
 
@@ -570,8 +573,8 @@ public class MainActivity
         double tagSize_metres = 0.168d;
 
 
-        long dummy_return_value = aprilTagsUmich(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
-
+        long dummy_return_value = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
+//        long dummy_return_value = aprilTagsUmich(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
 
 //////        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
         String[] tags = {};
@@ -830,8 +833,10 @@ public class MainActivity
     public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags
 
     public native long newTagDetectorUmich();   // Apriltags
-    public native void deleteTagDetectorUmich(long tagDetectorPointer);     // Apriltags
-    public native long aprilTagsUmich(long matAddrGray, long matAddrRgb, long tagDetectorPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
+    public native void deleteTagDetectorUmich(long tagDetectorPointer, long tagFamilyPointer);     // Apriltags
+    public native long aprilTagsUmich(       long matAddrGray, long matAddrRgb, long tagDetectorPointer, long tagFamilyPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
+    public native void deleteTagDetectorUmichOneShot(long tagDetectorPointer);     // Apriltags
+    public native long aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
 
 
     @Override

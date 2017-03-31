@@ -278,7 +278,7 @@ void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_deleteTag
     apriltag_detector_destroy( (apriltag_detector_t *)tagDetectorPointer );
     time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_deleteTagDetectorUmich: apriltag_detector_destroy: %f ms.", (time_now-time_then));
 
-    //  tag36h11_destroy(tagFamily);        TODO
+    tag36h11_destroy(tagFamily);        ////TODO
 }
 
 //apriltag_detector_t *createDetector( apriltag_family_t const *tagFamily ) {
