@@ -85,7 +85,9 @@ public class MainActivity
 //    private Mat mRgbaTransposed;
 //    private Mat mRgbaFlipped;
 
-    Pattern tagPattern = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+    Pattern tagPattern_trans_rpy_quat = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+    Pattern tagPattern_trans_quat = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+
 
     private double[] position    = {0.0,0.0,1.0};     // = new double[3]
     private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
@@ -549,8 +551,8 @@ public class MainActivity
 //        }
 
 //        getWindow().getContext().getSystemService()
-        double focal_length_in_pixels_x;
-        double focal_length_in_pixels_y;
+        float focal_length_in_pixels_x;
+        float focal_length_in_pixels_y;
         Camera camera = AndroidCameraAdapterForDepricatedApi.getCameraInstance();
 //        if(null == camera) {
 //            try { camera = _cameraBridgeViewBase.camera(); }
@@ -564,20 +566,21 @@ public class MainActivity
 //        calculateFocalLength_b();             // try calculating the focal length
 
 
-        focal_length_in_pixels_x = 519.902859;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-        focal_length_in_pixels_y = 518.952669;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        focal_length_in_pixels_x = 519.902859f;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        focal_length_in_pixels_y = 518.952669f;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
 
-        double tagSize_metres = 0.168d;
+        double tagSize_metres = 0.162d;
+        float  px_pixels = (float)(matGray.size().width/2.0);
+        float  py_pixels = (float)(matGray.size().height/2.0);
 
-
-        long dummy_return_value = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
+        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
+        Log.i(TAG,"onCameraFrame: detected "+tags.length+" tags.");
 //        long dummy_return_value = aprilTagsUmich(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
 
 //////        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
-        String[] tags = {};
 
 
 //        for(String tag : tags) {
@@ -594,11 +597,11 @@ public class MainActivity
         for(String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
-                System.out.print("---: "); System.out.print(tag); System.out.println(" :---");
+                Log.i(TAG,"onCameraFrame: tag string = "+tag);
 //                System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
 //                System.out.println("   ... in string [[" + tag + "]]");
             }
-            Matcher matcher = tagPattern.matcher(tag);
+            Matcher matcher = tagPattern_trans_quat.matcher(tag);
             {
                 System.out.print("--- matcher matches regex in the string? : "); System.out.println(matcher.matches());
             }
@@ -617,13 +620,13 @@ public class MainActivity
                 double x = Double.parseDouble(matcher.group(2));
                 double y = Double.parseDouble(matcher.group(3));
                 double z = Double.parseDouble(matcher.group(4));
-                double roll  = Double.parseDouble(matcher.group(5));
-                double pitch = Double.parseDouble(matcher.group(6));
-                double yaw   = Double.parseDouble(matcher.group(7));
-                double qx = Double.parseDouble(matcher.group(8));
-                double qy = Double.parseDouble(matcher.group(9));
-                double qz = Double.parseDouble(matcher.group(10));
-                double qw = Double.parseDouble(matcher.group(11));
+//                double roll  = Double.parseDouble(matcher.group(5));
+//                double pitch = Double.parseDouble(matcher.group(6));
+//                double yaw   = Double.parseDouble(matcher.group(7));
+                double qx = Double.parseDouble(matcher.group(5));
+                double qy = Double.parseDouble(matcher.group(6));
+                double qz = Double.parseDouble(matcher.group(7));
+                double qw = Double.parseDouble(matcher.group(8));
 
                 org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(x,y,z);
         //  NOTE !!
@@ -835,7 +838,7 @@ public class MainActivity
     public native long newTagDetectorUmich();   // Apriltags
     public native void deleteTagDetectorUmich(long tagDetectorPointer, long tagFamilyPointer);     // Apriltags
     public native long aprilTagsUmich(       long matAddrGray, long matAddrRgb, long tagDetectorPointer, long tagFamilyPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
-    public native long aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
+    public native String[] aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, float fx_pixels, float fy_pixels, float px_pixels, float py_pixels);  // Apriltags_umich
 
 
     @Override
