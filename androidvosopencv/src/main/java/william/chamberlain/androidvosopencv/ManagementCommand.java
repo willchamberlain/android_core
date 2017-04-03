@@ -8,7 +8,9 @@ public enum ManagementCommand {
         RESOLUTION_HIGH("high res"),
         RESOLUTION_LOW("low res"),
         RESOLUTION_LIMITS("res limits"),
-        RELOCALISE("relocalise");
+        RELOCALISE("relocalise"),
+        DISPLAY_RGB("rgb"),
+        DISPLAY_GREY("grey");
 
         public final String command_val;
 

@@ -103,6 +103,7 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
                 connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: pose found = ");
                 connectedNode.getLog().info(response.getPose());
                 posedEntity.setPose(response.getPose());
+//                posedEntity.setPose(response.getPose(), response.getIsFixedFeature());
             } else {
                 connectedNode.getLog().info("LocaliseFromAFeatureResponseListener: NO POSE FOUND");
             }

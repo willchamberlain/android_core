@@ -93,7 +93,8 @@ public class MainActivity
     private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
     private boolean  poseKnown   = false;
 
-    int framesProcessed = 0;
+    long framesProcessed = 0;
+    long frameNumber = 0;
 //    PowerManager.WakeLock screenLock;
 
 
@@ -138,6 +139,7 @@ public class MainActivity
     private SensorManager mSensorManager;
 
     private boolean runImageProcessing = false;
+    private boolean displayRgb = true;
 
 
     public MainActivity() {
@@ -198,6 +200,7 @@ public class MainActivity
         }
 
         tagDetectorPointer = newTagDetectorUmich();
+//        tagDetectorPointer = newTagDetectorKaess();
         Log.i("onCreate", "tagDetectorPointer created");
     }
 
@@ -487,6 +490,7 @@ public class MainActivity
     public void onDestroy() {
         super.onDestroy();
 //        deleteTagDetectorUmichOneShot(tagDetectorPointer); // Apriltags
+//        deleteTagDetectorKaess(tagDetectorPointer);
         disableCamera();
     }
 
@@ -514,11 +518,16 @@ public class MainActivity
 
     boolean screenLocked = false;
     boolean registeredAsVisionSource = false;
-    List<DetectedFeature> detectedFeatures = Collections.synchronizedList(new ArrayList<DetectedFeature>());
+////    List<DetectedFeature> detectedFeatures = Collections.synchronizedList(new ArrayList<DetectedFeature>());
+    // avoid synchronising on the list with e.g.   synchronized (detectedFeatures) { for(detectedFeature: detectedFeatures) {...} }
+    // TODO - see http://www.codejava.net/java-core/collections/understanding-collections-and-thread-safety-in-java , https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/CopyOnWriteArrayList.html
+    List<DetectedFeature> detectedFeatures = new java.util.concurrent.CopyOnWriteArrayList<DetectedFeature>();
 
 
 
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
+        frameNumber++;
+        Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
             Log.i(TAG,"onCameraFrame: readyToProcessImages is false: returning image without processing.");
             return inputFrame.gray();
@@ -565,9 +574,9 @@ public class MainActivity
 //        calculateFocalLength_a(camera);     // try calculating the focal length
 //        calculateFocalLength_b();             // try calculating the focal length
 
-
-        focal_length_in_pixels_x = 519.902859f;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-        focal_length_in_pixels_y = 518.952669f;  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
+        focal_length_in_pixels_x = 519.902859f * ((float)matGray.size().width/640.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+        focal_length_in_pixels_y = 518.952669f * ((float)matGray.size().height/480.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
@@ -577,10 +586,10 @@ public class MainActivity
         float  py_pixels = (float)(matGray.size().height/2.0);
 
         String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
-        Log.i(TAG,"onCameraFrame: detected "+tags.length+" tags.");
+//        Log.i(TAG,"onCameraFrame: detected "+tags.length+" tags.");
 //        long dummy_return_value = aprilTagsUmich(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
 
-//////        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
+//        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
 
 
 //        for(String tag : tags) {
@@ -675,7 +684,12 @@ public class MainActivity
             Scalar blackScalar = new org.opencv.core.Scalar(0); //,CvType.CV_8UC4
             matRgb.setTo(blackScalar);
         }
-        return matRgb;
+        Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
+        if (displayRgb) {
+            return matRgb;
+        } else {
+            return matGray;
+        }
 //
 //        if(Surface.ROTATION_0==rotation) {
 //            salt(matGray.getNativeObjAddr(), 10000);
@@ -801,6 +815,13 @@ public class MainActivity
         });
     }
 
+    public void displayGrey() {
+        displayRgb = false;
+    }
+
+    public void displayRgb() {
+        displayRgb = true;
+    }
 
     @Override
     public void setPose(double[] poseXyz, double[] orientationQuaternion_) {

@@ -7,6 +7,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <AprilTags/TagDetection.h>
 #include <AprilTags/TagDetector.h>
+#include "AprilTags/Tag25h9.h"
 #include "AprilTags/Tag36h11.h"
 
 #include <time.h>
@@ -79,7 +80,8 @@ extern "C"
     void rotate_90n(cv::Mat const &src, cv::Mat &dst, int angle);
 
     jlong JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_newTagDetectorKaess(JNIEnv *, jobject) {
-        return (long)(new AprilTags::TagDetector(AprilTags::tagCodes36h11));
+//        return (long)(new AprilTags::TagDetector(AprilTags::tagCodes36h11));
+        return (long)(new AprilTags::TagDetector(AprilTags::tagCodes25h9));
     }
 
     void JNICALL Java_william_chamberlain_androidvosopencvros_MainActivity_deleteTagDetectorKaess(JNIEnv *, jobject, jlong tagDetectorPointer) {
@@ -90,7 +92,8 @@ extern "C"
     Eigen::Matrix3d rotation;       // orientation of April tag with respect to camera - see TagDetection.cc
     Eigen::Vector3d rollPitchYaw;
     Eigen::Quaterniond quaternion;
-    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
+    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
+//    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f roll=%.4f pitch=%.4f yaw=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
     const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
 
 
@@ -218,13 +221,13 @@ extern "C"
 
             LOGI( quaternion_format_as_string_c_str,
                   detections[i].id, translation(0), translation(1), translation(2),
-                  rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
+//                  rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
 //            detections[i].draw(mRgb);
             char tag_and_pose_data[200];
             sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
                     detections[i].id, translation(0), translation(1), translation(2),
-                    rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
+//                    rollPitchYaw(0), rollPitchYaw(1), rollPitchYaw(2),
                     quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
             time_then = time_now;
             time_now = now_ms();

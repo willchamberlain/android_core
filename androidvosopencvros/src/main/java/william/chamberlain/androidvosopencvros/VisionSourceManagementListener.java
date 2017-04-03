@@ -122,6 +122,12 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case RELOCALISE:
                             visionSource.relocalise();
                             break;
+                        case DISPLAY_RGB:
+                            dimmableScreen.displayRgb();
+                            break;
+                        case DISPLAY_GREY:
+                            dimmableScreen.displayGrey();
+                            break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");
                             break;

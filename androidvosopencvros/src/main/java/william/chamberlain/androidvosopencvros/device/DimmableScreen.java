@@ -17,6 +17,10 @@ public interface DimmableScreen {
      */
     void screenOn();
 
+    void displayGrey();
+
+    void displayRgb();
+
     /**
      * Turns on the screen to a percentage of the maximum brightness: <code>percentBrightness</code> is in the range 0.0 (0%: as dim as possible) to 1.0 (100%; as bright as possible).
      *
