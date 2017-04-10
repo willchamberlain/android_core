@@ -62,18 +62,15 @@ android {
 // DEPENDENCIES:  see  https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
 dependencies {      // see https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
     compile project(':android_15')
-    compile project(':openCVLibrary310')
+//    compile project(':openCVLibrary310')
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-        exclude group: 'xmlpull', module: 'xmlpull'
     }
     compile('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0,)') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-        exclude group: 'xmlpull', module: 'xmlpull'
     }
     compile('com.android.support:support-v4:21.0.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-        exclude group: 'xmlpull', module: 'xmlpull'
     }
 
 //    compile 'junit:junit:4.12'
@@ -91,9 +88,4 @@ dependencies {      // see https://docs.gradle.org/current/userguide/artifact_de
     compile 'org.ejml:all:0.30'
     compile 'org.georegression:georegression:0.12'
 
-    compile 'com.android.support:multidex:1.0.1'
-
-    compile ('com.thoughtworks.xstream:xstream:1.4.7') {
-        exclude group: 'xmlpull', module: 'xmlpull'
-    }
 }

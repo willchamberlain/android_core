@@ -5,8 +5,6 @@ android {
     defaultConfig {
         minSdkVersion 18
         targetSdkVersion 25
-        testInstrumentationRunner "com.android.test.runner.MultiDexTestRunner"
-        multiDexEnabled true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8

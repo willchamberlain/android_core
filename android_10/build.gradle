@@ -17,19 +17,12 @@
 dependencies {
   compile('org.ros.rosjava_core:rosjava:[0.2,0.3)') {
     exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-    exclude group: 'xmlpull', module: 'xmlpull'
   }
   compile('org.ros.rosjava_messages:diagnostic_msgs:[1.11,1.12)') {
     exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-    exclude group: 'xmlpull', module: 'xmlpull'
   }
   compile('org.ros.rosjava_messages:sensor_msgs:[1.11,1.12)') {
     exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-    exclude group: 'xmlpull', module: 'xmlpull'
-  }
-  compile 'com.android.support:multidex:1.0.1'
-  compile ('com.thoughtworks.xstream:xstream:1.4.7') {
-    exclude group: 'xmlpull', module: 'xmlpull'
   }
 }
 
@@ -42,17 +35,11 @@ android {
     targetSdkVersion 25
     versionCode 1
     versionName "1.0"
-    testInstrumentationRunner "com.android.test.runner.MultiDexTestRunner"
-    multiDexEnabled true
   }
   compileOptions {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
   }
-    dexOptions {
-        incremental true
-        javaMaxHeapSize "2g"
-    }
   buildToolsVersion '25.0.2'
   productFlavors {
   }

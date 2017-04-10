@@ -27,11 +27,11 @@ include "android_15"
 //include "docs"
 include "androidvosopencvros"
 //include "androidvosopencv"
-include "/mnt/nixbig/downloads/android_cv_bridge"
+//include "/mnt/nixbig/downloads/android_cv_bridge"
 
 // TODO(damonkohler): The following projects are not included in the
 // multi-project yet till its sorted whereabouts they should actually live
 // (should they be in a java repo instead?)
 // include "compressed_map_transport"
 // include "polling_input_stream"
-include ":openCVLibrary310"
+//include ":openCVLibrary310"
