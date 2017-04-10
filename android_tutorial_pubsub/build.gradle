@@ -15,7 +15,8 @@
  */
 
 dependencies {
-  compile ('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0.2,0.3)'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
+  compile ('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0.2,0.3)'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'xmlpull', module: 'xmlpull'}
   compile project(':android_10')
 }
 

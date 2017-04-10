@@ -35,11 +35,19 @@ android {
                 abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
             }
         }
+        multiDexEnabled true
+    }
+    dexOptions {
+        incremental true
+        javaMaxHeapSize "2g"
     }
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']      // symlink to OpenCV JNI code
         }
+
+        test.setRoot('src/test')
+//        test.setRoot('src/test')
     }
     externalNativeBuild {
         cmake {
@@ -51,16 +59,41 @@ android {
     }
 }
 
-dependencies {
+// DEPENDENCIES:  see  https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
+dependencies {      // see https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
     compile project(':android_15')
     compile project(':openCVLibrary310')
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'xmlpull', module: 'xmlpull'
     }
     compile('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0,)') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'xmlpull', module: 'xmlpull'
     }
     compile('com.android.support:support-v4:21.0.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'xmlpull', module: 'xmlpull'
+    }
+
+//    compile 'junit:junit:4.12'
+//    testCompile 'junit:junit:4.12'
+//    androidTestCompile 'junit:junit:4.12'
+//    compile 'junit:junit:4.+'
+//    testCompile 'junit:junit:4.+'
+
+
+    ['calibration','feature','geo','ip','recognition','sfm','android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
+//    compile group:'org.ddogleg', name:'ddogleg', version:'0.10'
+//    compile group:'org.ejml', name:'ejml', version:'0.30'
+//    compile group:'org.georegression', name:'georegression', version:'0.12'
+    compile 'org.ddogleg:ddogleg:0.10'
+    compile 'org.ejml:all:0.30'
+    compile 'org.georegression:georegression:0.12'
+
+    compile 'com.android.support:multidex:1.0.1'
+
+    compile ('com.thoughtworks.xstream:xstream:1.4.7') {
+        exclude group: 'xmlpull', module: 'xmlpull'
     }
 }

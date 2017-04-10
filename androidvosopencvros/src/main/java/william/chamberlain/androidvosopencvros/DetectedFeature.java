@@ -1,5 +1,7 @@
 package william.chamberlain.androidvosopencvros;
 
+import android.support.annotation.NonNull;
+
 import org.ros.rosjava_geometry.Quaternion;
 import org.ros.rosjava_geometry.Vector3;
 
@@ -20,5 +22,15 @@ public class DetectedFeature {
         this.descriptor = descriptor;
         this.translation_to_tag_in_robot_convention = translation_to_tag_in_robot_convention;
         this.quaternion_rotation_to_tag = quaternion_rotation_to_tag;
+    }
+
+    @NonNull
+    public String featureCanonicalDescriptor() {
+        return featureCanonicalDescriptor(algorithm,descriptor);
+    }
+
+    @NonNull
+    public static String featureCanonicalDescriptor(String algorithm_, String descriptor_) {
+        return algorithm_ + "___" + descriptor_;
     }
 }

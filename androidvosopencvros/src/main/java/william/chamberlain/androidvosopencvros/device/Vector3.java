@@ -47,4 +47,6 @@ public class Vector3 implements geometry_msgs.Vector3 {
     public RawMessage toRawMessage() {
         return null;
     }
+
+
 }

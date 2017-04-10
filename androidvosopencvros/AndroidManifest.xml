@@ -25,6 +25,7 @@
     <uses-feature android:name="android.hardware.camera.front.autofocus"/>
 
     <application
+        android:name="android.support.multidex.MultiDexApplication"
         android:allowBackup="true"
         tools:replace="android:icon"
         android:icon="@drawable/ic_launcher"

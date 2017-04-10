@@ -32,7 +32,8 @@ repositories {
 }
 
 dependencies {
-  compile ('ros.rosjava_core:rosjava:0.0.0-SNAPSHOT'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' }
+  compile ('ros.rosjava_core:rosjava:0.0.0-SNAPSHOT'){ exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'xmlpull', module: 'xmlpull'}
  // testCompile 'junit:junit:4.8.2'
 }
 

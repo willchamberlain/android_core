@@ -43,4 +43,15 @@ rootProject.buildscript {
   dependencies {
     classpath "com.android.tools.build:gradle:2.3.0"
   }
+
+
+  // NOTE:  the ros-java plugin tries to mess with the maven repositories - see build.gradle, and the plugin source code in https://github.com/rosjava/rosjava_bootstrap/blob/indigo/gradle_plugins/src/main/groovy/org/ros/gradle_plugins/RosPlugin.groovy#L37
+  repositories {
+//        jcenter()
+    mavenLocal()
+    mavenCentral()
+    maven {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
+  }
 }

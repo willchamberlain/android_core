@@ -50,6 +50,17 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
     afterEvaluate { project ->
         // Change the layout of Android projects to be compatible with Eclipse.
         android {
+            defaultConfig {
+                multiDexEnabled true
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+            dexOptions {
+                incremental true
+                javaMaxHeapSize "2g"
+            }
             sourceSets {
                 //noinspection GroovyAssignabilityCheck
                 main {
@@ -60,6 +71,8 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
                 }
                 compileSdkVersion 25
                 buildToolsVersion '25.0.2'
+
+//                test.setRoot('src/test')
             }
 
             // Copy JAR dependencies into the libs directory for Eclipse.
@@ -79,6 +92,11 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_1_6
                 targetCompatibility JavaVersion.VERSION_1_6
+            }
+        }
+        dependencies {
+            compile ('com.thoughtworks.xstream:xstream:1.4.7') {
+                exclude group: 'xmlpull', module: 'xmlpull'
             }
         }
     }
@@ -106,6 +124,17 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
     afterEvaluate { project ->
         // Change the layout of Android projects to be compatible with Eclipse.
         android {
+            defaultConfig {
+                multiDexEnabled true
+            }
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+            dexOptions {
+                incremental true
+                javaMaxHeapSize "2g"
+            }
             sourceSets {
                 //noinspection GroovyAssignabilityCheck
                 main {
@@ -116,6 +145,8 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
                 }
                 compileSdkVersion 25
                 buildToolsVersion '25.0.2'
+
+//                test.setRoot('src/test')
             }
 
             // Copy JAR dependencies into the libs directory for Eclipse.
@@ -137,9 +168,15 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
                 targetCompatibility JavaVersion.VERSION_1_6
             }
         }
+        dependencies {
+            compile ('com.thoughtworks.xstream:xstream:1.4.7') {
+                exclude group: 'xmlpull', module: 'xmlpull'
+            }
+        }
     }
 }
 
 // Don't need uploadArchives
 // defaultTasks 'assembleRelease', 'uploadArchives'
 defaultTasks 'assembleRelease'
+

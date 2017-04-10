@@ -1,0 +1,33 @@
+apply plugin: 'java'                     // NOTE: avoid "Warning:Ignoring dependency of module 'androidvosopencvros' on module 'unit_tests'. Java modules cannot depend on Android modules"
+//apply plugin: 'com.android.application'     // NOTE: avoid "Warning:Ignoring dependency of module 'androidvosopencvros' on module 'unit_tests'. Java modules cannot depend on Android modules"
+
+//android {
+//    compileSdkVersion 25
+//    buildToolsVersion "25.0.2"
+//
+//    defaultConfig {
+//        minSdkVersion 18
+//        applicationId "william.chamberlain.androidvosopencvros"
+//        targetSdkVersion 25
+//        versionCode 1
+//        versionName "1.0"
+//        externalNativeBuild {
+//            cmake {
+//                cppFlags "-frtti -fexceptions"
+//                abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+//            }
+//        }
+//    }
+//}
+
+dependencies {
+//    compile fileTree(dir: 'libs', include: ['*.jar'])
+    compile project(':androidvosopencvros')
+
+//    compile 'junit:junit:4.12'
+    testCompile 'junit:junit:4.12'
+//    androidTestCompile 'junit:junit:4.12'
+}
+
+sourceCompatibility = "1.8"
+targetCompatibility = "1.8"
