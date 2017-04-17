@@ -16,7 +16,6 @@ apply plugin: 'com.android.application'
  * the License.
  */
 
-
 /*debug.dependsOn project(':android_gingerbread_mr1').tasks.debug*/
 
 android {
@@ -29,63 +28,51 @@ android {
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
-        externalNativeBuild {
-            cmake {
-                cppFlags "-frtti -fexceptions"
-                abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
-            }
-        }
         multiDexEnabled true
     }
-    dexOptions {
-        incremental true
-        javaMaxHeapSize "2g"
-    }
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['src/main/jniLibs']      // symlink to OpenCV JNI code
-        }
-
-        test.setRoot('src/test')
-//        test.setRoot('src/test')
-    }
-    externalNativeBuild {
-        cmake {
-            path "CMakeLists.txt"
-//            path "apriltags_kaess/CMakeLists.txt"  // TODO - should work out how to set these up as separate C++ libraries at the same level
-        }
-    }
     productFlavors {
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
     }
 }
 
 // DEPENDENCIES:  see  https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
-dependencies {      // see https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
+dependencies {
+    // see https://docs.gradle.org/current/userguide/artifact_dependencies_tutorial.html  ,  https://docs.gradle.org/current/userguide/dependency_management.html#sec:how_to_declare_your_dependencies
     compile project(':android_15')
-//    compile project(':openCVLibrary310')
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
-    }
-    compile('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0,)') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
     }
     compile('com.android.support:support-v4:21.0.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
     }
 
-//    compile 'junit:junit:4.12'
-//    testCompile 'junit:junit:4.12'
-//    androidTestCompile 'junit:junit:4.12'
-//    compile 'junit:junit:4.+'
-//    testCompile 'junit:junit:4.+'
-
-
-    ['calibration','feature','geo','ip','recognition','sfm','android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
+    ['calibration', 'feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core']
+    ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
 //    compile group:'org.ddogleg', name:'ddogleg', version:'0.10'
 //    compile group:'org.ejml', name:'ejml', version:'0.30'
 //    compile group:'org.georegression', name:'georegression', version:'0.12'
+    
+
+//    // see https://github.com/lessthanoptimal/BoofCV/blob/SNAPSHOT/integration/boofcv-android/examples/video/app/build.gradle
+//    // see https://developer.android.com/topic/libraries/support-library/packages.html#v7
+    //    compile 'com.android.support:appcompat-v7:25.0.1'
     compile 'org.ddogleg:ddogleg:0.10'
     compile 'org.ejml:all:0.30'
     compile 'org.georegression:georegression:0.12'
+//    compile 'com.android.support.constraint:constraint-layout:+'
 
+    compile 'com.android.support:appcompat-v7:25.1.0'
+    compile 'com.android.support:support-v4:25.1.0'
+//    compile 'com.google.android.gms:play-services-appindexing:8.4.0'
+
+    compile 'com.android.support:multidex:1.0.1'
+}
+
+// conflicts with a Android stuff
+configurations {
+    all*.exclude group: "xmlpull", module: "xmlpull"
+    all*.exclude group: "org.apache.commons", module: "commons-compress"
 }

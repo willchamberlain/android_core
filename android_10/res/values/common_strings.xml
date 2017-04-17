@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">ROS for Android</string>
+    <string name="app_name">VOS Smart Camera - Android ROS BoofCV</string>
     <string name="use_master">Connect</string>
     <string name="cancel">Cancel</string>
     <string name="qr_code">Read QRCode</string>
