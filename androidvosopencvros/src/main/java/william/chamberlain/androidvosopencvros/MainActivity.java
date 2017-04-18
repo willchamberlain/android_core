@@ -47,6 +47,7 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import boofcv.android.gui.VideoProcessing;
 import geometry_msgs.Pose;
 import sensor_msgs.Imu;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
@@ -185,7 +186,7 @@ public class MainActivity
 
         _cameraBridgeViewBase = (CameraBridgeViewBase) findViewById(R.id.main_surface);
         System.out.println("MainActivity: onCreate: before running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
-        _cameraBridgeViewBase.setMaxFrameSize(640,480);  // http://stackoverflow.com/questions/17868954/android-opencv-how-to-set-camera-resolution-when-using-camerabridgeviewbase
+        _cameraBridgeViewBase.setMaxFrameSize(320,240);  // http://stackoverflow.com/questions/17868954/android-opencv-how-to-set-camera-resolution-when-using-camerabridgeviewbase
         System.out.println("MainActivity: onCreate: after running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
@@ -586,18 +587,7 @@ public class MainActivity
         float  py_pixels = (float)(matGray.size().height/2.0);
 
         String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
-//        Log.i(TAG,"onCameraFrame: detected "+tags.length+" tags.");
-//        long dummy_return_value = aprilTagsUmich(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
 
-//        String[] tags = aprilTags(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y);
-
-
-//        for(String tag : tags) {
-//            System.out.println("-------------------------------------------------------");
-//            System.out.print("---");
-//            System.out.print(tag);
-//            System.out.println("---");
-//        }
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
         Time timeNow = Date.nowAsTime();
@@ -607,8 +597,6 @@ public class MainActivity
             {
                 System.out.println("-------------------------------------------------------");
                 Log.i(TAG,"onCameraFrame: tag string = "+tag);
-//                System.out.println("   checking for pattern  [[" + tagPattern.toString() + "]]");
-//                System.out.println("   ... in string [[" + tag + "]]");
             }
             Matcher matcher = tagPattern_trans_quat.matcher(tag);
             {
@@ -1027,5 +1015,21 @@ System.out.println("imuData(Imu imu): relocalising");
 //        this.imuThread = new ImuCallbackThread(this.sensorManager, imuSensorListenerForCallback, sensorDelay);
 //        this.imuThread.start();
 //    }
+
+
+//    @Override
+//    public void onPreviewFrame(byte[] frame, Camera arg1) {
+//        Log.i(TAG, "----------------------------- onPreviewFrame -----------------------------");
+//        GrayU8 image = ConvertBitmap.bitmapToGray(bitmap, (GrayU8)null, null);
+//    }
+
+    protected VideoProcessing processing;
+
+    public void last_frame_bytes(byte[] last_frame_bytes){
+        Log.i(TAG, "----------------------------- last_frame_bytes -----------------------------");
+        if( processing != null ) {
+            processing.convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());
+        }
+    }
 }
 

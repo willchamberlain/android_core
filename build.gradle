@@ -72,8 +72,14 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
             // prevent packaging Android applications.
             packagingOptions {
                 /* https://github.com/rosjava/android_core/issues/194 */
-                exclude "META-INF/LICENSE.txt"
-                exclude "META-INF/NOTICE.txt"
+                pickFirst "META-INF/LICENSE.txt"
+                pickFirst "META-INF/NOTICE.txt"
+                pickFirst 'XmlPullParser.class'
+                pickFirst 'XmlPullParser'
+                pickFirst 'org/xmlpull/v1/XmlPullParser.class'
+                pickFirst 'org/xmlpull/v1/XmlPullParser'
+                pickFirst '/org/xmlpull/v1/XmlPullParser.class'
+                pickFirst '/org/xmlpull/v1/XmlPullParser'
             }
 
             compileOptions {
@@ -128,8 +134,14 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
             // prevent packaging Android applications.
             packagingOptions {
                 /* https://github.com/rosjava/android_core/issues/194 */
-                exclude "META-INF/LICENSE.txt"
-                exclude "META-INF/NOTICE.txt"
+                pickFirst "META-INF/LICENSE.txt"
+                pickFirst "META-INF/NOTICE.txt"
+                pickFirst 'XmlPullParser.class'
+                pickFirst 'XmlPullParser'
+                pickFirst 'org/xmlpull/v1/XmlPullParser.class'
+                pickFirst 'org/xmlpull/v1/XmlPullParser'
+                pickFirst '/org/xmlpull/v1/XmlPullParser.class'
+                pickFirst '/org/xmlpull/v1/XmlPullParser'
             }
 
             compileOptions {

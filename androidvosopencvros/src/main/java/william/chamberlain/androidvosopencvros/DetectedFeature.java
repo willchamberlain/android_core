@@ -21,4 +21,8 @@ public class DetectedFeature {
         this.translation_to_tag_in_robot_convention = translation_to_tag_in_robot_convention;
         this.quaternion_rotation_to_tag = quaternion_rotation_to_tag;
     }
+
+    public String featureCanonicalDescriptor() {
+        return Descriptor.featureCanonicalDescriptor(this);
+    }
 }

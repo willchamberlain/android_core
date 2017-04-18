@@ -13,6 +13,7 @@
 #include <common/image_u8.h>
 #include <apriltag.h>
 #include <Eigen/Dense>
+#include <common/matd.h>
 
 #include "apriltag.h"
 #include "tag36h11.h"
@@ -121,10 +122,6 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
 //    std::vector<cv::Point3f> objPts;
     std::vector<cv::Point2f> imgPts;
 //    double s = tag_size/2.;
-//    objPts.push_back(cv::Point3f(-s,-s, 0));
-//    objPts.push_back(cv::Point3f( s,-s, 0));
-//    objPts.push_back(cv::Point3f( s, s, 0));
-//    objPts.push_back(cv::Point3f(-s, s, 0));
     std::pair<float, float> p1(p1x, p1y);
     std::pair<float, float> p2(p2x, p2y);
     std::pair<float, float> p3(p3x, p3y);
@@ -135,36 +132,16 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
     imgPts.push_back(Point2f(p4.first, p4.second));
     Eigen::Matrix4d T;
     time_then = time_now;  time_now = now_ms(); LOGI("getRelativeTransform: setting up imgPts %f ms.", (time_now-time_then));
-//
-//    T = calcTransform(fx, fy, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y,
-//                                      objPts, imgPts);
-//
-////    std::vector<cv::Point2f> imgPts_v1a;
-//    T = calcTransform(fx, fy, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y,
-//                      objPts, imgPts);
-//
-//
-//    std::vector<cv::Point3f> objPts_v2;
-////    std::vector<cv::Point2f> imgPts_v2;
-//    s = tag_size;
-//    objPts_v2.push_back(cv::Point3f(-s,-s, 0));
-//    objPts_v2.push_back(cv::Point3f( s,-s, 0));
-//    objPts_v2.push_back(cv::Point3f( s, s, 0));
-//    objPts_v2.push_back(cv::Point3f(-s, s, 0));
-//    T = calcTransform(fx, fy, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y,
-//                      objPts_v2, imgPts);
-
 
     std::vector<cv::Point3f> objPts_v3;
 //    std::vector<cv::Point2f> imgPts_v3;
     double s = tag_size;
-    objPts_v3.push_back(cv::Point3f(0, 0, 0));
-    objPts_v3.push_back(cv::Point3f( s,0, 0));
+    objPts_v3.push_back(cv::Point3f( 0, 0, 0));
+    objPts_v3.push_back(cv::Point3f( s, 0, 0));
     objPts_v3.push_back(cv::Point3f( s, s, 0));
-    objPts_v3.push_back(cv::Point3f(0, s, 0));
+    objPts_v3.push_back(cv::Point3f( 0, s, 0));
     time_then = time_now;  time_now = now_ms(); LOGI("getRelativeTransform: setting up objPts %f ms.", (time_now-time_then));
-    T = calcTransform(fx, fy, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y,
-                                                                objPts_v3, imgPts);
+    T = calcTransform(fx, fy, px, py, p1x, p1y, p2x, p2y, p3x, p3y, p4x, p4y, objPts_v3, imgPts);
     time_then = time_now;  time_now = now_ms(); LOGI("getRelativeTransform: calcTransform %f ms.", (time_now-time_then));
 
     Eigen::Vector3d trans_fresh (T.col(3).head(3));
@@ -172,9 +149,7 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
 
     // This is a false transform, but works with existing detect_feature_server.py
     // SEE TagDetection.getRelativeTranslationRotation  for the root version in Kaess' code
-
-    // converting from camera frame (z forward, x right, y down) to
-    // object frame (x forward, y left, z up)
+    // converting from camera coordinate convention (z forward, x right, y down) to robot/object coordinate convention (x forward, y left, z up)
     Eigen::Matrix4d M;
     M <<
              0,  0, +1,  0,
@@ -232,11 +207,11 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         getopt_add_bool(getopt, 'h', "help", 0, "Show this help");
         getopt_add_bool(getopt, 'd', "debug", 0, "Enable debugging output (slow)");
         getopt_add_bool(getopt, 'q', "quiet", 0, "Reduce output");
-        getopt_add_string(getopt, 'f', "family", "tag16h5", "Tag family to use");
+        getopt_add_string(getopt, 'f', "family", "tag36h11", "Tag family to use");
         getopt_add_int(getopt, '\0', "border", "1", "Set tag family border size");
         getopt_add_int(getopt, 't', "threads", "8", "Use this many CPU threads");
         getopt_add_double(getopt, 'x', "decimate", "1.0", "Decimate input image by this factor");
-        getopt_add_double(getopt, 'b', "blur", "1.0", "Apply low-pass blur to input; negative sharpens");
+        getopt_add_double(getopt, 'b', "blur", "0.0", "Apply low-pass blur to input; negative sharpens");  // 0.0 --> no blur applied - see apriltag.c
         getopt_add_bool(getopt, '0', "refine-edges", 1, "Spend more time trying to align edges of tags");
         getopt_add_bool(getopt, '1', "refine-decode", 1, "Spend more time trying to decode tags");
         getopt_add_bool(getopt, '2', "refine-pose", 0, "Spend more time trying to precisely localize tags");
@@ -248,8 +223,8 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
 
         apriltag_family_t *tagFamily = NULL;
 //        const char *famname = "tag16h5";
-//        const char *famname = "tag36h11";
-        const char *famname = "tag25h9";
+        const char *famname = "tag36h11";
+//        const char *famname = "tag25h9";
 //        famname = env->GetStringUTFChars(tag_family_name, JNI_FALSE);
 //        TODO env->ReleaseStringUTFChars(tag_family_name, famname);
         if (!strcmp(famname, "tag36h11"))
@@ -278,7 +253,6 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: created apriltag_detector_t: %f ms.", (time_now-time_then));
         apriltag_detector_add_family(tagDetector, tagFamily);
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: added tag family: %f ms.", (time_now-time_then));
-        time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector: %f ms.", (time_now-time_then));
         tagDetector->quad_decimate = getopt_get_double(getopt, "decimate");
         tagDetector->quad_sigma = getopt_get_double(getopt, "blur");
         tagDetector->nthreads = getopt_get_int(getopt, "threads");
@@ -286,7 +260,6 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         tagDetector->refine_edges = getopt_get_bool(getopt, "refine-edges");
         tagDetector->refine_decode = getopt_get_bool(getopt, "refine-decode");
         tagDetector->refine_pose = getopt_get_bool(getopt, "refine-pose");
-
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector set attributes: %f ms.", (time_now-time_then));
         LOGI("MainActivity_aprilTagsUmichOneShot: tagDetector attributes: quad_decimate=%f quad_sigma=%f nthreads=%d debug=%d refine_edges=%d refine_decode=%d refine_pose=%d "
           , tagDetector->quad_decimate , tagDetector->quad_sigma , tagDetector->nthreads
@@ -317,13 +290,13 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
     im = image_u8_create(width, height);
     for (int row_ = 0; row_ < height; row_++) {
         for (int col_ = 0; col_ < width; col_++) {
-            im->buf[row_*im->stride + col_ ] = mGr.at<uchar>(row_,col_);  // yth row (from 0), xth pixel (from 0), greyscale so only one channel
+            im->buf[row_*im->stride + col_ ] = mGr.at<uchar>(row_,col_);  // yth row (from 0), xth pixel (from 0), greyscale so only one channel; stride is the full array width, which is the image width plus any padding used to make each line a convenient size for efficient memory operations (e.g. multiples of 16 to fit each line into a whole number of words (common native memory unit size, to avoid splitting and rejoining across words)
         }
     }
     time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: image bytes to image_u8_t: %f ms.", (time_now-time_then));
 
     zarray_t *detections = apriltag_detector_detect(tagDetector, im);  ////   the meaty bit - run tag detection on a grayscale image given
-    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: do the detections: %f ms.", (time_now-time_then));
+    time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: do the detections: %f ms  on %dx%d image.", (time_now-time_then), width, height);
 
 
     Eigen::Quaterniond quaternion;
@@ -344,6 +317,9 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         LOGI( " hold on; plot([%5.0f], [%5.0f],'+','LineWidth',2);\n" , det->c[0],det->c[1] );
         LOGI( " hold on; plot([%5.0f, %5.0f, %5.0f, %5.0f, %5.0f]" , det->p[0][0], det->p[1][0], det->p[2][0], det->p[3][0], det->p[0][0] );
         LOGI( ", [%5.0f, %5.0f, %5.0f, %5.0f, %5.0f],'--+','LineWidth',2);\n\n" , det->p[0][1], det->p[1][1], det->p[2][1], det->p[3][1], det->p[0][1] );
+
+        LOGI(" homography: [%5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ]", det->H->data[0], det->H->data[1], det->H->data[2], det->H->data[3], det->H->data[4], det->H->data[5], det->H->data[6], det->H->data[7], det->H->data[8], det->H->data[9], det->H->data[10], det->H->data[11], det->H->data[12], det->H->data[13], det->H->data[14], det->H->data[15]);
+
         hamm_hist[det->hamming]++;
         total_hamm_hist[det->hamming]++;
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: list tag detection attributes: %f ms  for tag detection %d.", (time_now-time_then), i);

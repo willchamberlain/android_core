@@ -16,13 +16,13 @@
 
 dependencies {
   compile('org.ros.rosjava_core:rosjava_geometry:[0.2,0.3)') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
   }
   compile('com.android.support:support-v4:21.0.3') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
   }
   compile('org.ros.rosjava_messages:visualization_msgs:[1.11,1.12)') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
   }
   compile project(':android_10')
 }
@@ -39,5 +39,13 @@ android {
   }
   buildToolsVersion '25.0.2'
   productFlavors {
+  }
+  packagingOptions {
+    pickFirst 'XmlPullParser.class'
+    pickFirst 'XmlPullParser'
+    pickFirst 'org/xmlpull/v1/XmlPullParser.class'
+    pickFirst 'org/xmlpull/v1/XmlPullParser'
+    pickFirst '/org/xmlpull/v1/XmlPullParser.class'
+    pickFirst '/org/xmlpull/v1/XmlPullParser'
   }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="william.chamberlain.androidvosopencvros"
+    package="william.chamberlain.androidvosopencv"
     android:versionCode="1"
     android:versionName="1.0" 
     xmlns:tools="http://schemas.android.com/tools"
@@ -29,11 +29,9 @@
         tools:replace="android:icon"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme"
-        android:name="android.support.multidex.MultiDexApplication"
-        >
+        android:theme="@style/AppTheme" >
         <activity
-            android:name="william.chamberlain.androidvosopencvros.MainActivity"
+            android:name="william.chamberlain.androidvosopencv.MainActivity"
             android:configChanges="orientation|keyboardHidden"
             android:label="@string/app_name"
             android:screenOrientation="landscape" >
@@ -42,15 +40,17 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            
-            <intent-filter>
-                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:scheme="http" 
-                      android:host="ros.org"
-                      android:path="/wiki/android_sensors_driver/install"
-                      />
-            </intent-filter>
+
+            <!--
+        <intent-filter>
+            <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:scheme="http"
+                  android:host="ros.org"
+                  android:path="/wiki/android_sensors_driver/install"
+                  />
+        </intent-filter>
+            -->
             
             <!-- intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
@@ -62,11 +62,8 @@
             
             <!-- android:host="*"   ?id=org.ros.android.sensors_driver  android:pathPattern="*org.ros.android.sensors_driver"     android:pathPrefix="/.*org.ros.android.sensors_driver.*"-->
         </activity>
-        
-        <activity android:name="org.ros.android.MasterChooser"> <!-- choose the ROS Master URI -->
-        </activity>
 
-        <service android:name="org.ros.android.NodeMainExecutorService" />
+
     </application>
 
 </manifest>

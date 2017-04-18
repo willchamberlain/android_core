@@ -35,6 +35,7 @@ android {
                 abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
             }
         }
+        multiDexEnabled true
     }
     sourceSets {
         main {
@@ -49,18 +50,46 @@ android {
     }
     productFlavors {
     }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_7
+        targetCompatibility JavaVersion.VERSION_1_7
+    }
+
+    packagingOptions {
+        pickFirst 'XmlPullParser.class'
+        pickFirst 'XmlPullParser'
+        pickFirst 'org/xmlpull/v1/XmlPullParser.class'
+        pickFirst 'org/xmlpull/v1/XmlPullParser'
+        pickFirst '/org/xmlpull/v1/XmlPullParser.class'
+        pickFirst '/org/xmlpull/v1/XmlPullParser'
+    }
 }
 
 dependencies {
     compile project(':android_15')
     compile project(':openCVLibrary310')
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
     compile('org.ros.rosjava_core:rosjava_tutorial_pubsub:[0,)') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
     compile('com.android.support:support-v4:21.0.0') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
+
+    ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
+    compile ('org.ddogleg:ddogleg:0.10') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'}
+    compile ('org.ejml:all:0.30') {
+            exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+    compile ('org.georegression:georegression:0.12') {
+                exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+    compile ('com.android.support:appcompat-v7:25.1.0') {
+                    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+    compile ('com.android.support:support-v4:25.1.0') {
+                        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+    compile ('com.android.support:multidex:1.0.1') {
+                            exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+
 }

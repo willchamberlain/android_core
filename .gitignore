@@ -14,6 +14,11 @@ local.properties
 proguard-project.txt
 project.properties
 /openCVLibrary310/src
+/androidvosopencv/src/main/aa1_vos_android_catkin_ws___src
+/androidvosopencvros/src/main/aa1_vos_android_catkin_ws___src
+/androidvosopencvros/src/main/java/vos_aa1
+/androidvosopencv/src/main/jniLibs
+*.apk
 
 # These are Android Studio files, might be worth including these later.
 *.iml
