@@ -121,15 +121,8 @@ public class MainActivity
     };
 
 
-//    private NavSatFixPublisher fix_pub;
       private ImuMonitoringPublisher imu_pub;
-//    private MagneticFieldPublisher magnetic_field_pub;
-//    private FluidPressurePublisher fluid_pressure_pub;
-//    private IlluminancePublisher illuminance_pub;
-//    private TemperaturePublisher temperature_pub;
-//    private AprilTagsPosePublisher aprilTagsPosePublisher;
     private DetectedFeaturesClient detectedFeaturesClient;
-//    private MarkerPublisherNode markerPublisherNode;
     private SetPoseServer setPoseServer;
     private VisionSourceManagementListener visionSourceManagementListener;
     private LocaliseFromAFeatureClient localiseFromAFeatureClient;
@@ -247,77 +240,6 @@ public class MainActivity
 //        if(currentapiVersion <= android.os.Build.VERSION_CODES.HONEYCOMB){
 //            sensorDelay = SensorManager.SENSOR_DELAY_UI; // 16.7Hz for older devices.  They only support enum values, not the microsecond version.
 //        }
-//
-//        @SuppressWarnings("deprecation")
-//        int tempSensor = Sensor.TYPE_TEMPERATURE; // Older temperature
-//        if(currentapiVersion <= android.os.Build.VERSION_CODES.ICE_CREAM_SANDWICH){
-//            tempSensor = Sensor.TYPE_AMBIENT_TEMPERATURE; // Use newer temperature if possible
-//        }
-//
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration.setMasterUri(masterURI);
-//            nodeConfiguration.setNodeName(NODE_NAMESPACE+"android_sensors_driver_magnetic_field");
-//            this.magnetic_field_pub = new MagneticFieldPublisher(mSensorManager, sensorDelay);
-//            nodeMainExecutor.execute(this.magnetic_field_pub, nodeConfiguration);
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration2 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration2.setMasterUri(masterURI);
-//            nodeConfiguration2.setNodeName(NODE_NAMESPACE+"android_sensors_driver_nav_sat_fix");
-//            this.fix_pub = new NavSatFixPublisher(mLocationManager);
-//            nodeMainExecutor.execute(this.fix_pub, nodeConfiguration2);
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration3 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration3.setMasterUri(masterURI);
-//            nodeConfiguration3.setNodeName(NODE_NAMESPACE+"android_sensors_driver_imu");
-//            this.imu_pub = new ImuMonitoringPublisher(mSensorManager, sensorDelay);
-//            nodeMainExecutor.execute(this.imu_pub, nodeConfiguration3);
-//
-//            try {
-//                detectImuSensors();
-//                startImuSensorListenerAndThread();
-//            } catch (Exception e) {
-//                Log.e(TAG,"Exception in detectImuSensors, or in startImuSensorListenerAndThread",e);
-//                e.printStackTrace();;
-//            }
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration4 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration4.setMasterUri(masterURI);
-//            nodeConfiguration4.setNodeName(NODE_NAMESPACE+"android_sensors_driver_pressure");
-//            this.fluid_pressure_pub = new FluidPressurePublisher(mSensorManager, sensorDelay);
-//            nodeMainExecutor.execute(this.fluid_pressure_pub, nodeConfiguration4);
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration5 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration5.setMasterUri(masterURI);
-//            nodeConfiguration5.setNodeName(NODE_NAMESPACE+"android_sensors_driver_illuminance");
-//            this.illuminance_pub = new IlluminancePublisher(mSensorManager, sensorDelay);
-//            nodeMainExecutor.execute(this.illuminance_pub, nodeConfiguration5);
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration6 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration6.setMasterUri(masterURI);
-//            nodeConfiguration6.setNodeName(NODE_NAMESPACE+"android_sensors_driver_temperature");
-//            this.temperature_pub = new TemperaturePublisher(mSensorManager, sensorDelay, tempSensor);
-//            nodeMainExecutor.execute(this.temperature_pub, nodeConfiguration6);
-//        }
-//
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration7 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration7.setMasterUri(masterURI);
-//            nodeConfiguration7.setNodeName(NODE_NAMESPACE+"apriltags_pose_publisher");
-//            this.aprilTagsPosePublisher = new AprilTagsPosePublisher();
-//            nodeMainExecutor.execute(this.aprilTagsPosePublisher, nodeConfiguration7);
-//        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
@@ -329,14 +251,6 @@ public class MainActivity
             nodeMainExecutor.execute(this.detectedFeaturesClient, nodeConfiguration8);
         }
 
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration.setMasterUri(masterURI);
-//            nodeConfiguration.setNodeName(NODE_NAMESPACE+"apriltags_marker_publisher");
-//            this.markerPublisherNode = new MarkerPublisherNode();
-//            markerPublisherNode.setNodeNamespace(NODE_NAMESPACE);
-//            nodeMainExecutor.execute(this.markerPublisherNode, nodeConfiguration);
-//        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
