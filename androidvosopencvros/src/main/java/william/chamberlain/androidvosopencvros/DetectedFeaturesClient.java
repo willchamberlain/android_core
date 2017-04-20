@@ -89,29 +89,36 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     public void reportDetectedFeature(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
+        applyCurrentPoseAsCameraPoseForDetectedFeature(serviceRequest);
+
+        applyDetectionPoseAndIdForDetectedFeature(tagId, x, y, z, qx, qy, qz, qw, serviceRequest);
+
+        featureServiceClient.call(serviceRequest,featureResponseListener);
+    }
+
+    private void applyDetectionPoseAndIdForDetectedFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw, DetectedFeatureRequest serviceRequest) {
+        VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
+
+        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11);
+        visualFeature.setId(tagId);
+
+        Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
+        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
+        Point translationToFeature = visualFeature.getPose().getPose().getPosition();
+        Geometry.applyTranslationParams(x, y, z, translationToFeature);
+
+        serviceRequest.setVisualFeature(visualFeature);
+    }
+
+    private void applyCurrentPoseAsCameraPoseForDetectedFeature(DetectedFeatureRequest serviceRequest) {
         PoseStamped cameraPose = serviceRequest.getCameraPose();
         cameraPose.getHeader().setFrameId(cameraFrameId);
         Quaternion cameraOrientationInWorld = cameraPose.getPose().getOrientation();
         Geometry.applyQuaternionParams(posedEntity.getOrientation(), cameraOrientationInWorld);
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
         Geometry.applyTranslationParams(posedEntity.getPosition(), cameraPositionInWorld);
-
-        VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
-        Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
-        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
-        Point translationToFeature = visualFeature.getPose().getPose().getPosition();
-        Geometry.applyTranslationParams(x, y, z, translationToFeature);
-
-        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11);
-        visualFeature.setId(tagId);
-
         serviceRequest.setCameraPose(cameraPose);
-        serviceRequest.setVisualFeature(visualFeature);
-
-        featureServiceClient.call(serviceRequest,featureResponseListener);
     }
-
-
 
 
     public void reportDetectedFeatures(geometry_msgs.PoseStamped cameraPose_, java.util.List<vos_aa1.VisualFeatureObservation> visualFeaturesToReport_) {
