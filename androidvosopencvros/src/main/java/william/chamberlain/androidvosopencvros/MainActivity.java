@@ -554,15 +554,7 @@ public class MainActivity
                 if (!poseKnown) {
                     localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, qx, qy, qz, qw);
                 }
-
-//                System.out.println("--- detectedFeaturesClient.reportDetectedFeature --- ");
-//                System.out.print("--- tag_id=");System.out.print(tagId);
-//                    System.out.print(" :  x=");System.out.print(matcher.group(2));System.out.print(" y=");System.out.print(matcher.group(3));System.out.print(" z=");System.out.print(matcher.group(4));
-//                    System.out.print(" :  roll=");System.out.print(matcher.group(5));System.out.print(" pitch=");System.out.print(matcher.group(6));System.out.print(" yaw=");System.out.print(matcher.group(7));
-//                    System.out.print(" :  qx=");System.out.print(matcher.group(8));System.out.print(" qy=");System.out.print(matcher.group(9));System.out.print(" qz=");System.out.print(matcher.group(10));System.out.print(" qw=");System.out.print(matcher.group(11));
-//                    System.out.println("---");
-//                System.out.println("-------------------------------------------------------");
-//                {
+//                      TODO - put markerPublisherNode function on the visualiser side
 //                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
 //                    markerPublisherNode.publishMarker(MARKER_NAMESPACE, tagId_int, tagId, x, y, z, qx, qy, qz, qw, Naming.cameraFrameId(getCamNum()), timeNow);
 //                    // TODO - use same variable for this and aa1_vos_android_catkin_ws___src/vos_aa1/src/vos_aa1/detect_feature_server.py
@@ -575,11 +567,6 @@ public class MainActivity
                 System.out.println("-------------------------------------------------------");
             }
         }
-
-
-//        mRgbaTransposed = matRgb.t();
-//        Imgproc.resize(mRgbaTransposed, mRgbaFlipped, matRgb.size(),0,0,0);
-//        Core.flip(mRgbaFlipped, matRgb, 1); // see - http://answers.opencv.org/question/20325/how-can-i-change-orientation-without-ruin-camera-settings/
 
         if (screenLocked) {
             System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed+": setting output matrices to black");
