@@ -12,4 +12,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+    packagingOptions {
+        pickFirst 'XmlPullParser.class'
+        pickFirst 'XmlPullParser'
+        pickFirst 'org/xmlpull/v1/XmlPullParser.class'
+        pickFirst 'org/xmlpull/v1/XmlPullParser'
+        pickFirst '/org/xmlpull/v1/XmlPullParser.class'
+        pickFirst '/org/xmlpull/v1/XmlPullParser'
+    }
 }

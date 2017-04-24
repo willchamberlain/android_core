@@ -16,7 +16,7 @@ public class FeatureDataRecorderModeller {
 
 
 
-    public void addDetection(DetectedFeature detectedFeature){
+    public DataTrack addDetection(DetectedFeature detectedFeature){
         String id = detectedFeature.featureCanonicalDescriptor();
         DataTrack track;
         if (dataTracks.containsKey(id)) {
@@ -26,6 +26,7 @@ public class FeatureDataRecorderModeller {
             dataTracks.put(id, track);
         }
         track.add(detectedFeature);
+        return track;
     }
 
     private DetectedFeature averageData(DetectedFeature[] features_) {

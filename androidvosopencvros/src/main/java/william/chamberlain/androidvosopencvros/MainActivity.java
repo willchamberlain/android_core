@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.SensorManager;
-//import android.hardware.camera2.CameraManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -31,9 +30,7 @@ import android.view.WindowManager;
 import android.view.MenuInflater;
 
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -121,7 +118,7 @@ public class MainActivity
     };
 
 
-      private ImuMonitoringPublisher imu_pub;
+    private ImuMonitoringPublisher imu_pub;
     private DetectedFeaturesClient detectedFeaturesClient;
     private SetPoseServer setPoseServer;
     private VisionSourceManagementListener visionSourceManagementListener;
@@ -134,6 +131,8 @@ public class MainActivity
 
     private boolean runImageProcessing = false;
     private boolean displayRgb = true;
+
+    FeatureDataRecorderModeller featureDataRecorderModeller = new FeatureDataRecorderModeller();
 
 
     public MainActivity() {
@@ -547,6 +546,54 @@ public class MainActivity
                 // while the translation is in robot-coordinate-system convention (TagDetection.cc lines 133-141 :-  trans = MT.col(3).head(3)  )
                 org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz,-qx,-qy,qw);
                 DetectedFeature feature = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11, tagId, translation_to_tag_in_robot_convention, quaternion_rotation_to_tag);
+                DataTrack track = featureDataRecorderModeller.addDetection(feature);
+                int medianFilterWindowSize = 5;
+                double neighbourhoodEuclideanSize = 0.1;
+                int[] matched = new int[medianFilterWindowSize];
+                if(medianFilterWindowSize > track.sizeNow()) {
+                    continue; // not enough data
+                }
+                DetectedFeature[] data = track.data(medianFilterWindowSize);
+                DetectedFeature medianFeature = feature; // = data[medianFilterWindowSize-1];  // default to this most recent detection
+                // TODO - effectively finding membership of distance-limited neighbourhood centred on each data point;  are other ways of determining a median
+                // TODO - this could effectively smooth over data by using the most mediocre data values
+                for(int i_ = 0; i_ < data.length; i_++) {
+                    DetectedFeature detectedFeature = data[i_];
+                    // have noise, so can't compare with equality; use e.g. 10cm , and 5.73 degrees (= 0.1 radians)
+                    if(null == detectedFeature) {Log.e(TAG,"null == detectedFeature for "+i_+" on tag "+tag);}
+                    if(null == detectedFeature.translation_to_tag_in_robot_convention) {Log.e(TAG,"null == detectedFeature.translation_to_tag_in_robot_convention for "+i_+" on tag "+tag);}
+                    double xToCheck = detectedFeature.translation_to_tag_in_robot_convention.getX();
+                    double yToCheck = detectedFeature.translation_to_tag_in_robot_convention.getY();
+                    double zToCheck = detectedFeature.translation_to_tag_in_robot_convention.getZ();
+                    for(int j_=0; j_< data.length; j_++) {
+                        if(j_ == i_) { continue; }
+                        DetectedFeature detectedFeatureToCompare = data[j_];
+                        if (euclideanBoundsCheck(neighbourhoodEuclideanSize, xToCheck, yToCheck, zToCheck, detectedFeatureToCompare)) { // close enough
+                            matched[i_]++;
+                        }
+                    }
+                }
+                int maxMatches  = 0;
+                for(int i_=0; i_<matched.length; i_++) {
+                    if(matched[i_] >= maxMatches) {  // >= so that prefers more recent data - remember that matches are inexact
+                        maxMatches = matched[i_];
+                        medianFeature = data[i_];
+                    }
+                }
+
+                // TODO - could use the median value here as per median filtering
+                //  OR could check whether the current data is close enough to the median and if it is, use it, otherwise use the median
+
+                double xToCheck = medianFeature.translation_to_tag_in_robot_convention.getX();
+                double yToCheck = medianFeature.translation_to_tag_in_robot_convention.getY();
+                double zToCheck = medianFeature.translation_to_tag_in_robot_convention.getZ();
+                double outlierLimit = neighbourhoodEuclideanSize * 2.0;
+                if (!euclideanBoundsCheck(outlierLimit, xToCheck, yToCheck, zToCheck, feature)) { // close enough
+                    //continue; // filter out rubbish data
+                    feature = medianFeature;
+                }
+
+
                 detectedFeatures.add(feature);
 
                 detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
@@ -590,6 +637,30 @@ public class MainActivity
 //            salt(matGray.getNativeObjAddr(), 3000);
 //        }
 //        return matGray;
+    }
+
+    private boolean euclideanBoundsCheck(double neighbourhoodEuclideanSize, double xToCheck, double yToCheck, double zToCheck, DetectedFeature detectedFeatureToCompare) {
+        return (
+        xToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
+        ||
+        xToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
+        )
+        &&
+        (
+        yToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
+        ||
+        yToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
+        )
+        &&
+        (
+        zToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
+        ||
+        zToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
+        );
+    }
+
+    private boolean isAnOutlier(DetectedFeature feature_) {
+        return false;
     }
 
     private void calculateFocalLength_a(Camera camera) {
@@ -932,5 +1003,74 @@ System.out.println("imuData(Imu imu): relocalising");
             processing.convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());
         }
     }
+//
+//    // Algorithm + id + pose + timestamp
+//    class Detection implements VisualFeatureObservation {
+//        String algorithm;
+//        int id;
+//        Quaternion orientation;
+//        Vector3    position;
+//        Time detectionDatetime;
+//        // TODO - covariance or other uncertainty measure
+//
+//
+//        public Detection(String algorithm_, int id_, Quaternion orientation_, Vector3 position_, Time detectionDatetime_) {
+//            this.algorithm = algorithm_;
+//            this.id = id_;
+//            this.orientation = orientation_;
+//            this.position = position_;
+//            this.detectionDatetime = detectionDatetime_;
+//        }
+//
+//        public Time detectionDatetime() {
+//            return detectionDatetime;
+//        }
+//
+//
+//        @Override
+//        public String getAlgorithm() {
+//            return algorithm;
+//        }
+//
+//        public String algorithm() {
+//            return getAlgorithm();
+//        }
+//
+//        @Override
+//        public void setAlgorithm(String value) {
+//            algorithm = value;
+//        }
+//
+//        @Override
+//        public int getId() {
+//            return id;
+//        }
+//
+//        public int id() {
+//            return getId();
+//        }
+//
+//        @Override
+//        public void setId(int value) {
+//            id = value;
+//        }
+//
+//        @Override
+//        public PoseStamped getPose() {
+//            return null;
+//        }
+//        public PoseStamped pose() {
+//            return getPose();
+//        }
+//
+//        @Override
+//        public void setPose(PoseStamped value) {
+//        }
+//
+//        @Override
+//        public RawMessage toRawMessage() {
+//            return null;
+//        }
+//    }
 }
 
