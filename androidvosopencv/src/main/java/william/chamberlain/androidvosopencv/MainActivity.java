@@ -304,7 +304,7 @@ public class MainActivity
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
-        double tagSize_metres = 0.168d;
+
         String[] tags = getAprilTags(focal_length_in_pixels_x, focal_length_in_pixels_y, tagSize_metres);
 //        for(String tag : tags) {
 //            ////  Log.d(TAG, "-------------------------------------------------------");

@@ -40,26 +40,34 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     @Override
     public void onStart(ConnectedNode connectedNode_) {
         System.out.println("RegisterVisionSourceClient: onStart");
+        connectedNode = connectedNode_;
+        connectServiceClient();
+        System.out.println("RegisterVisionSourceClient: onStart: success");
+        Log.i(TAG, "onStart: success");
+    }
+
+    private void connectServiceClient() {
         try {
-            serviceClient = connectedNode_.newServiceClient("/androidvosopencvros/register_vision_source", RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
-            connectedNode = connectedNode_;
+            serviceClient = connectedNode.newServiceClient("/androidvosopencvros/register_vision_source", RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
             responseListener = new RegisterVisionSourceResponseListener(connectedNode);
         } catch (ServiceNotFoundException e) {
             System.out.println("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
             e.printStackTrace();
             connectedNode.getLog().error("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
+            Log.e(TAG, "onStart: ServiceNotFoundException", e);
             throw new RosRuntimeException(e);
         } catch (Exception e) {
-            if (connectedNode_ != null) {
+            if (connectedNode != null) {
                 System.out.println("RegisterVisionSourceClient: onStart: fail Exception");
                 e.printStackTrace();
-                connectedNode_.getLog().fatal(e);
+                Log.e(TAG, "onStart: Exception: connectedNode_ != null: ", e);
+                connectedNode.getLog().fatal(e);
             } else {
                 System.out.println("RegisterVisionSourceClient: onStart: fail Exception");
+                Log.e(TAG, "onStart: Exception: connectedNode_ == null: ", e);
                 e.printStackTrace();
             }
         }
-        System.out.println("RegisterVisionSourceClient: onStart: success");
     }
 
     public void setBaseUrl(String baseUrl_) {
@@ -68,6 +76,10 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
 
     public void registerVisionSource() {
         Log.i(TAG,"registerVisionSource: registering as a vision source.");
+        if (null == serviceClient ) {
+            Log.e(TAG,"registerVisionSource: CANNOT register as a vision source: serviceClient IS NULL.");
+            return;
+        }
         RegisterVisionSourceRequest serviceRequest = serviceClient.newMessage();
         serviceRequest.setVisionSourceBaseUrl(baseUrl);
         serviceClient.call(serviceRequest, responseListener);

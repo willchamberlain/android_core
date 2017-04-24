@@ -329,7 +329,7 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: draw(matRgb, ...): %f ms.", (time_now-time_then));
 
         // get the pose here
-        float tag_size_metres = 0.168f;
+        float tag_size_metres = 0.153f;  // 0.162f;  // 0.168f;
         Eigen::Matrix4d relativeTransform = getRelativeTransform(tag_size_metres, fx_pixels, fy_pixels, px_pixels, py_pixels, det->p[0][0], det->p[0][1], det->p[1][0], det->p[1][1], det->p[2][0], det->p[2][1], det->p[3][0], det->p[3][1]);
         Eigen::Vector3d translation; translation = relativeTransform.col(3).head(3);
         Eigen::Matrix3d rotation;    rotation    = relativeTransform.block(0,0,3,3);

@@ -54,6 +54,9 @@ import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
+import static william.chamberlain.androidvosopencvros.DataExchange.dataOutputPattern;
+import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -80,11 +83,8 @@ public class MainActivity
 
     private Mat matGray;
     private Mat matRgb;
-//    private Mat mRgbaTransposed;
-//    private Mat mRgbaFlipped;
-
-    Pattern tagPattern_trans_rpy_quat = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
-    Pattern tagPattern_trans_quat = Pattern.compile("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
+//    private Mat mRgbaTransposed;      // rotate image as preview rotates with device
+//    private Mat mRgbaFlipped;         // rotate image as preview rotates with device
 
 
     private double[] position    = {0.0,0.0,1.0};     // = new double[3]
@@ -495,7 +495,7 @@ public class MainActivity
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
 
-        double tagSize_metres = 0.162d;
+
         float  px_pixels = (float)(matGray.size().width/2.0);
         float  py_pixels = (float)(matGray.size().height/2.0);
 
@@ -505,12 +505,21 @@ public class MainActivity
 
         Time timeNow = Date.nowAsTime();
         detectedFeatures.clear();
-
+//        Matcher matcher;
         for(String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
                 Log.i(TAG,"onCameraFrame: tag string = "+tag);
             }
+//            matcher = tagPattern_trans_quat.matcher(tag);
+//            if (!matcher.matches()) {
+//                matcher = dataOutputPattern.matcher(tag);
+//                if ( ! matcher.matches()) {
+//                    System.out.print("---- ERROR: does not match either a detection or data to log ");
+//                    continue;
+//                }
+//                logData(matcher.group(1),matcher.group(2));
+//            }
             Matcher matcher = tagPattern_trans_quat.matcher(tag);
             {
                 System.out.print("--- matcher matches regex in the string? : "); System.out.println(matcher.matches());
@@ -518,13 +527,7 @@ public class MainActivity
             String tagId = matcher.group(1);
             Integer tagId_integer = Integer.parseInt(tagId);
             int tagId_int = tagId_integer.intValue();
-            {
-                System.out.print("--- matched tag_id="); System.out.print(tagId); System.out.print(", matched x=");  System.out.print(matcher.group(2)); System.out.println("---");
-//                System.out.println("-------------------------------------------------------");
-            }
-//            if(null != aprilTagsPosePublisher) {aprilTagsPosePublisher.publishAprilTagId(Integer.parseInt(tagId));}
-//            else { System.out.print("MainActivity: onCameraFrame: aprilTagsPosePublisher is null: cannot publish tag id "); System.out.println(tagId); }
-
+                System.out.print("---- matched tag_id="); System.out.print(tagId); System.out.print(", matched x=");  System.out.print(matcher.group(2)); System.out.println("---");
             if(null != detectedFeaturesClient) {
 // ("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
                 double x = Double.parseDouble(matcher.group(2));
@@ -546,12 +549,14 @@ public class MainActivity
                 // while the translation is in robot-coordinate-system convention (TagDetection.cc lines 133-141 :-  trans = MT.col(3).head(3)  )
                 org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz,-qx,-qy,qw);
                 DetectedFeature feature = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11, tagId, translation_to_tag_in_robot_convention, quaternion_rotation_to_tag);
+
+                // START Median filter over the translation - also effectively filters over the detected tag rotation: as this is the inverse of the camera-to-tag transform, the orientation of the tag relative to the camera is inverted and applied before the inverted-translation, so that the inverted-translation amplifies problems with the inverted-rotation
                 DataTrack track = featureDataRecorderModeller.addDetection(feature);
-                int medianFilterWindowSize = 5;
-                double neighbourhoodEuclideanSize = 0.1;
+                int medianFilterWindowSize = 5;                     // use 5 measurements in the median filter // TODO - hardcoding
+                double neighbourhoodEuclideanSize = 0.1;            // allow 0.1m before reject  // TODO - hardcoding
                 int[] matched = new int[medianFilterWindowSize];
                 if(medianFilterWindowSize > track.sizeNow()) {
-                    continue; // not enough data
+                    continue; // not enough data yet
                 }
                 DetectedFeature[] data = track.data(medianFilterWindowSize);
                 DetectedFeature medianFeature = feature; // = data[medianFilterWindowSize-1];  // default to this most recent detection
@@ -592,6 +597,7 @@ public class MainActivity
                     //continue; // filter out rubbish data
                     feature = medianFeature;
                 }
+                // END Median filter over the translation
 
 
                 detectedFeatures.add(feature);
@@ -1072,5 +1078,13 @@ System.out.println("imuData(Imu imu): relocalising");
 //            return null;
 //        }
 //    }
+
+
+    /**
+     * Log some data: TODO - implement as a generic data publisher.
+     */
+    void logData(String dataLabel,String dataValue) {
+        Log.i(TAG,"logData: logging data: label="+dataLabel+", value='"+dataValue+"'");
+    }
 }
 

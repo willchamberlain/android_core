@@ -9,6 +9,8 @@ import org.ros.node.topic.Publisher;
 
 import visualization_msgs.Marker;
 
+import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
+
 
 /**
  * Created by will on 21/02/17.
@@ -44,8 +46,8 @@ public class MarkerPublisherNode extends AbstractNodeMain {
         marker.setType(Marker.CUBE);
 
         marker.getScale().setX(0.010f);
-        marker.getScale().setY(0.168f);
-        marker.getScale().setZ(0.168f);
+        marker.getScale().setY(tagSize_metres);
+        marker.getScale().setZ(tagSize_metres);
         marker.getColor().setR(0.0f);
         marker.getColor().setG(1.0f);
         marker.getColor().setB(0.0f);
