@@ -44,13 +44,29 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
+import boofcv.abst.fiducial.FiducialDetector;
+import boofcv.alg.misc.GImageMiscOps;
 import boofcv.android.gui.VideoProcessing;
+import boofcv.core.encoding.ConvertNV21;
+import boofcv.factory.fiducial.ConfigFiducialBinary;
+import boofcv.factory.fiducial.FactoryFiducial;
+import boofcv.factory.filter.binary.ConfigThreshold;
+import boofcv.factory.filter.binary.ThresholdType;
+import boofcv.struct.image.GrayF32;
+import boofcv.struct.image.ImageDataType;
+import boofcv.struct.image.ImageGray;
+import boofcv.struct.image.ImageType;
+import boofcv.struct.image.InterleavedF32;
+import boofcv.struct.image.InterleavedU8;
+import boofcv.struct.image.Planar;
 import geometry_msgs.Pose;
 import sensor_msgs.Imu;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
 
+import static boofcv.struct.image.ImageDataType.F32;
+import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
@@ -494,6 +510,22 @@ public class MainActivity
 //        Core.flip(matGray,matGray,1);
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
+
+        byte[] current_image_bytes = last_frame_bytes();
+        if(null!=current_image_bytes) {
+            convertPreview(last_frame_bytes(), camera);
+            try {
+                FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+                        new ConfigFiducialBinary(0.1), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);
+                //        detector.setLensDistortion(lensDistortion);
+                detector.detect(image);
+                Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
+            } catch (Exception e) {
+                Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
+                e.printStackTrace();
+            }
+
+        }
 
 
         float  px_pixels = (float)(matGray.size().width/2.0);
@@ -1001,13 +1033,26 @@ System.out.println("imuData(Imu imu): relocalising");
 //        GrayU8 image = ConvertBitmap.bitmapToGray(bitmap, (GrayU8)null, null);
 //    }
 
+
+    public byte[] last_frame_bytes(){
+        return current_image_bytes;
+    }
+
     protected VideoProcessing processing;
 
     public void last_frame_bytes(byte[] last_frame_bytes){
-        Log.i(TAG, "----------------------------- last_frame_bytes -----------------------------");
-        if( processing != null ) {
-            processing.convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());
-        }
+//        Log.i(TAG, "----------------------------- last_frame_bytes -----------------------------");
+//        if( processing != null ) {
+//            processing.convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());
+//        }
+
+        convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());  // updates the 'image' variable
+
+        FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+                new ConfigFiducialBinary(0.1), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);
+//        detector.setLensDistortion(lensDistortion);
+        detector.detect(image);
+        Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
     }
 //
 //    // Algorithm + id + pose + timestamp
@@ -1086,5 +1131,90 @@ System.out.println("imuData(Imu imu): relocalising");
     void logData(String dataLabel,String dataValue) {
         Log.i(TAG,"logData: logging data: label="+dataLabel+", value='"+dataValue+"'");
     }
+
+
+/* start - copy from boofcv.android.gui.VideoRenderProcessing */ // TODO - use it properly
+    // Type of BoofCV image
+    ImageType<boofcv.struct.image.GrayF32> imageType = new ImageType<GrayF32>(GRAY,F32,1);       // TODO - hardcoded
+    boofcv.struct.image.GrayF32 image = new boofcv.struct.image.GrayF32();  // TODO - hardcoded
+    int previewRotation = 0;                                // TODO - hardcoded
+    boolean flipHorizontal = false;                         // TODO - hardcoded
+
+    byte[] current_image_bytes;
+
+//    @Override
+    public void convertPreview(byte[] bytes, Camera camera) {
+        current_image_bytes = bytes;
+//        if( thread == null )
+//            return;
+        if(null == matGray) {
+            return;
+        }
+        int width_  = (int)Math.ceil(matGray.size().width);
+        int height_ = (int)Math.ceil(matGray.size().height);
+        image = image.createNew(width_,height_);
+
+//        synchronized ( lockConvert ) {
+            if( imageType.getFamily() == GRAY ) {
+                ConvertNV21.nv21ToGray(bytes, image.width, image.height, (ImageGray) image,(Class) image.getClass());
+//            } else if( imageType.getFamily() == ImageType.Family.PLANAR ) {
+//                if (imageType.getDataType() == ImageDataType.U8)
+//                    ConvertNV21.nv21ToMsRgb_U8(bytes, image.width, image.height, (Planar) image);
+//                else if (imageType.getDataType() == ImageDataType.F32)
+//                    ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, (Planar) image);
+//                else
+//                    throw new RuntimeException("Oh Crap");
+//            } else if( imageType.getFamily() == ImageType.Family.INTERLEAVED ) {
+//                if( imageType.getDataType() == ImageDataType.U8)
+//                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedU8) image);
+//                else if( imageType.getDataType() == ImageDataType.F32)
+//                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedF32) image);
+//                else
+//                    throw new RuntimeException("Oh Crap");
+            } else {
+                throw new RuntimeException("Unexpected image type: "+imageType);
+            }
+
+            if( previewRotation == 180 ) {
+                if( flipHorizontal ) {
+                    GImageMiscOps.flipVertical(image);
+                } else {
+                    GImageMiscOps.flipVertical(image);
+                    GImageMiscOps.flipHorizontal(image);
+                }
+            } else if( flipHorizontal )
+                GImageMiscOps.flipHorizontal(image);
+//        }
+//        // wake up the thread and tell it to do some processing
+//        thread.interrupt();
+    }
+
+//    @Override
+//    public void run() {
+//        thread = Thread.currentThread();
+//        while( !requestStop ) {
+//            synchronized ( thread ) {
+//                try {
+//                    wait();
+//                    if( requestStop )
+//                        break;
+//                } catch (InterruptedException e) {}
+//            }
+//
+//            // swap gray buffers so that convertPreview is modifying the copy which is not in use
+//            synchronized ( lockConvert ) {
+//                T tmp = image;
+//                image = image2;
+//                image2 = tmp;
+//            }
+//
+//            process(image2);
+//
+//            view.postInvalidate();
+//        }
+//        running = false;
+//    }
+/* end - copy from boofcv.android.gui.VideoRenderProcessing */
+
 }
 

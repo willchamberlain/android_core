@@ -65,6 +65,12 @@ android {
     }
 }
 
+// Remove libraries that conflict with libraries already included with Android
+configurations {
+    all*.exclude group: "xmlpull", module: "xmlpull"
+    all*.exclude group: "org.apache.commons", module: "commons-compress"
+}
+
 dependencies {
     compile project(':android_15')
     compile project(':openCVLibrary310')
