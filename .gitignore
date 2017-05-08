@@ -19,6 +19,8 @@ project.properties
 /androidvosopencvros/src/main/java/vos_aa1
 /androidvosopencv/src/main/jniLibs
 *.apk
+captures
+
 
 # These are Android Studio files, might be worth including these later.
 *.iml
