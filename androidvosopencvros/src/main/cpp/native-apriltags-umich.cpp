@@ -120,7 +120,7 @@ extern "C"
         apriltag_detection_t *det;
         zarray_get(detections, i, &det);
 
-            printf("detection %3d: id (%2dx%2d)-%-4d, hamming %d, goodness %8.3f, margin %8.3f, centre pixel (%8.3f,%8.3f)\n",
+            printf("detection %3d: id (%2dx%2d)-%-4d, hamming %d, goodness %8.3f, decision_margin %8.3f, centre pixel (%8.3f,%8.3f)\n",
                    i, det->family->d*det->family->d, det->family->h, det->id, det->hamming, det->goodness, det->decision_margin
                     , det->c[0],det->c[1]);
             printf( "\t\tcorners X = [%5.0f, %5.0f, %5.0f, %5.0f]\n" , det->p[0][0], det->p[1][0], det->p[2][0], det->p[3][0] );

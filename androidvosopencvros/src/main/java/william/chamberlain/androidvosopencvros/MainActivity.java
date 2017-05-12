@@ -33,7 +33,6 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 import android.util.Log;
@@ -45,6 +44,8 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 
 import boofcv.abst.fiducial.FiducialDetector;
+import boofcv.alg.distort.LensDistortionNarrowFOV;
+import boofcv.alg.distort.pinhole.LensDistortionPinhole;
 import boofcv.alg.misc.GImageMiscOps;
 import boofcv.android.gui.VideoProcessing;
 import boofcv.core.encoding.ConvertNV21;
@@ -52,14 +53,16 @@ import boofcv.factory.fiducial.ConfigFiducialBinary;
 import boofcv.factory.fiducial.FactoryFiducial;
 import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
+import boofcv.struct.calib.CameraPinhole;
 import boofcv.struct.image.GrayF32;
-import boofcv.struct.image.ImageDataType;
 import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
-import boofcv.struct.image.InterleavedF32;
-import boofcv.struct.image.InterleavedU8;
-import boofcv.struct.image.Planar;
 import geometry_msgs.Pose;
+import georegression.geometry.ConvertRotation3D_F64;
+import georegression.struct.point.Point2D_F64;
+import georegression.struct.point.Vector3D_F64;
+import georegression.struct.se.Se3_F64;
+import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
@@ -71,7 +74,6 @@ import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
-import static william.chamberlain.androidvosopencvros.DataExchange.dataOutputPattern;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 
 /**
@@ -511,15 +513,80 @@ public class MainActivity
 //        Core.flip(matRgb,matRgb,1);
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
 
+        // start BoofCV
+        double BOOFCV_TAG_WIDTH=0.14;
         byte[] current_image_bytes = last_frame_bytes();
         if(null!=current_image_bytes) {
             convertPreview(last_frame_bytes(), camera);
             try {
                 FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
-                        new ConfigFiducialBinary(0.1), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);
+                        new ConfigFiducialBinary(BOOFCV_TAG_WIDTH), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
                 //        detector.setLensDistortion(lensDistortion);
+
+                float  px_pixels = (float)(matGray.size().width/2.0);
+                float  py_pixels = (float)(matGray.size().height/2.0);
+                double skew = 0.0;
+                CameraPinhole pinholeModel = new CameraPinhole(focal_length_in_pixels_x,focal_length_in_pixels_y,skew,px_pixels,py_pixels,new Double(matGray.size().width).intValue(),new Double(matGray.size().height).intValue());
+                LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
+                detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
                 detector.detect(image);
                 Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
+
+                // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
+                Se3_F64 targetToSensor = new Se3_F64();
+                Se3_F64 sensorToTarget = new Se3_F64();
+                Point2D_F64 locationPixel = new Point2D_F64();
+                for (int i = 0; i < detector.totalFound(); i++) {
+                    // detector.getImageLocation(i, locationPixel);        // pixel location in input image
+
+                    int tag_id = -1;
+                    if( detector.hasUniqueID() ) {
+                        System.out.println("Target ID = " + detector.getId(i));
+                        long tag_id_long = detector.getId(i);
+                        tag_id = (int)tag_id_long;
+                        if ((long)tag_id != tag_id_long) {
+                            //throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
+                            System.out.println(" BoofCV: cannot use tag: tag_id_long '"+tag_id_long+"' cannot be cast to int without changing its value.");
+                            continue;
+                        }
+                    }
+                    if( detector.hasMessage() )
+                        System.out.println("Message   = "+detector.getMessage(i));
+                    System.out.println("2D Image Location = "+locationPixel);
+
+                    if( detector.is3D() ) {
+                        detector.getFiducialToCamera(i, targetToSensor);
+                        System.out.println("3D Location: targetToSensor = ");  System.out.println(targetToSensor);
+                        sensorToTarget = null;
+                        sensorToTarget = targetToSensor.invert(sensorToTarget);
+                        System.out.println("3D Location: sensorToTarget = ");  System.out.println(sensorToTarget);
+                        sensorToTarget.getRotation();
+                        Vector3D_F64 trans = sensorToTarget.getTranslation();
+//                        VisualizeFiducial.drawCube(targetToSensor, param, detector.getWidth(i), 3, g2);
+//                        VisualizeFiducial.drawLabelCenter(targetToSensor, param, "" + detector.getId(i), g2);
+//                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getX(), trans.getY(), trans.getZ());
+                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getZ(), -trans.getX(), -trans.getY());
+                        Quaternion_F64 quat = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget.getR(),quat);
+//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz, -qx, -qy, qw);
+//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat.x,quat.y,quat.z,quat.w);
+                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat.z,-quat.x,-quat.y,quat.w);
+                        DetectedFeature feature_hom = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11,
+                                Long.toString(tag_id),
+                                translation_to_tag_in_robot_convention,  // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                                quaternion_rotation_to_tag);
+                        detectedFeatures.add(feature_hom);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans.getX(), trans.getY(), trans.getZ(), quat.x,quat.y,quat.z,quat.w);
+                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans.getZ(), -trans.getX(), -trans.getY(), quat.z,-quat.x,-quat.y,quat.w);
+                        if (!poseKnown) {
+//                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans.getX(), trans.getY(), trans.getZ(), quat.x,quat.y,quat.z,quat.w);
+                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans.getZ(), -trans.getX(), -trans.getY(), quat.z,-quat.x,-quat.y,quat.w);
+                        }
+                    } else {
+//                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(i), g2);
+                    }
+                }
+
             } catch (Exception e) {
                 Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
                 e.printStackTrace();
@@ -527,11 +594,20 @@ public class MainActivity
 
         }
 
+        // end BoofCV
+
 
         float  px_pixels = (float)(matGray.size().width/2.0);
         float  py_pixels = (float)(matGray.size().height/2.0);
 
-        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
+
+////        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
+        System.out.println("\\n\\n\\n ---------- hardcoding to ZERO AprilTags detections ---------- \\n\\n\\n");
+        String[] tags = new String[]{};
+////
+
+
+
 
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
@@ -541,7 +617,7 @@ public class MainActivity
         for(String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
-                Log.i(TAG,"onCameraFrame: tag string = "+tag);
+                Log.i(TAG,"onCameraFrame: tag string = '"+tag+"'");
             }
 //            matcher = tagPattern_trans_quat.matcher(tag);
 //            if (!matcher.matches()) {
@@ -554,6 +630,7 @@ public class MainActivity
 //            }
             Matcher matcher = tagPattern_trans_quat.matcher(tag);
             {
+                System.out.print("Pattern = '"+tagPattern_trans_quat.toString()+"'");
                 System.out.print("--- matcher matches regex in the string? : "); System.out.println(matcher.matches());
             }
             String tagId = matcher.group(1);
@@ -573,71 +650,86 @@ public class MainActivity
                 double qz = Double.parseDouble(matcher.group(7));
                 double qw = Double.parseDouble(matcher.group(8));
 
-                org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(x,y,z);
-        //  NOTE !!
+                double xHom = Double.parseDouble(matcher.group(9));
+                double yHom = Double.parseDouble(matcher.group(10));
+                double zHom = Double.parseDouble(matcher.group(11));
+                double qxHom = Double.parseDouble(matcher.group(12));
+                double qyHom = Double.parseDouble(matcher.group(13));
+                double qzHom = Double.parseDouble(matcher.group(14));
+                double qwHom = Double.parseDouble(matcher.group(15));
+
+                org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(x, y, z);
+                //  NOTE !!
                 // this corresponds to the fix in detect_feature_server.py line 278,
                 // caused by Kaess' mixed coordinate system conventions in TagDetection.cc lines 142-145:
                 // the quaternion is in camera-/optical-coordinate-system conventions ( rot = T.block ... rather than rot = MT.block ... ) ,
                 // while the translation is in robot-coordinate-system convention (TagDetection.cc lines 133-141 :-  trans = MT.col(3).head(3)  )
-                org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz,-qx,-qy,qw);
+                org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz, -qx, -qy, qw);
                 DetectedFeature feature = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11, tagId, translation_to_tag_in_robot_convention, quaternion_rotation_to_tag);
 
+                org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention_hom = new org.ros.rosjava_geometry.Vector3(xHom, yHom, zHom);
+                org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag_hom = new org.ros.rosjava_geometry.Quaternion(qxHom, qyHom, qzHom, qwHom);
+//                DetectedFeature feature_hom = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11, Integer.toString(tagId_int), translation_to_tag_in_robot_convention_hom, quaternion_rotation_to_tag_hom);
+                DetectedFeature feature_hom = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11,
+                        Integer.toString(tagId_int),
+                        translation_to_tag_in_robot_convention,  // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                        quaternion_rotation_to_tag_hom);
+
+                org.ros.rosjava_geometry.Vector3 trans;
+                org.ros.rosjava_geometry.Quaternion quat;
+                DataTrack track;
+                MedianFilter medianFilter;
+
+////  2017_05_11 homography attempt - comment out the non-homography
+//                // START Median filter over the translation - also effectively filters over the detected tag rotation: as this is the inverse of the camera-to-tag transform, the orientation of the tag relative to the camera is inverted and applied before the inverted-translation, so that the inverted-translation amplifies problems with the inverted-rotation
+//                DataTrack track = featureDataRecorderModeller.addDetection(feature);
+//                MedianFilter medianFilter = new MedianFilter(tag, feature, track).invoke();
+//                if (medianFilter.is()) {
+//                    continue; // not enough data yet
+//                }
+//                feature = medianFilter.getFeature();
+//                // END Median filter over the translation
+//
+//                detectedFeatures.add(feature);
+//
+////                detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, qx, qy, qz, qw);
+//                org.ros.rosjava_geometry.Vector3 trans = feature.translation_to_tag_in_robot_convention;
+//                org.ros.rosjava_geometry.Quaternion quat = feature.quaternion_rotation_to_tag;
+//                detectedFeaturesClient.reportDetectedFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+//
+//                if (!poseKnown) {
+////                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, qx, qy, qz, qw);
+//                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+//                }
+////  end 2017_05_11 homography attempt - comment out the non-homography
+
+                { // detection with translation, rotation from homography.c
                 // START Median filter over the translation - also effectively filters over the detected tag rotation: as this is the inverse of the camera-to-tag transform, the orientation of the tag relative to the camera is inverted and applied before the inverted-translation, so that the inverted-translation amplifies problems with the inverted-rotation
-                DataTrack track = featureDataRecorderModeller.addDetection(feature);
-                int medianFilterWindowSize = 5;                     // use 5 measurements in the median filter // TODO - hardcoding
-                double neighbourhoodEuclideanSize = 0.1;            // allow 0.1m before reject  // TODO - hardcoding
-                int[] matched = new int[medianFilterWindowSize];
-                if(medianFilterWindowSize > track.sizeNow()) {
+                track = featureDataRecorderModeller.addDetection(feature_hom);
+                medianFilter = new MedianFilter(tag, feature_hom, track).invoke();
+                if (medianFilter.is()) {
                     continue; // not enough data yet
                 }
-                DetectedFeature[] data = track.data(medianFilterWindowSize);
-                DetectedFeature medianFeature = feature; // = data[medianFilterWindowSize-1];  // default to this most recent detection
-                // TODO - effectively finding membership of distance-limited neighbourhood centred on each data point;  are other ways of determining a median
-                // TODO - this could effectively smooth over data by using the most mediocre data values
-                for(int i_ = 0; i_ < data.length; i_++) {
-                    DetectedFeature detectedFeature = data[i_];
-                    // have noise, so can't compare with equality; use e.g. 10cm , and 5.73 degrees (= 0.1 radians)
-                    if(null == detectedFeature) {Log.e(TAG,"null == detectedFeature for "+i_+" on tag "+tag);}
-                    if(null == detectedFeature.translation_to_tag_in_robot_convention) {Log.e(TAG,"null == detectedFeature.translation_to_tag_in_robot_convention for "+i_+" on tag "+tag);}
-                    double xToCheck = detectedFeature.translation_to_tag_in_robot_convention.getX();
-                    double yToCheck = detectedFeature.translation_to_tag_in_robot_convention.getY();
-                    double zToCheck = detectedFeature.translation_to_tag_in_robot_convention.getZ();
-                    for(int j_=0; j_< data.length; j_++) {
-                        if(j_ == i_) { continue; }
-                        DetectedFeature detectedFeatureToCompare = data[j_];
-                        if (euclideanBoundsCheck(neighbourhoodEuclideanSize, xToCheck, yToCheck, zToCheck, detectedFeatureToCompare)) { // close enough
-                            matched[i_]++;
-                        }
-                    }
-                }
-                int maxMatches  = 0;
-                for(int i_=0; i_<matched.length; i_++) {
-                    if(matched[i_] >= maxMatches) {  // >= so that prefers more recent data - remember that matches are inexact
-                        maxMatches = matched[i_];
-                        medianFeature = data[i_];
-                    }
-                }
-
-                // TODO - could use the median value here as per median filtering
-                //  OR could check whether the current data is close enough to the median and if it is, use it, otherwise use the median
-
-                double xToCheck = medianFeature.translation_to_tag_in_robot_convention.getX();
-                double yToCheck = medianFeature.translation_to_tag_in_robot_convention.getY();
-                double zToCheck = medianFeature.translation_to_tag_in_robot_convention.getZ();
-                double outlierLimit = neighbourhoodEuclideanSize * 2.0;
-                if (!euclideanBoundsCheck(outlierLimit, xToCheck, yToCheck, zToCheck, feature)) { // close enough
-                    //continue; // filter out rubbish data
-                    feature = medianFeature;
-                }
+                feature_hom = medianFilter.getFeature();
                 // END Median filter over the translation
 
+                detectedFeatures.add(feature_hom);
 
-                detectedFeatures.add(feature);
 
-                detectedFeaturesClient.reportDetectedFeature(tagId_int, x,y,z,qx,qy,qz,qw);
+//                detectedFeaturesClient.reportDetectedFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
+                trans = feature_hom.translation_to_tag_in_robot_convention;
+                quat = feature_hom.quaternion_rotation_to_tag;
+
+//                detectedFeaturesClient.reportDetectedFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+                // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
 
                 if (!poseKnown) {
-                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, qx, qy, qz, qw);
+//                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
+//                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+                    // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+                }
                 }
 //                      TODO - put markerPublisherNode function on the visualiser side
 //                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
@@ -675,26 +767,6 @@ public class MainActivity
 //            salt(matGray.getNativeObjAddr(), 3000);
 //        }
 //        return matGray;
-    }
-
-    private boolean euclideanBoundsCheck(double neighbourhoodEuclideanSize, double xToCheck, double yToCheck, double zToCheck, DetectedFeature detectedFeatureToCompare) {
-        return (
-        xToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
-        ||
-        xToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
-        )
-        &&
-        (
-        yToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
-        ||
-        yToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
-        )
-        &&
-        (
-        zToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
-        ||
-        zToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
-        );
     }
 
     private boolean isAnOutlier(DetectedFeature feature_) {
@@ -1187,6 +1259,99 @@ System.out.println("imuData(Imu imu): relocalising");
 //        }
 //        // wake up the thread and tell it to do some processing
 //        thread.interrupt();
+    }
+
+    private class MedianFilter {
+        private boolean myResult;
+        private String tag;
+        private DetectedFeature feature;
+        private DataTrack track;
+
+        public MedianFilter(String tag, DetectedFeature feature, DataTrack track) {
+            this.tag = tag;
+            this.feature = feature;
+            this.track = track;
+        }
+
+        boolean is() {
+            return myResult;
+        }
+
+        public DetectedFeature getFeature() {
+            return feature;
+        }
+
+        public MedianFilter invoke() {
+            int medianFilterWindowSize = 5;                     // use 5 measurements in the median filter // TODO - hardcoding
+            double neighbourhoodEuclideanSize = 0.1;            // allow 0.1m before reject  // TODO - hardcoding
+            int[] matched = new int[medianFilterWindowSize];
+            if(medianFilterWindowSize > track.sizeNow()) {
+                myResult = true;
+                return this;
+            }
+            DetectedFeature[] data = track.data(medianFilterWindowSize);
+            DetectedFeature medianFeature = feature; // = data[medianFilterWindowSize-1];  // default to this most recent detection
+            // TODO - effectively finding membership of distance-limited neighbourhood centred on each data point;  are other ways of determining a median
+            // TODO - this could effectively smooth over data by using the most mediocre data values
+            for(int i_ = 0; i_ < data.length; i_++) {
+                DetectedFeature detectedFeature = data[i_];
+                // have noise, so can't compare with equality; use e.g. 10cm , and 5.73 degrees (= 0.1 radians)
+                if(null == detectedFeature) {
+                    Log.e(TAG,"null == detectedFeature for "+i_+" on tag "+tag);}
+                if(null == detectedFeature.translation_to_tag_in_robot_convention) {Log.e(TAG,"null == detectedFeature.translation_to_tag_in_robot_convention for "+i_+" on tag "+tag);}
+                double xToCheck = detectedFeature.translation_to_tag_in_robot_convention.getX();
+                double yToCheck = detectedFeature.translation_to_tag_in_robot_convention.getY();
+                double zToCheck = detectedFeature.translation_to_tag_in_robot_convention.getZ();
+                for(int j_=0; j_< data.length; j_++) {
+                    if(j_ == i_) { continue; }
+                    DetectedFeature detectedFeatureToCompare = data[j_];
+                    if (euclideanBoundsCheck(neighbourhoodEuclideanSize, xToCheck, yToCheck, zToCheck, detectedFeatureToCompare)) { // close enough
+                        matched[i_]++;
+                    }
+                }
+            }
+            int maxMatches  = 0;
+            for(int i_=0; i_<matched.length; i_++) {
+                if(matched[i_] >= maxMatches) {  // >= so that prefers more recent data - remember that matches are inexact
+                    maxMatches = matched[i_];
+                    medianFeature = data[i_];
+                }
+            }
+
+            // TODO - could use the median value here as per median filtering
+            //  OR could check whether the current data is close enough to the median and if it is, use it, otherwise use the median
+
+            double xToCheck = medianFeature.translation_to_tag_in_robot_convention.getX();
+            double yToCheck = medianFeature.translation_to_tag_in_robot_convention.getY();
+            double zToCheck = medianFeature.translation_to_tag_in_robot_convention.getZ();
+            double outlierLimit = neighbourhoodEuclideanSize * 2.0;
+            if (!euclideanBoundsCheck(outlierLimit, xToCheck, yToCheck, zToCheck, feature)) { // close enough
+                //continue; // filter out rubbish data
+                feature = medianFeature;
+            }
+            myResult = false;
+            return this;
+        }
+
+        private boolean euclideanBoundsCheck(double neighbourhoodEuclideanSize, double xToCheck, double yToCheck, double zToCheck, DetectedFeature detectedFeatureToCompare) {
+            return (
+            xToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
+            ||
+            xToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getX()
+            )
+            &&
+            (
+            yToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
+            ||
+            yToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getY()
+            )
+            &&
+            (
+            zToCheck+neighbourhoodEuclideanSize >= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
+            ||
+            zToCheck-neighbourhoodEuclideanSize <= detectedFeatureToCompare.translation_to_tag_in_robot_convention.getZ()
+            );
+        }
     }
 
 //    @Override

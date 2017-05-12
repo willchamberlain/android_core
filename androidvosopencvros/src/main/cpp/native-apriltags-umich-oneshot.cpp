@@ -16,6 +16,7 @@
 #include <common/matd.h>
 
 #include "apriltag.h"
+#include "homography.h"
 #include "tag36h11.h"
 #include "tag36h10.h"
 #include "tag36artoolkit.h"
@@ -54,7 +55,7 @@ static double now_us(void) {
 
 extern "C"
 {
-    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
+    const std::string quaternion_format_as_string = std::string("tag %d at x=%.4f y=%.4f z=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f x=%.4f y=%.4f z=%.4f qx=%.4f qy=%.4f qz=%.4f qw=%.4f");
     const char* quaternion_format_as_string_c_str = quaternion_format_as_string.c_str();
 
 // draw one April tag detection on actual image
@@ -300,7 +301,7 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
 
 
     Eigen::Quaterniond quaternion;
-    jstring         str;                        // string temp variable to build the array of strings
+    jstring         tag_and_pose_data_as_str;                        // string temp variable to build the array of strings
     jobjectArray    tags_as_strings = 0;        // array of strings
     jsize           detections_size = detections->size;
     tags_as_strings = (jobjectArray)env->NewObjectArray(detections_size,(env)->FindClass("java/lang/String"),env->NewStringUTF(""));
@@ -309,9 +310,10 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         apriltag_detection_t *det;
         zarray_get(detections, i, &det);
 
-        LOGI("detection %3d: id (%2dx%2d)-%-4d, hamming %d, goodness %8.3f, margin %8.3f, centre pixel (%8.3f,%8.3f)\n",
+        LOGI("detection %3d: id (%2dx%2d)-%-4d, hamming %d,  GOODNESS  %8.3f,  DECISION_MARGIN  %8.3f, centre pixel (%8.3f,%8.3f)\n",
                    i, det->family->d*det->family->d, det->family->h, det->id, det->hamming, det->goodness, det->decision_margin
                     , det->c[0],det->c[1]);
+
         LOGI( "\t\tcorners X = [%5.0f, %5.0f, %5.0f, %5.0f]\n" , det->p[0][0], det->p[1][0], det->p[2][0], det->p[3][0] );
         LOGI( "\t\tcorners y = [%5.0f, %5.0f, %5.0f, %5.0f]\n" , det->p[0][1], det->p[1][1], det->p[2][1], det->p[3][1] );
         LOGI( " hold on; plot([%5.0f], [%5.0f],'+','LineWidth',2);\n" , det->c[0],det->c[1] );
@@ -319,6 +321,10 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         LOGI( ", [%5.0f, %5.0f, %5.0f, %5.0f, %5.0f],'--+','LineWidth',2);\n\n" , det->p[0][1], det->p[1][1], det->p[2][1], det->p[3][1], det->p[0][1] );
 
         LOGI(" homography: [%5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ]", det->H->data[0], det->H->data[1], det->H->data[2], det->H->data[3], det->H->data[4], det->H->data[5], det->H->data[6], det->H->data[7], det->H->data[8], det->H->data[9], det->H->data[10], det->H->data[11], det->H->data[12], det->H->data[13], det->H->data[14], det->H->data[15]);
+
+        // see for flipping/negating fx, fy to obtain different orientations https://april.eecs.umich.edu/pipermail/apriltag-devel/2016-April/000049.html
+        matd_t *tag_pose_matrix = homography_to_pose(det->H, fx_pixels, fy_pixels, px_pixels, py_pixels);
+        tag_pose_matrix->data;
 
         hamm_hist[det->hamming]++;
         total_hamm_hist[det->hamming]++;
@@ -329,20 +335,37 @@ Eigen::Matrix4d getRelativeTransform(double tag_size, float fx, float fy, double
         time_then = time_now;  time_now = now_ms(); LOGI("MainActivity_aprilTagsUmichOneShot: draw(matRgb, ...): %f ms.", (time_now-time_then));
 
         // get the pose here
-        float tag_size_metres = 0.153f;  // 0.162f;  // 0.168f;
+        float tag_size_metres = 0.153f;  // 0.162f;  // 0.168f; // TODO - resolve hardcoding size per-tag : need to introduce a scale-per-feature for known/mapped features
+
         Eigen::Matrix4d relativeTransform = getRelativeTransform(tag_size_metres, fx_pixels, fy_pixels, px_pixels, py_pixels, det->p[0][0], det->p[0][1], det->p[1][0], det->p[1][1], det->p[2][0], det->p[2][1], det->p[3][0], det->p[3][1]);
         Eigen::Vector3d translation; translation = relativeTransform.col(3).head(3);
         Eigen::Matrix3d rotation;    rotation    = relativeTransform.block(0,0,3,3);
-
         quaternion = Eigen::Quaternion<double>(rotation);
-        char tag_and_pose_data[200];
-        sprintf(tag_and_pose_data, quaternion_format_as_string_c_str,
-                det->id, translation(0), translation(1), translation(2),
-                quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w() );
+
+        Eigen::Matrix4d relativeTransformFromHom;
+        relativeTransformFromHom << tag_pose_matrix->data[0],tag_pose_matrix->data[1],tag_pose_matrix->data[2] ,tag_pose_matrix->data[3],
+                                                  tag_pose_matrix->data[4],tag_pose_matrix->data[5],tag_pose_matrix->data[6],tag_pose_matrix->data[7],
+                                                  tag_pose_matrix->data[8],tag_pose_matrix->data[9],tag_pose_matrix->data[10],tag_pose_matrix->data[11],
+                                                  tag_pose_matrix->data[12],tag_pose_matrix->data[13],tag_pose_matrix->data[14],tag_pose_matrix->data[15];
+
+        LOGI(" homography as Eigen::Matrix4d: [%5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ; %5.0f, %5.0f, %5.0f, %5.0f ]", relativeTransformFromHom(0,0), relativeTransformFromHom(0,1), relativeTransformFromHom(0,2), relativeTransformFromHom(0,3), relativeTransformFromHom(1,0), relativeTransformFromHom(1,1), relativeTransformFromHom(1,2), relativeTransformFromHom(1,3), relativeTransformFromHom(2,0), relativeTransformFromHom(2,1), relativeTransformFromHom(2,2), relativeTransformFromHom(2,3), relativeTransformFromHom(3,0), relativeTransformFromHom(3,1), relativeTransformFromHom(3,2), relativeTransformFromHom(3,3));
+
+        Eigen::Vector3d translationFromHom; translationFromHom = relativeTransformFromHom.col(3).head(3);
+        Eigen::Matrix3d rotationFromHom;    rotationFromHom    = relativeTransformFromHom.block(0,0,3,3);
+        Eigen::Quaterniond quaternionFromHom;
+        quaternionFromHom = Eigen::Quaternion<double>(rotationFromHom);
+
+        char tag_and_pose_data_as_char_array[200];
+        sprintf(tag_and_pose_data_as_char_array, quaternion_format_as_string_c_str,
+                det->id,
+                translation(0), translation(1), translation(2),
+                quaternion.x(), quaternion.y(), quaternion.z(), quaternion.w(),
+                translationFromHom(0), translationFromHom(1), translationFromHom(2),
+                quaternionFromHom.x(), quaternionFromHom.y(), quaternionFromHom.z(), quaternionFromHom.w() );
             time_then = time_now; time_now = now_ms(); LOGI("MainActivity_aprilTags: took %f ms for  logging, char[] creation, char[] population on iteration %d.", (time_now - time_then), i );
-        str = (env)->NewStringUTF(tag_and_pose_data);
+        tag_and_pose_data_as_str = (env)->NewStringUTF(tag_and_pose_data_as_char_array);
             time_then = time_now; time_now = now_ms(); LOGI("MainActivity_aprilTags: took %f ms for  str = (env)->NewStringUTF(tag_and_pose_data)  on iteration %d.", (time_now - time_then), i );
-        (env)->SetObjectArrayElement(tags_as_strings, i, str);
+        (env)->SetObjectArrayElement(tags_as_strings, i, tag_and_pose_data_as_str);
             time_then = time_now; time_now = now_ms(); LOGI("MainActivity_aprilTags: took %f ms for  (env)->SetObjectArrayElement(tags_as_strings, i, str)  on iteration %d.", (time_now - time_then), i );
     }
 
