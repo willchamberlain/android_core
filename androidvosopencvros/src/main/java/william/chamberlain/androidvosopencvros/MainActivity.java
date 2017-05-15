@@ -188,9 +188,9 @@ public class MainActivity
             System.loadLibrary("native-lib");
             System.loadLibrary("apriltags_kaess");
             System.loadLibrary("apriltags_umich");
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-            setContentView(R.layout.activity_main);
         }
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        setContentView(R.layout.activity_main);
 
 //      Does not work to turn the screen off programmatically
 //      - can set the wake_setting time to 1 second,
