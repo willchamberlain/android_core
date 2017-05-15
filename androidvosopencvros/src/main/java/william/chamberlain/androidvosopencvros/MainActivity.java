@@ -127,11 +127,13 @@ public class MainActivity
             switch (status) {
                 case LoaderCallbackInterface.SUCCESS: {
                     Log.i(TAG, "OpenCV loaded successfully");
-                    // Load ndk built module, as specified in moduleName in build.gradle
-                    // after opencv initialization
-                    System.loadLibrary("native-lib");
-                    System.loadLibrary("apriltags_kaess");
-                    System.loadLibrary("apriltags_umich");
+                    if(running_native) {
+                        // Load ndk built module, as specified in moduleName in build.gradle
+                        // after opencv initialization
+                        System.loadLibrary("native-lib");
+                        System.loadLibrary("apriltags_kaess");
+                        System.loadLibrary("apriltags_umich");
+                    }
                     _cameraBridgeViewBase.enableView();
                 }
                 break;
