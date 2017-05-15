@@ -220,9 +220,11 @@ public class MainActivity
             Log.i("onCreate", "onCreate: opencv successfull");
         }
 
-        tagDetectorPointer = newTagDetectorUmich();
+        if(running_native) {
+            tagDetectorPointer = newTagDetectorUmich();
 //        tagDetectorPointer = newTagDetectorKaess();
-        Log.i("onCreate", "tagDetectorPointer created");
+            Log.i("onCreate", "tagDetectorPointer created");
+        }
     }
 
     @Override
