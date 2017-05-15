@@ -76,6 +76,8 @@ import static boofcv.struct.image.ImageDataType.F32;
 import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
+import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
+import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_FRONT;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
@@ -95,6 +97,7 @@ public class MainActivity
         DimmableScreen, VariableResolution, VisionSource,
         ResilientNetworkActivity {
 
+    public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_FRONT;
     private static final boolean running_native = false;
 
 
@@ -160,6 +163,10 @@ public class MainActivity
     private boolean displayRgb = true;
 
     FeatureDataRecorderModeller featureDataRecorderModeller = new FeatureDataRecorderModeller();
+    public static final int MIN_FRAME_SIZE_WIDTH_INIT = 100;
+    public static final int MIN_FRAME_SIZE_HEIGHT_INIT = 100;
+    public static final int MAX_FRAME_SIZE_WIDTH_INIT = 400;
+    public static final int MAX_FRAME_SIZE_HEIGHT_INIT = 300;
 
 
     public MainActivity() {
@@ -205,13 +212,15 @@ public class MainActivity
 //                1);
 
         _cameraBridgeViewBase = (CameraBridgeViewBase) findViewById(R.id.main_surface);
-        System.out.println("MainActivity: onCreate: before running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
-        _cameraBridgeViewBase.setMaxFrameSize(320,240);  // http://stackoverflow.com/questions/17868954/android-opencv-how-to-set-camera-resolution-when-using-camerabridgeviewbase
-        System.out.println("MainActivity: onCreate: after running _cameraBridgeViewBase.setMaxFrameSize(640,480)");
+        _cameraBridgeViewBase.setCameraIndex(CAMERA_FRONT_OR_BACK_INIT);  // front-facing camera is the user-side camera i.e. facing toward the front of the device from the user point of view and away from the front of the device from the device point of view, back-facing/rear-facing is usually the primary camera facing away from the user i.e. facing away from the rear of the device
+        System.out.println("MainActivity: onCreate: after running _cameraBridgeViewBase.setCameraIndex(CAMERA_ID_BACK)");
+        System.out.println("MainActivity: onCreate: before running _cameraBridgeViewBase.setMaxFrameSize("+ MAX_FRAME_SIZE_WIDTH_INIT +","+ MAX_FRAME_SIZE_HEIGHT_INIT +")");
+        _cameraBridgeViewBase.setMaxFrameSize(MAX_FRAME_SIZE_WIDTH_INIT, MAX_FRAME_SIZE_HEIGHT_INIT);  // http://stackoverflow.com/questions/17868954/android-opencv-how-to-set-camera-resolution-when-using-camerabridgeviewbase
+        System.out.println("MainActivity: onCreate: after running _cameraBridgeViewBase.setMaxFrameSize("+ MAX_FRAME_SIZE_WIDTH_INIT +","+ MAX_FRAME_SIZE_HEIGHT_INIT +")");
         _cameraBridgeViewBase.setVisibility(SurfaceView.VISIBLE);
         _cameraBridgeViewBase.setCvCameraViewListener(this);
 
-        resolutionMinMax(100,100,400,300);
+        resolutionMinMax(MIN_FRAME_SIZE_WIDTH_INIT,MIN_FRAME_SIZE_HEIGHT_INIT,MAX_FRAME_SIZE_WIDTH_INIT,MAX_FRAME_SIZE_HEIGHT_INIT);
         Log.i("onCreate", "onCreate: set resolution low");
 
         if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, _baseLoaderCallback)){  // http://stackoverflow.com/questions/24732504/live-stream-video-processing-in-android-using-opencv
