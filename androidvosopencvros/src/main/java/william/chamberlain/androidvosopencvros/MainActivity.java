@@ -15,6 +15,9 @@ import android.view.SurfaceView;
 import android.view.Window;
 import android.widget.Toast;
 
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.data.RowD1Matrix64F;
+import org.ejml.ops.CommonOps;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
@@ -67,6 +70,7 @@ import sensor_msgs.Imu;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
+import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
 
 import static boofcv.struct.image.ImageDataType.F32;
 import static boofcv.struct.image.ImageType.Family.GRAY;
@@ -88,7 +92,10 @@ public class MainActivity
             PosedEntity,  // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
             DetectedFeaturesHolder,
         ImuCallback,
-        DimmableScreen, VariableResolution, VisionSource {
+        DimmableScreen, VariableResolution, VisionSource,
+        ResilientNetworkActivity {
+
+    private static final boolean running_native = false;
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -163,7 +170,7 @@ public class MainActivity
 //    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
+    protected void onCreate(Bundle savedInstanceState)   // TODO - look at lifecycle doco and do this properly
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -173,14 +180,15 @@ public class MainActivity
         //  cameraManager().getCameraCharacteristics();  -- requires API 21
 
 
-        // Load ndk built module, as specified
-        // in moduleName in build.gradle
-        System.loadLibrary("native-lib");
-        System.loadLibrary("apriltags_kaess");
-        System.loadLibrary("apriltags_umich");
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        setContentView(R.layout.activity_main);
-
+        if( running_native) {
+            // Load ndk built module, as specified
+            // in moduleName in build.gradle
+            System.loadLibrary("native-lib");
+            System.loadLibrary("apriltags_kaess");
+            System.loadLibrary("apriltags_umich");
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            setContentView(R.layout.activity_main);
+        }
 
 //      Does not work to turn the screen off programmatically
 //      - can set the wake_setting time to 1 second,
@@ -216,13 +224,13 @@ public class MainActivity
     }
 
     @Override
-    public void onPause() {
+    public void onPause() {  // TODO - look at lifecycle doco and do this properly
         super.onPause();
         disableCamera();
     }
 
     @Override
-    public void onResume() {
+    public void onResume() {  // TODO - look at lifecycle doco and do this properly
         super.onResume();
 
 //        System.out.println("MainActivity: onResume: before running AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution()");
@@ -241,16 +249,31 @@ public class MainActivity
 
 
     @Override
-    protected void init(NodeMainExecutor nodeMainExecutor)
+    protected void init(NodeMainExecutor nodeMainExecutor) // configure nodes: config gets fed to an AsyncTask to start the Nodes in a Bound Service: see https://developer.android.com/reference/android/app/Service.html , https://developer.android.com/guide/components/processes-and-threads.html
     {
-        URI masterURI = getMasterUri();
-        //masterURI = URI.create("http://localhost:11311/");
-        //masterURI = URI.create("http://192.168.15.247:11311/");
-        //masterURI = URI.create("http://10.0.1.157:11311/");
-        System.out.print("init: masterURI=");System.out.println(masterURI);
         final String NODE_NAMESPACE = Naming.cameraNamespace(getCamNum());
         System.out.print("init: camNum=");System.out.print(getCamNum()); System.out.print("NODE_NAMESPACE = ");System.out.println(NODE_NAMESPACE);
 
+        URI masterURI = getMasterUri();
+        for (URI uri : possibleMasterUris()) {
+        }
+        /*
+        TODO - looks like nodeMainExecutorService is being used to communicate the masterUri and camNum between the config screen/activity and MainActivity.
+        The masterUri is then passed on to the configuration process for each node -
+        probably in DefaultNodeMainExecutor.
+        TODO - could extend NodeMainExecutorService to do the same masterUri checks as in ResilientNetworkActivity.
+        TODO - can this get a connection to more than one ROS network by sending different masterUris to different node setups?
+        not sure why I would (slow-but-reliable and fast-but-chittery maybe,
+        for each node, and then bring the data together through some duplicate-exclusion filter
+        before applying to the factor graph)
+        , but maybe it could.
+         RosActivity:
+          public URI getMasterUri() {
+            Preconditions.checkNotNull(nodeMainExecutorService);
+            return nodeMainExecutorService.getMasterUri();
+          }
+         */
+        System.out.print("init: masterURI=");System.out.println(masterURI);
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
 
         int sensorDelay = 20000; // 20,000 us == 50 Hz for Android 3.1 and above
@@ -330,6 +353,17 @@ public class MainActivity
 //  TODO  -  IMAGEPUBLISHER
         }
 
+    }
+
+    public URI[] possibleMasterUris() {
+        URI[] rosNetworkingOptions  // start with the Master URIs, then work outward to other network options
+            = new URI[]{
+                URI.create("http://192.168.1.144:11311/"),
+                URI.create("http://192.168.1.164:11311/"),
+                URI.create("http://192.168.1.252:11311/"),
+                URI.create("http://localhost:11311/")
+        };
+        return rosNetworkingOptions;
     }
 
 
@@ -534,7 +568,6 @@ public class MainActivity
 
                 // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
                 Se3_F64 targetToSensor = new Se3_F64();
-                Se3_F64 sensorToTarget = new Se3_F64();
                 Point2D_F64 locationPixel = new Point2D_F64();
                 for (int i = 0; i < detector.totalFound(); i++) {
                     // detector.getImageLocation(i, locationPixel);        // pixel location in input image
@@ -556,31 +589,64 @@ public class MainActivity
 
                     if( detector.is3D() ) {
                         detector.getFiducialToCamera(i, targetToSensor);
-                        System.out.println("3D Location: targetToSensor = ");  System.out.println(targetToSensor);
-                        sensorToTarget = null;
-                        sensorToTarget = targetToSensor.invert(sensorToTarget);
-                        System.out.println("3D Location: sensorToTarget = ");  System.out.println(sensorToTarget);
-                        sensorToTarget.getRotation();
-                        Vector3D_F64 trans = sensorToTarget.getTranslation();
+
+                        Vector3D_F64 transBoofCV_TtoS = targetToSensor.getTranslation();
+                        Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(targetToSensor.getR(),quatBoofCV_TtoS);
+                        System.out.println("3D Location: targetToSensor : BoofCV frame : x = "+transBoofCV_TtoS.getX()+", y = "+transBoofCV_TtoS.getY()+", z = "+transBoofCV_TtoS.getZ());
+                        System.out.println("3D Location: targetToSensor : BoofCV frame : qx = "+quatBoofCV_TtoS.x+", qy = "+quatBoofCV_TtoS.y+", qz = "+quatBoofCV_TtoS.z+", qw = "+quatBoofCV_TtoS.w);
+
+                        Se3_F64 sensorToTargetIn = null;
+                        Se3_F64 sensorToTarget;
+
+                        DenseMatrix64F rotNeg90Y = new DenseMatrix64F( new double[][] { {0,0,-1} , {0,1,0} , {1,0,0} });
+                        DenseMatrix64F rotNeg90Z = new DenseMatrix64F( new double[][] { {0,1,0} , {-1,0,0} , {0,0,1} });
+                        DenseMatrix64F temp = CommonOps.identity(3) ;
+                        DenseMatrix64F new_targetToSensor_r = CommonOps.identity(3) ;
+                        CommonOps.mult(rotNeg90Z,rotNeg90Y,temp);
+                        CommonOps.mult(targetToSensor.getR(),temp,new_targetToSensor_r);
+
+                        targetToSensor.setRotation(new_targetToSensor_r);
+
+                        sensorToTarget = targetToSensor.invert(sensorToTargetIn);
+                        Vector3D_F64 trans_StoT = sensorToTarget.getTranslation();
 //                        VisualizeFiducial.drawCube(targetToSensor, param, detector.getWidth(i), 3, g2);
 //                        VisualizeFiducial.drawLabelCenter(targetToSensor, param, "" + detector.getId(i), g2);
-//                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getX(), trans.getY(), trans.getZ());
-                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getZ(), -trans.getX(), -trans.getY());
-                        Quaternion_F64 quat = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget.getR(),quat);
+                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention
+                                = new org.ros.rosjava_geometry.Vector3(trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ());
+//                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getZ(), trans.getX(), trans.getY());
+//                        org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention = new org.ros.rosjava_geometry.Vector3(trans.getZ(), -trans.getX(), -trans.getY());
+                        Quaternion_F64 quat_StoT = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget.getR(), quat_StoT);
+                        System.out.println("3D Location: sensorToTarget : BoofCV frame : x = "+trans_StoT.getX()+", y = "+trans_StoT.getY()+", z = "+trans_StoT.getZ());
+                        System.out.println("3D Location: sensorToTarget : BoofCV frame : qx = "+quat_StoT.x+", qy = "+quat_StoT.y+", qz = "+quat_StoT.z+", qw = "+quat_StoT.w);
+
+                        System.out.println("3D Location: targetToSensor = ");  System.out.println(targetToSensor);  System.out.println(quatBoofCV_TtoS);
+                        System.out.println("3D Location: sensorToTarget = ");  System.out.println(sensorToTarget);  System.out.println(quat_StoT);
+
 //                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(qz, -qx, -qy, qw);
-//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat.x,quat.y,quat.z,quat.w);
-                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat.z,-quat.x,-quat.y,quat.w);
+//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
+//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat_StoT.z,-quat_StoT.x,-quat_StoT.y,quat_StoT.w);
+//                        org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag = new org.ros.rosjava_geometry.Quaternion(quat_StoT.z,quat_StoT.x,quat_StoT.y,quat_StoT.w);
                         DetectedFeature feature_hom = new DetectedFeature(APRIL_TAGS_KAESS_36_H_11,
                                 Long.toString(tag_id),
-                                translation_to_tag_in_robot_convention,  // NOTE:  translation was good before; it's the rotation/orientation that was suspect
-                                quaternion_rotation_to_tag);
+//                                translation_to_tag_in_robot_convention,  // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                                // Boof to ROS: Z to X, X to Y, Y to Z  --  Invert: mirror in Z-Y, so negate Z-Y
+//                                new org.ros.rosjava_geometry.Vector3(transBoofCV_TtoS.getZ(), -transBoofCV_TtoS.getX(), -transBoofCV_TtoS.getY()),
+//                                new org.ros.rosjava_geometry.Vector3(transBoofCV_TtoS.getX(), transBoofCV_TtoS.getY(), transBoofCV_TtoS.getZ()),
+                                new org.ros.rosjava_geometry.Vector3(trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ()),
+                                new org.ros.rosjava_geometry.Quaternion(quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w));
                         detectedFeatures.add(feature_hom);
-//                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans.getX(), trans.getY(), trans.getZ(), quat.x,quat.y,quat.z,quat.w);
-                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans.getZ(), -trans.getX(), -trans.getY(), quat.z,-quat.x,-quat.y,quat.w);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans_StoT.getZ(), -trans_StoT.getX(), -trans_StoT.getY(), quat_StoT.z,-quat_StoT.x,-quat_StoT.y,quat_StoT.w);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, transBoofCV_TtoS.getZ(), -transBoofCV_TtoS.getX(), -transBoofCV_TtoS.getY(), 0,0,0,1);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, transBoofCV_TtoS.getX(), transBoofCV_TtoS.getY(), transBoofCV_TtoS.getZ(), 0,0,0,1);
+                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
                         if (!poseKnown) {
-//                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans.getX(), trans.getY(), trans.getZ(), quat.x,quat.y,quat.z,quat.w);
-                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans.getZ(), -trans.getX(), -trans.getY(), quat.z,-quat.x,-quat.y,quat.w);
+//                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
+//                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans_StoT.getZ(), -trans_StoT.getX(), -trans_StoT.getY(), quat_StoT.z,-quat_StoT.x,-quat_StoT.y,quat_StoT.w);
+//                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, transBoofCV_TtoS.getZ(), -transBoofCV_TtoS.getX(), -transBoofCV_TtoS.getY(), 0,0,0,1);
+                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
                         }
                     } else {
 //                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(i), g2);
@@ -600,24 +666,20 @@ public class MainActivity
         float  px_pixels = (float)(matGray.size().width/2.0);
         float  py_pixels = (float)(matGray.size().height/2.0);
 
-
-////        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(),matRgb.getNativeObjAddr(),tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
-        System.out.println("\\n\\n\\n ---------- hardcoding to ZERO AprilTags detections ---------- \\n\\n\\n");
-        String[] tags = new String[]{};
-////
-
-
-
+    if( running_native) {
+        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(), matRgb.getNativeObjAddr(), tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
+//        System.out.println("\\n\\n\\n ---------- hardcoding to ZERO AprilTags detections ---------- \\n\\n\\n");
+//        String[] tags = new String[]{};
 
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
         Time timeNow = Date.nowAsTime();
         detectedFeatures.clear();
 //        Matcher matcher;
-        for(String tag : tags) {
+        for (String tag : tags) {
             {
                 System.out.println("-------------------------------------------------------");
-                Log.i(TAG,"onCameraFrame: tag string = '"+tag+"'");
+                Log.i(TAG, "onCameraFrame: tag string = '" + tag + "'");
             }
 //            matcher = tagPattern_trans_quat.matcher(tag);
 //            if (!matcher.matches()) {
@@ -630,14 +692,19 @@ public class MainActivity
 //            }
             Matcher matcher = tagPattern_trans_quat.matcher(tag);
             {
-                System.out.print("Pattern = '"+tagPattern_trans_quat.toString()+"'");
-                System.out.print("--- matcher matches regex in the string? : "); System.out.println(matcher.matches());
+                System.out.print("Pattern = '" + tagPattern_trans_quat.toString() + "'");
+                System.out.print("--- matcher matches regex in the string? : ");
+                System.out.println(matcher.matches());
             }
             String tagId = matcher.group(1);
             Integer tagId_integer = Integer.parseInt(tagId);
             int tagId_int = tagId_integer.intValue();
-                System.out.print("---- matched tag_id="); System.out.print(tagId); System.out.print(", matched x=");  System.out.print(matcher.group(2)); System.out.println("---");
-            if(null != detectedFeaturesClient) {
+            System.out.print("---- matched tag_id=");
+            System.out.print(tagId);
+            System.out.print(", matched x=");
+            System.out.print(matcher.group(2));
+            System.out.println("---");
+            if (null != detectedFeaturesClient) {
 // ("tag ([0-9]+) at x=([0-9-]+\\.[0-9]+) y=([0-9-]+\\.[0-9]+) z=([0-9-]+\\.[0-9]+) roll=([0-9-]+\\.[0-9]+) pitch=([0-9-]+\\.[0-9]+) yaw=([0-9-]+\\.[0-9]+) qx=([0-9-]+\\.[0-9]+) qy=([0-9-]+\\.[0-9]+) qz=([0-9-]+\\.[0-9]+) qw=([0-9-]+\\.[0-9]+)");
                 double x = Double.parseDouble(matcher.group(2));
                 double y = Double.parseDouble(matcher.group(3));
@@ -704,32 +771,32 @@ public class MainActivity
 ////  end 2017_05_11 homography attempt - comment out the non-homography
 
                 { // detection with translation, rotation from homography.c
-                // START Median filter over the translation - also effectively filters over the detected tag rotation: as this is the inverse of the camera-to-tag transform, the orientation of the tag relative to the camera is inverted and applied before the inverted-translation, so that the inverted-translation amplifies problems with the inverted-rotation
-                track = featureDataRecorderModeller.addDetection(feature_hom);
-                medianFilter = new MedianFilter(tag, feature_hom, track).invoke();
-                if (medianFilter.is()) {
-                    continue; // not enough data yet
-                }
-                feature_hom = medianFilter.getFeature();
-                // END Median filter over the translation
+                    // START Median filter over the translation - also effectively filters over the detected tag rotation: as this is the inverse of the camera-to-tag transform, the orientation of the tag relative to the camera is inverted and applied before the inverted-translation, so that the inverted-translation amplifies problems with the inverted-rotation
+                    track = featureDataRecorderModeller.addDetection(feature_hom);
+                    medianFilter = new MedianFilter(tag, feature_hom, track).invoke();
+                    if (medianFilter.is()) {
+                        continue; // not enough data yet
+                    }
+                    feature_hom = medianFilter.getFeature();
+                    // END Median filter over the translation
 
-                detectedFeatures.add(feature_hom);
+                    detectedFeatures.add(feature_hom);
 
 
 //                detectedFeaturesClient.reportDetectedFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
-                trans = feature_hom.translation_to_tag_in_robot_convention;
-                quat = feature_hom.quaternion_rotation_to_tag;
+                    trans = feature_hom.translation_to_tag_in_robot_convention;
+                    quat = feature_hom.quaternion_rotation_to_tag;
 
 //                detectedFeaturesClient.reportDetectedFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
-                // NOTE:  translation was good before; it's the rotation/orientation that was suspect
-                detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+                    // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                    detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
 
-                if (!poseKnown) {
+                    if (!poseKnown) {
 //                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
 //                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
-                    // NOTE:  translation was good before; it's the rotation/orientation that was suspect
-                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
-                }
+                        // NOTE:  translation was good before; it's the rotation/orientation that was suspect
+                        localiseFromAFeatureClient.localiseFromAFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+                    }
                 }
 //                      TODO - put markerPublisherNode function on the visualiser side
 //                    //markerPublisherNode.publishMarker(String marker_namespace_, int marker_id_, String marker_text_, double x,double y,double z,double qx,double qy,double qz,double qw, String parent_frame_id, Time time_) {
@@ -738,12 +805,13 @@ public class MainActivity
 //                    // TODO - publish markers in detected_feature_server.py - once I have figured out what is going on with the RPY in that Python code
 //                    // TODO -   ... or use C++ as detected_feature_server.cpp
 //                }
-            }
-            else {
-                System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags"); System.out.println(tagId);
+            } else {
+                System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags");
+                System.out.println(tagId);
                 System.out.println("-------------------------------------------------------");
             }
         }
+    } // end  if( running_native)
 
         if (screenLocked) {
             System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed+": setting output matrices to black");
