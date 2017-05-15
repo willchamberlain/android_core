@@ -58,6 +58,8 @@ public abstract class RosActivity extends Activity {
       customMasterUri = customUri;
     }
 
+    URI[] masterUriList = new URI[]{};
+
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
       nodeMainExecutorService = ((NodeMainExecutorService.LocalBinder) binder).getService();
@@ -76,6 +78,16 @@ public abstract class RosActivity extends Activity {
           }
         }
       });
+      if (null != masterUriList && 0 < masterUriList.length) {
+        /* iterate the list, and do something like lookupServiceUri or resolveName for the standard
+        *   ROS RosCore topics/services, to check whether the ROS Master is on the end of that URI,
+        *   and how much latency is on the connection.
+        *   And/or check an application-specific URI that the app wants to be a client of/subscribe
+        *   to.
+        *   Probably default to connecting to the first one that responds, rather than checking all
+        *   and connecting to the 'best'.
+        */
+      }
       if (getMasterUri() == null) {
         startMasterChooser();
       } else {
