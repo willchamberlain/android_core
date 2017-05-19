@@ -619,9 +619,6 @@ public class MainActivity
                         System.out.println("3D Location: targetToSensor : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
                         // 7210 is the translation and pose straight from BoofCV in tag-to-sensor
-                        detectedFeaturesClient.reportDetectedFeature(7000+tag_id,
-                                transBoofCV_TtoS.getX(), transBoofCV_TtoS.getY(), transBoofCV_TtoS.getZ(),
-                                quatBoofCV_TtoS.x,quatBoofCV_TtoS.y,quatBoofCV_TtoS.z,quatBoofCV_TtoS.w);
 
 
                         Se3_F64 sensorToTargetIn;
@@ -635,42 +632,42 @@ public class MainActivity
                                 transBoofCV_StoT.getX(), transBoofCV_StoT.getY(), transBoofCV_StoT.getZ(),
                                 quatBoofCV_StoT.x,quatBoofCV_StoT.y,quatBoofCV_StoT.z,quatBoofCV_StoT.w);
 
+
                         DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
                                 = new DenseMatrix64F(new double[][]{
                                 {  0.0 ,  0.0 , -1.0 } ,
                                 { -1.0 ,  0.0 ,  0.0 } ,
-                                {  0.0 , +1.0 ,  0.0} });
+                                {  0.0 , +1.0 ,  0.0 } });
 
 
-                        Se3_F64 targetToSensorViaTransform = new Se3_F64();
-                        DenseMatrix64F targetToSensorViaTransformRot = CommonOps.identity(3);
-                        CommonOps.mult(transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag,targetToSensor.getR(),targetToSensorViaTransformRot);
+//                        Se3_F64 targetToSensorViaTransform = new Se3_F64();
+//                        DenseMatrix64F targetToSensorViaTransformRot = CommonOps.identity(3);
+//                        CommonOps.mult(transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag,targetToSensor.getR(),targetToSensorViaTransformRot);
 
                         Se3_F64 sensorToTargetViaTransform = new Se3_F64();
                         DenseMatrix64F sensorToTargetViaTransformRot = CommonOps.identity(3);
                         CommonOps.mult(transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag,targetToSensor.getR(),sensorToTargetViaTransformRot);                        DenseMatrix64F sensorToTargetViaTransformRotInverted = CommonOps.identity(3);
 
-                        CommonOps.invert(sensorToTargetViaTransformRot);
+//                        CommonOps.invert(sensorToTargetViaTransformRot);
 
                         sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
-                        Vector3D_F64 sensorToTargetViaTransformTrans = new Vector3D_F64();
+//                        Vector3D_F64 sensorToTargetViaTransformTrans = new Vector3D_F64();
                         sensorToTargetViaTransform.setTranslation(transBoofCV_TtoS.getZ(), -1.0*transBoofCV_TtoS.getX(), -1.0*transBoofCV_TtoS.getY());
                         Quaternion_F64 sensorToTargetViaTransformQuat = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
-
-                        detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
-                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
-                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+//                        ConvertRotation3D_F64.setRotZ();
+//                        detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
+//                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+//                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
 
                         double[] eulerBefore=new double[]{0,0,0};
-                        ConvertRotation3D_F64.matrixToEuler(sensorToTargetViaTransformRot,EulerType.XYZ,eulerBefore);
-//                        double[] eulerAfter = new double[] { -1.0*eulerBefore[2], -1.0*eulerBefore[0], eulerBefore[1]};
-                        double[] eulerAfter = new double[] { -1.0*eulerBefore[2], 0.0, 0.0};
-                        ConvertRotation3D_F64.eulerToMatrix(EulerType.XYZ,eulerAfter[0],eulerAfter[1],eulerAfter[2],sensorToTargetViaTransformRot);
+                        ConvertRotation3D_F64.matrixToEuler(sensorToTargetViaTransformRot,EulerType.YXY,eulerBefore);
+                        double[] eulerAfter = new double[] {               eulerBefore[0], -1.0*eulerBefore[1], eulerBefore[2]};  // robot+Z+Y+Z = boof+Y-X+Y
+                        ConvertRotation3D_F64.eulerToMatrix(EulerType.ZYZ, eulerAfter[0],   eulerAfter[1],      eulerAfter[2],    sensorToTargetViaTransformRot);
                         sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 
-                        detectedFeaturesClient.reportDetectedFeature(10000+tag_id,
+                        detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
 
