@@ -1,5 +1,6 @@
 package william.chamberlain.androidvosopencvros;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
@@ -11,6 +12,7 @@ import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.view.SurfaceView;
 import android.view.Window;
 import android.widget.Toast;
@@ -69,6 +71,7 @@ import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
+import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
@@ -93,7 +96,8 @@ import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_tr
 public class MainActivity
         extends         RosActivity
         implements      CameraBridgeViewBase.CvCameraViewListener2,
-            PosedEntity,  // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
+        ActivityCompat.OnRequestPermissionsResultCallback,  // to deal with runtime permissions checks - from API 23 oward
+            PosedEntity,                                    // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
             DetectedFeaturesHolder,
         ImuCallback,
         DimmableScreen, VariableResolution, VisionSource,
@@ -106,6 +110,7 @@ public class MainActivity
     private static final String TAG = "vos_aa1::MainActivity";
     public static final String MARKER_NAMESPACE = "apriltags_marker_publisher/tag_markers";
 
+    // TODO - try native camera:  see https://stackoverflow.com/questions/16626343/what-is-the-difference-between-opencv-android-javacameraview-and-opencv-andro/28130605#28130605
     private CameraBridgeViewBase _cameraBridgeViewBase;
 
 
@@ -186,6 +191,8 @@ public class MainActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        checkPermissions();
+
         mLocationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
         mSensorManager = (SensorManager)this.getSystemService(SENSOR_SERVICE);
         //  cameraManager().getCameraCharacteristics();  -- requires API 21
@@ -247,6 +254,8 @@ public class MainActivity
     @Override
     public void onResume() {  // TODO - look at lifecycle doco and do this properly
         super.onResume();
+
+        checkPermissions();
 
 //        System.out.println("MainActivity: onResume: before running AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution()");
 //        AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution();
@@ -445,27 +454,27 @@ public class MainActivity
         return super.onOptionsItemSelected(item);
     }
 
-
     @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         switch (requestCode) {
-            case 1: {
+            case PermissionsChecker.REQUEST_CODE_ASK_PERMISSIONS:
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // permission was granted, yay! Do the
-                    // contacts-related task you need to do.
+                    // Permission Granted
+                    Log.i("onRequestPermissionsRes", "onRequestPermissionsResult: permissions granted");
                 } else {
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
-                    Toast.makeText(MainActivity.this, "Permission denied to read your External storage", Toast.LENGTH_SHORT).show();
+                    // Permission Denied
+                    Toast.makeText(this, permissions[0]+" denied", Toast.LENGTH_SHORT).show();
                 }
-                return;
-            }
+                break;
             // other 'case' lines to check for other
             // permissions this app might request
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
+
 
 
     public void onDestroy() {
@@ -586,7 +595,7 @@ public class MainActivity
                 detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
                 detector.detect(image);
 
-                Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
+                Log.i(TAG, "onCameraFrame: found "+detector.totalFound()+" tags via BoofCV");
 
                 // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
                 Se3_F64 targetToSensor = new Se3_F64();
@@ -628,9 +637,9 @@ public class MainActivity
                         Vector3D_F64 transBoofCV_StoT = sensorToTarget.getTranslation();
                         Quaternion_F64 quatBoofCV_StoT = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor.getR(), quatBoofCV_TtoS);
-                        detectedFeaturesClient.reportDetectedFeature(8000+tag_id,
-                                transBoofCV_StoT.getX(), transBoofCV_StoT.getY(), transBoofCV_StoT.getZ(),
-                                quatBoofCV_StoT.x,quatBoofCV_StoT.y,quatBoofCV_StoT.z,quatBoofCV_StoT.w);
+//                        detectedFeaturesClient.reportDetectedFeature(8000+tag_id,
+//                                transBoofCV_StoT.getX(), transBoofCV_StoT.getY(), transBoofCV_StoT.getZ(),
+//                                quatBoofCV_StoT.x,quatBoofCV_StoT.y,quatBoofCV_StoT.z,quatBoofCV_StoT.w);
 
 
                         DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
@@ -749,7 +758,7 @@ public class MainActivity
 //                        detectedFeaturesClient.reportDetectedFeature(tag_id, transBoofCV_TtoS.getZ(), -transBoofCV_TtoS.getX(), -transBoofCV_TtoS.getY(), 0,0,0,1);
 //                        detectedFeaturesClient.reportDetectedFeature(tag_id, transBoofCV_TtoS.getX(), transBoofCV_TtoS.getY(), transBoofCV_TtoS.getZ(), 0,0,0,1);
 
-                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
 
                         if (!poseKnown) {
 //                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
@@ -761,6 +770,7 @@ public class MainActivity
 //                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(i), g2);
                     }
                 }
+                Log.i(TAG, "onCameraFrame: after processing for "+detector.totalFound()+" tags found via BoofCV");
 
             } catch (Exception e) {
                 Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
@@ -768,14 +778,19 @@ public class MainActivity
             }
 
         }
+        Log.i(TAG, "onCameraFrame: after BoofCV segment ");
 
         // end BoofCV
 
 
+        Log.i(TAG, "onCameraFrame: starting OpenCV segment ");
         float  px_pixels = (float)(matGray.size().width/2.0);
         float  py_pixels = (float)(matGray.size().height/2.0);
 
-    if( running_native) {
+    if( !running_native) {
+        Log.i(TAG, "running_native == false: not running native code, not running OpenCV segment ");
+    } else {
+        Log.i(TAG, "starting OpenCV processing ");
         String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(), matRgb.getNativeObjAddr(), tagDetectorPointer, tagSize_metres, focal_length_in_pixels_x, focal_length_in_pixels_y, px_pixels, py_pixels);
 //        System.out.println("\\n\\n\\n ---------- hardcoding to ZERO AprilTags detections ---------- \\n\\n\\n");
 //        String[] tags = new String[]{};
@@ -898,7 +913,7 @@ public class MainActivity
 
 //                detectedFeaturesClient.reportDetectedFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
                     // NOTE:  translation was good before; it's the rotation/orientation that was suspect
-                    detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
+//                    detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
 
                     if (!poseKnown) {
 //                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
@@ -921,6 +936,7 @@ public class MainActivity
             }
         }
     } // end  if( running_native)
+        Log.i(TAG, "after OpenCV segment ");
 
         if (screenLocked) {
             System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed+": setting output matrices to black");
@@ -1157,8 +1173,23 @@ public class MainActivity
 
     @Override
     public void start() {
+
+        checkPermissions();
+
         runImageProcessing = true;
         _cameraBridgeViewBase.enableView();
+    }
+
+    private void checkPermissions() {
+        PermissionsChecker permissionsChecker = new PermissionsChecker(this);
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.ACCESS_WIFI_STATE, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.CHANGE_WIFI_STATE, "This application requires access to video: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.INTERNET, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.WAKE_LOCK, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.WRITE_EXTERNAL_STORAGE, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.ACCESS_FINE_LOCATION, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.NFC, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
+        permissionsChecker.havePermissionAndRequest(Manifest.permission.CAMERA, "This application requires access to the camera: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
     }
 
     @Override
