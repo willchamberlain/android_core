@@ -19,6 +19,22 @@ apply plugin: 'com.android.application'
 
 /*debug.dependsOn project(':android_gingerbread_mr1').tasks.debug*/
 
+import java.text.SimpleDateFormat;
+
+def versionMajor = 1
+def versionMinor = 0
+def versionMinorBump = versionMinor.toInteger()+1
+def versionPatch = 0
+def versionPatchBump = versionPatch.toInteger()+1
+def hundred = 100
+def tenthou = 10000
+
+def buildTime() {
+    def df = new SimpleDateFormat("yyyyMMdd'T'HHmm'Z'") // you can change it
+    df.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return df.format(new Date())
+}
+
 android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
@@ -27,8 +43,8 @@ android {
         minSdkVersion 18
         applicationId "william.chamberlain.androidvosopencvros"
         targetSdkVersion 25
-        versionCode 1
-        versionName "1.0"
+        versionCode versionMajor.toInteger()*tenthou.toInteger()+versionMinorBump.toInteger()*hundred.toInteger()+versionPatchBump.toInteger() //(versionMajor.toInteger()*10000)+(versionMinor.toInteger()*100)+(versionPatch.toInteger())
+        versionName "${versionMajor}.${versionMinor}.${versionPatch}.${buildTime()}"
         externalNativeBuild {
             cmake {
                 cppFlags "-frtti -fexceptions"
