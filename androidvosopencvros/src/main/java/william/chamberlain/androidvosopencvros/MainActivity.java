@@ -523,11 +523,18 @@ public class MainActivity
             return inputFrame.gray();
         }
         framesProcessed++;
+String logTag = "c"+getCamNum()+"-f"+framesProcessed;
+//// TODO - timing here  c[camera_num]-f[frameprocessed]
+Log.i(logTag,"start frame");
 
         if (!registeredAsVisionSource & null != registerVisionSourceClient) {
+//// TODO - timing here  c[camera_num]-f[frameprocessed]
+Log.i(logTag,"start registering as a vision source");
             Log.i(TAG,"onCameraFrame: registering as a vision source.");
             registerVisionSourceClient.registerVisionSource();
             registeredAsVisionSource = true;
+//// TODO - timing here  c[camera_num]-f[frameprocessed]
+Log.i(logTag,"finished registering as a vision source");
         }
 
         // TODO - needs API 21
@@ -575,7 +582,9 @@ public class MainActivity
         double BOOFCV_TAG_WIDTH=0.14;
         byte[] current_image_bytes = last_frame_bytes();
         if(null!=current_image_bytes) {
+Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
+Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
             try {
                 FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                         new ConfigFiducialBinary(BOOFCV_TAG_WIDTH), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -593,7 +602,12 @@ public class MainActivity
                         new Double(matGray.size().width).intValue(),new Double(matGray.size().height).intValue());
                 LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
                 detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
+
+//// TODO - timing here  c[camera_num]-f[frameprocessed]
+Log.i(logTag,"start detector.detect(image);");
                 detector.detect(image);
+//// TODO - timing here  c[camera_num]-f[frameprocessed]
+Log.i(logTag,"finished detector.detect(image);");
 
                 Log.i(TAG, "onCameraFrame: found "+detector.totalFound()+" tags via BoofCV");
 
@@ -603,6 +617,9 @@ public class MainActivity
                 for (int i = 0; i < detector.totalFound(); i++) {
                     // detector.getImageLocation(i, locationPixel);        // pixel location in input image
 
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]
+String logTagIteration = logTag+"-i"+i;
+Log.i(logTagIteration,"start");
                     int tag_id = -1;
                     if( detector.hasUniqueID() ) {
                         System.out.println("Target ID = " + detector.getId(i));
@@ -614,12 +631,17 @@ public class MainActivity
                             continue;
                         }
                     }
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+String logTagTag = logTagIteration+"-t"+tag_id;
+Log.i(logTagTag,"finished checking tag_id");
                     if( detector.hasMessage() )
                         System.out.println("Message   = "+detector.getMessage(i));
                     System.out.println("2D Image Location = "+locationPixel);
 
                     if( detector.is3D() ) {
+Log.i(logTagTag,"start detector.getFiducialToCamera(i, targetToSensor);");
                         detector.getFiducialToCamera(i, targetToSensor);
+Log.i(logTagTag,"after detector.getFiducialToCamera(i, targetToSensor);");
 
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
@@ -676,11 +698,21 @@ public class MainActivity
                         sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+Log.i(logTagTag,"after applying transformations");
                         detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
-
-
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
+                        if (!poseKnown) {
+                            localiseFromAFeatureClient.localiseFromAFeature(tag_id,
+                                    sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                                    sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
+                        }
+/*
 
                             // transform the rotation to robot coordinate frame convention
                             DenseMatrix64F rotNeg90Y = new DenseMatrix64F(new double[][]{{0, 0, -1}, {0, 1, 0}, {1, 0, 0}});
@@ -766,6 +798,8 @@ public class MainActivity
 //                            localiseFromAFeatureClient.localiseFromAFeature(tag_id, transBoofCV_TtoS.getZ(), -transBoofCV_TtoS.getX(), -transBoofCV_TtoS.getY(), 0,0,0,1);
                             localiseFromAFeatureClient.localiseFromAFeature(tag_id, trans_StoT.getX(), trans_StoT.getY(), trans_StoT.getZ(), quat_StoT.x,quat_StoT.y,quat_StoT.z,quat_StoT.w);
                         }
+*/
+
                     } else {
 //                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(i), g2);
                     }
@@ -915,6 +949,7 @@ public class MainActivity
                     // NOTE:  translation was good before; it's the rotation/orientation that was suspect
 //                    detectedFeaturesClient.reportDetectedFeature(tagId_int, x, y, z, quat.getX(), quat.getY(), quat.getZ(), quat.getW());
 
+                    // TODO - server-->camera send fixed pose 1) in registration 2) whenever the server wants to
                     if (!poseKnown) {
 //                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int + 100, xHom, yHom, zHom, qxHom, qyHom, qzHom, qwHom);
 //                    localiseFromAFeatureClient.localiseFromAFeature(tagId_int, trans.getX(), trans.getY(), trans.getZ(), quat.getX(), quat.getY(), quat.getZ(), quat.getW());
@@ -942,6 +977,8 @@ public class MainActivity
             System.out.println("onCameraFrame: screenLocked = true at frame "+framesProcessed+": setting output matrices to black");
             Scalar blackScalar = new org.opencv.core.Scalar(0); //,CvType.CV_8UC4
             matRgb.setTo(blackScalar);
+//// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+Log.i(logTag,"after matRgb.setTo(blackScalar);");
         }
         Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if (displayRgb) {
