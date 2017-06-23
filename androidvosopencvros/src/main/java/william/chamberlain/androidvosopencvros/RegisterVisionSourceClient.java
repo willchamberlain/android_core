@@ -11,6 +11,8 @@ import org.ros.node.ConnectedNode;
 import org.ros.node.service.ServiceClient;
 import org.ros.node.service.ServiceResponseListener;
 
+import java.util.regex.Matcher;
+
 import geometry_msgs.Point;
 import geometry_msgs.Quaternion;
 import vos_aa1.LocaliseFromAFeature;
@@ -21,6 +23,8 @@ import vos_aa1.RegisterVisionSourceRequest;
 import vos_aa1.RegisterVisionSourceResponse;
 import vos_aa1.VisualFeatureObservation;
 
+import static william.chamberlain.androidvosopencvros.DataExchange.posePattern;
+
 /**
  * Created by will on 7/03/17.
  */
@@ -29,6 +33,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     private ServiceClient<RegisterVisionSourceRequest, RegisterVisionSourceResponse> serviceClient;
     private RegisterVisionSourceResponseListener responseListener;
     private ConnectedNode connectedNode;
+    private PosedEntity posedEntity = null;
     private String baseUrl;
     private static final String TAG = "RegisterVisionSourceCli";
 
@@ -49,7 +54,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     private void connectServiceClient() {
         try {
             serviceClient = connectedNode.newServiceClient("/androidvosopencvros/register_vision_source", RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
-            responseListener = new RegisterVisionSourceResponseListener(connectedNode);
+            responseListener = new RegisterVisionSourceResponseListener(connectedNode, posedEntity);
         } catch (ServiceNotFoundException e) {
             System.out.println("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
             e.printStackTrace();
@@ -95,9 +100,11 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
 
     class RegisterVisionSourceResponseListener implements ServiceResponseListener<RegisterVisionSourceResponse> {
         ConnectedNode connectedNode;
+        PosedEntity posedEntity = null;
 
-        public RegisterVisionSourceResponseListener(ConnectedNode connectedNode_) {
+        public RegisterVisionSourceResponseListener(ConnectedNode connectedNode_, PosedEntity posedEntity_) {
             connectedNode = connectedNode_;
+            posedEntity = posedEntity_;
         }
 
         public void shutDown() {
@@ -105,10 +112,34 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
             // may need to relinquish the connectedNode
         }
 
+        /**
+         * Updates the vision source/PosedEntity pose if the response contains a vision source pose
+         * - currently defined as a string in DataExchange.posePattern format.
+         * @param response
+         */
         @Override
         public void onSuccess(RegisterVisionSourceResponse response) {
             connectedNode.getLog().info("RegisterVisionSourceResponseListener: onSuccess");   //      String.format("%d + %d = %d", request.getA(), request.getB(), response.getSum()));    - can't tie the response to the request
             System.out.println("RegisterVisionSourceResponseListener: onSuccess");
+            if(response.getAcknowledgement().contains("pose")) {
+                if(null==posedEntity) {
+                    System.out.println("RegisterVisionSourceResponseListener: onSuccess: cannot set the PosedEntity pose, because the PosedEntity is null;");
+                    return;
+                }
+                /*
+                */
+                Matcher matcher = posePattern.matcher(response.getAcknowledgement());
+                if(matcher.matches()) {
+                    double x = Double.parseDouble(matcher.group(2));
+                    double y = Double.parseDouble(matcher.group(3));
+                    double z = Double.parseDouble(matcher.group(4));
+                    double qx = Double.parseDouble(matcher.group(5));
+                    double qy = Double.parseDouble(matcher.group(6));
+                    double qz = Double.parseDouble(matcher.group(7));
+                    double qw = Double.parseDouble(matcher.group(8));
+                    posedEntity.setPose(new double[]{x, y, z}, new double[]{qx, qy, qz, qw});
+                }
+            }
         }
 
         @Override
@@ -119,6 +150,10 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
             throw new RosRuntimeException(e);
         }
 
+    }
+
+    public void setPosedEntity(PosedEntity posedEntity) {
+        this.posedEntity = posedEntity;
     }
 
 }
