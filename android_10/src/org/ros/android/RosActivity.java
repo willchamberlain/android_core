@@ -62,6 +62,8 @@ public abstract class RosActivity extends Activity {
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
+      // See https://developer.android.com/guide/components/bound-services.html
+      // See https://developer.android.com/reference/android/content/ServiceConnection.html
       nodeMainExecutorService = ((NodeMainExecutorService.LocalBinder) binder).getService();
 
       if (customMasterUri != null) {
@@ -86,6 +88,13 @@ public abstract class RosActivity extends Activity {
         *   to.
         *   Probably default to connecting to the first one that responds, rather than checking all
         *   and connecting to the 'best'.
+        */
+        /*
+        *  TODO - better structured as a strategy list; try each strategy in turn, and let activities
+         *  set the list of strategies.
+         *  Note that init() recurses onto the impl/MainActivity
+         *    init(NodeMainExecutor nodeMainExecutor)
+         *  and wraps it in an Android AsyncTask.
         */
       }
       if (getMasterUri() == null) {
