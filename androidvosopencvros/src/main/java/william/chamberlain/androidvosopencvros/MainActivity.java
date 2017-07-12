@@ -167,6 +167,7 @@ public class MainActivity
     private LocaliseFromAFeatureClient localiseFromAFeatureClient;
     private RegisterVisionSourceClient registerVisionSourceClient;
     private LocaliseFromAFeatureServer localiseFromAFeatureServer;
+    private WhereIs whereIs;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -373,12 +374,12 @@ public class MainActivity
             nodeMainExecutor.execute(this.localiseFromAFeatureServer, nodeConfiguration8);
         }
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration8.setMasterUri(masterURI);
-//            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceserver_node");
-//            this.imagePublisher = new ImagePublisher();
-//            imagePublisher.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
-//            nodeMainExecutor.execute(this.imagePublisher, nodeConfiguration8);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"where_is_alg_desc");
+            this.whereIs = new WhereIs();
+            whereIs.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
+            nodeMainExecutor.execute(this.whereIs, nodeConfiguration8);
 //  TODO  -  IMAGEPUBLISHER
         }
 
@@ -589,7 +590,7 @@ Log.i(logTag,"finished registering as a vision source");
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
 
         // start BoofCV
-        double BOOFCV_TAG_WIDTH=0.14;
+        double BOOFCV_TAG_WIDTH=0.14; // TODO - list of tags and sizes, and tag-groups and sizes
         byte[] current_image_bytes = last_frame_bytes();
         if(null!=current_image_bytes) {
 Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");

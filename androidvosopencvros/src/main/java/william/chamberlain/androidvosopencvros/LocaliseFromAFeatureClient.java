@@ -36,27 +36,31 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
 
     @Override
     public void onStart(ConnectedNode connectedNode_) {
-        System.out.println("LocaliseFromAFeatureClient: onStart");
+        initialiseServiceClient(connectedNode_, "/androidvosopencvros/localise_from_a_feature", LocaliseFromAFeature._TYPE);
+    }
+
+    private void initialiseServiceClient(ConnectedNode connectedNode_, String nodeName_, String type_) {
+        System.out.println(type_+": onStart");
         try {
-            serviceClient = connectedNode_.newServiceClient("/androidvosopencvros/localise_from_a_feature", LocaliseFromAFeature._TYPE);  // TODO: un-hardcode the service URL
+            serviceClient = connectedNode_.newServiceClient(nodeName_, type_);  // TODO: un-hardcode the service URL
             connectedNode = connectedNode_;
             responseListener = new LocaliseFromAFeatureResponseListener(connectedNode, posedEntity);
         } catch (ServiceNotFoundException e) {
-            System.out.println("LocaliseFromAFeatureClient: onStart: fail ServiceNotFoundException");
+            System.out.println(type_+": onStart: fail ServiceNotFoundException");
             e.printStackTrace();
-            connectedNode.getLog().error("LocaliseFromAFeatureClient: onStart: fail ServiceNotFoundException");
+            connectedNode.getLog().error(type_+": onStart: fail ServiceNotFoundException");
             throw new RosRuntimeException(e);
         } catch (Exception e) {
             if (connectedNode_ != null) {
-                System.out.println("LocaliseFromAFeatureClient: onStart: fail Exception");
+                System.out.println(type_+": onStart: fail Exception");
                 e.printStackTrace();
                 connectedNode_.getLog().fatal(e);
             } else {
-                System.out.println("LocaliseFromAFeatureClient: onStart: fail Exception");
+                System.out.println(type_+": onStart: fail Exception");
                 e.printStackTrace();
             }
         }
-        System.out.println("LocaliseFromAFeatureClient: onStart: success");
+        System.out.println(type_+": onStart: success");
     }
 
     public void localiseFromAFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw) {
