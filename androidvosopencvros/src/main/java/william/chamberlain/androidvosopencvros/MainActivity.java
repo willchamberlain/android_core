@@ -377,7 +377,7 @@ public class MainActivity
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"where_is_alg_desc");
-            this.whereIs = new WhereIs();
+            this.whereIs = new WhereIs(); 
             whereIs.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
             nodeMainExecutor.execute(this.whereIs, nodeConfiguration8);
 //  TODO  -  IMAGEPUBLISHER

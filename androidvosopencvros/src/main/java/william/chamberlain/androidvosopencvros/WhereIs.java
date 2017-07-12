@@ -14,8 +14,10 @@ import org.ros.node.service.ServiceResponseBuilder;
 import org.ros.node.service.ServiceResponseListener;
 import org.ros.node.service.ServiceServer;
 
+import java.util.HashMap;
+
+import geometry_msgs.PoseWithCovarianceStamped;
 import vos_aa1.LocaliseFromAFeature;
-import vos_aa1.there_is_alg_desc;
 import vos_aa1.there_is_alg_descRequest;
 import vos_aa1.there_is_alg_descResponse;
 import vos_aa1.where_is_alg_desc;
@@ -28,8 +30,10 @@ import vos_aa1.where_is_alg_descResponse;
 
 public class WhereIs extends AbstractNodeMain {
     private ServiceServer<where_is_alg_descRequest, where_is_alg_descResponse> server;
+    private HashMap<String, ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse>> clientsToRobots
+            = new HashMap<String, ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse>>();
     private ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse> clientToRobot;
-    private ThereIsResponseListener responseListener;
+    private ThereIsResponseListener responseFromRobotsListener;
     private ConnectedNode connectedNode;
     private String nodeNamespace = "vision_os/";
 
@@ -48,9 +52,9 @@ public class WhereIs extends AbstractNodeMain {
     public void onStart(ConnectedNode connectedNode_) {
         connectedNode = connectedNode_;
 
-        initialiseServer(serverNodeName(), where_is_alg_desc._TYPE);
+        initialiseServerFromVosServer(serverNodeName(), where_is_alg_desc._TYPE);
 
-        // initialiseClient(clientNodeName(), there_is_alg_desc._TYPE);  // TODO - only connect to the robot when making responses
+        // initialiseClientToRobot(clientNodeName(), there_is_alg_desc._TYPE);  // TODO - only connect to the robot when making responses
     }
 
     @NonNull
@@ -63,7 +67,7 @@ public class WhereIs extends AbstractNodeMain {
         return nodeNamespace+"where_is";
     }
 
-    private void initialiseServer(String nodeName_, String type_) {
+    private void initialiseServerFromVosServer(String nodeName_, String type_) {
         server = connectedNode.newServiceServer(
                 nodeName_ ,
                 LocaliseFromAFeature._TYPE,
@@ -76,11 +80,41 @@ public class WhereIs extends AbstractNodeMain {
                 } );
     }
 
-    private void initialiseClient(String nodeName_, String type_) {
+    private void sendInformationToRobot(String robotUrl, PoseWithCovarianceStamped pose) {
+        ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse> client
+                = getClientToRobot(robotUrl);
+        there_is_alg_descRequest request = clientToRobot.newMessage();
+        request.setPose(pose);
+        client.call(request,responseFromRobotsListener);
+    }
+
+    private ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse>
+        getClientToRobot(String robotUrl) {
+        ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse> client
+                = clientsToRobots.get(robotUrl);
+        if(null == client) {
+            client = addNewClientToRobotToSet(robotUrl);
+        }
+        return client;
+    }
+
+    private ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse>
+        addNewClientToRobotToSet(String robotUrl) {
+        ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse> client
+                = initialiseClientToRobot(serverNodeName(), where_is_alg_desc._TYPE);
+        clientsToRobots.put(robotUrl,client);
+        return client;
+    }
+
+    private ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse>
+        initialiseClientToRobot(String nodeName_, String type_) {
         System.out.println(type_+": onStart");
+        ServiceClient<there_is_alg_descRequest, there_is_alg_descResponse> newClientToRobot;
         try {
-            clientToRobot = connectedNode.newServiceClient(nodeName_, type_);  // TODO: un-hardcode the service URL
-            responseListener = new ThereIsResponseListener(connectedNode);
+            newClientToRobot = connectedNode.newServiceClient(nodeName_, type_);  // TODO: un-hardcode the service URL
+            responseFromRobotsListener = new ThereIsResponseListener(connectedNode);
+            connectedNode.getLog().info(type_+": initialiseClientToRobot: success");
+            return newClientToRobot;
         } catch (ServiceNotFoundException e) {
             e.printStackTrace();
             connectedNode.getLog().error(type_+": onStart: fail ServiceNotFoundException");
@@ -89,12 +123,13 @@ public class WhereIs extends AbstractNodeMain {
             if (connectedNode != null) {
                 e.printStackTrace();
                 connectedNode.getLog().fatal(e);
+                throw new RosRuntimeException(e);
             } else {
                 System.out.println(type_+": onStart: fail Exception");
                 e.printStackTrace();
+                throw new RosRuntimeException(e);
             }
         }
-        connectedNode.getLog().info(type_+": initialiseClient: success");
     }
 
 
