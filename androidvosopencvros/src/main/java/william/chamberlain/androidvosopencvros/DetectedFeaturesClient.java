@@ -30,6 +30,7 @@ import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS
  */
 
 public class DetectedFeaturesClient extends AbstractNodeMain {
+    public static final String DETECTED_FEATURE_ROS_SERVICE_NAME = "/androidvosopencvros/detected_feature";
     private ServiceClient<DetectedFeaturesRequest, DetectedFeaturesResponse> serviceClient;
     private ReportDetectedFeaturesResponseListener responseListener;
     private ServiceClient<DetectedFeatureRequest, DetectedFeatureResponse> featureServiceClient;
@@ -54,11 +55,12 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
 //            serviceClient = connectedNode.newServiceClient("/androidvosopencvros/detected_features", DetectedFeatures._TYPE);
 //            responseListener = new ReportDetectedFeaturesResponseListener();
 //            responseListener.setConnectedNode(connectedNode);
-            featureServiceClient = connectedNode_.newServiceClient("/androidvosopencvros/detected_feature", DetectedFeature._TYPE);  // TODO: un-hardcode the service URL
+            featureServiceClient = connectedNode_.newServiceClient(DETECTED_FEATURE_ROS_SERVICE_NAME, DetectedFeature._TYPE);  // TODO: un-hardcode the service URL
             featureResponseListener = new ReportDetectedFeatureResponseListener();
             featureResponseListener.setConnectedNode(connectedNode_);
             connectedNode = connectedNode_;
         } catch (ServiceNotFoundException e) {
+            connectedNode.getLog().error("DetectedFeaturesClient: No service "+DETECTED_FEATURE_ROS_SERVICE_NAME+" of type "+DetectedFeature._TYPE);
             System.out.println("DetectedFeaturesClient: onStart: fail ServiceNotFoundException");
             e.printStackTrace();
             connectedNode.getLog().error("DetectedFeaturesClient: onStart: fail ServiceNotFoundException");
@@ -144,7 +146,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     @Override
     public void onShutdown(Node node) {
         connectedNode.getLog().info("DetectedFeaturesClient: onShutdown");
-        responseListener.shutDown();
+        if(null != responseListener) { responseListener.shutDown(); }
     }
 
     @Override

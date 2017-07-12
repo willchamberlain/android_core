@@ -30,6 +30,7 @@ import static william.chamberlain.androidvosopencvros.DataExchange.posePattern;
  */
 
 public class RegisterVisionSourceClient extends AbstractNodeMain {
+    public static final String REGISTER_VISION_SOURCE_ROS_SERVICE_NAME = "/androidvosopencvros/register_vision_source";
     private ServiceClient<RegisterVisionSourceRequest, RegisterVisionSourceResponse> serviceClient;
     private RegisterVisionSourceResponseListener responseListener;
     private ConnectedNode connectedNode;
@@ -53,9 +54,10 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
 
     private void connectServiceClient() {
         try {
-            serviceClient = connectedNode.newServiceClient("/androidvosopencvros/register_vision_source", RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
+            serviceClient = connectedNode.newServiceClient(REGISTER_VISION_SOURCE_ROS_SERVICE_NAME, RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
             responseListener = new RegisterVisionSourceResponseListener(connectedNode, posedEntity);
         } catch (ServiceNotFoundException e) {
+            connectedNode.getLog().error("No service "+REGISTER_VISION_SOURCE_ROS_SERVICE_NAME+" of type "+RegisterVisionSource._TYPE);
             System.out.println("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
             e.printStackTrace();
             connectedNode.getLog().error("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
