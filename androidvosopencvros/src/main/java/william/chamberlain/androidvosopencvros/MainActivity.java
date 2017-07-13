@@ -516,9 +516,11 @@ public class MainActivity
     }
 
 
+    ArrayList<Integer> idsToFind = new ArrayList<Integer>();
+
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
-
+        idsToFind.add(new Integer(message.getDescriptor()));
         // TODO - add a job to the queue
     }
 
@@ -605,7 +607,7 @@ Log.i(logTag,"finished registering as a vision source");
         // start BoofCV
         double BOOFCV_TAG_WIDTH=0.14; // TODO - list of tags and sizes, and tag-groups and sizes
         byte[] current_image_bytes = last_frame_bytes();
-        if(null!=current_image_bytes) {
+        if(null!=current_image_bytes  && !idsToFind.isEmpty()) {
 Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
 Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
@@ -659,8 +661,8 @@ Log.i(logTagIteration,"start");
                     String logTagTag = logTagIteration+"-t"+tag_id;
 
                     /* Dev: part of robot visual model */
-                    if(isPartOfRobotVisualModel(tag_id)) {
-
+                    if(idsToFind.contains(tag_id)) {  // if(isPartOfRobotVisualModel(tag_id))
+                        Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
                     } else { // not part of something that we are looking for, so ignore
 Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
                         continue;

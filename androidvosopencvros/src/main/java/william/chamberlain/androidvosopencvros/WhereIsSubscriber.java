@@ -1,5 +1,7 @@
 package william.chamberlain.androidvosopencvros;
 
+import android.util.Log;
+
 import org.ros.node.topic.Subscriber;
 
 import vos_aa1.WhereIsAsPub;
@@ -22,6 +24,7 @@ public class WhereIsSubscriber {
     }
 
     public void called(WhereIsAsPub message){
+        Log.i("WhereIsSubscriber","called(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         activity.dealWithRequestForInformation(message);
     }
 }
