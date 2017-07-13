@@ -76,6 +76,7 @@ import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
+import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
@@ -165,9 +166,10 @@ public class MainActivity
     private SetPoseServer setPoseServer;
     private VisionSourceManagementListener visionSourceManagementListener;
     private LocaliseFromAFeatureClient localiseFromAFeatureClient;
+    private WhereIsSubscriber          whereIsSubscriber;
     private RegisterVisionSourceClient registerVisionSourceClient;
     private LocaliseFromAFeatureServer localiseFromAFeatureServer;
-    private WhereIs whereIs;
+//    private WhereIs whereIs;
 
     private LocationManager mLocationManager;
     private SensorManager mSensorManager;
@@ -358,8 +360,10 @@ public class MainActivity
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"registervisionsource_serviceclient_node");
+            this.whereIsSubscriber = new WhereIsSubscriber(this);
             this.registerVisionSourceClient = new RegisterVisionSourceClient();
             registerVisionSourceClient.setBaseUrl(Naming.cameraNamespace(getCamNum()));
+            registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -373,15 +377,15 @@ public class MainActivity
             localiseFromAFeatureServer.setDetectedFeaturesHolder(this);
             nodeMainExecutor.execute(this.localiseFromAFeatureServer, nodeConfiguration8);
         }
-        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
-            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"where_is_alg_desc");
-            this.whereIs = new WhereIs();
-            whereIs.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
-            nodeMainExecutor.execute(this.whereIs, nodeConfiguration8);
-//  TODO  -  IMAGEPUBLISHER
-        }
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+//            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"where_is_alg_desc");
+//            this.whereIs = new WhereIs();
+//            whereIs.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
+//            nodeMainExecutor.execute(this.whereIs, nodeConfiguration8);
+////  TODO  -  IMAGEPUBLISHER
+//        }
 
     }
 
@@ -510,6 +514,15 @@ public class MainActivity
 //        if( null != mRgbaFlipped) { mRgbaFlipped.release(); }
 //        if( null != mRgbaTransposed) { mRgbaTransposed.release(); }
     }
+
+
+    public void dealWithRequestForInformation(WhereIsAsPub message){
+        Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
+
+        // TODO - add a job to the queue
+    }
+
+
 
 
     boolean screenLocked = false;

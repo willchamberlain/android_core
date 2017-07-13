@@ -5,16 +5,19 @@ import android.util.Log;
 import org.ros.exception.RemoteException;
 import org.ros.exception.RosRuntimeException;
 import org.ros.exception.ServiceNotFoundException;
+import org.ros.message.MessageListener;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
 import org.ros.node.ConnectedNode;
 import org.ros.node.service.ServiceClient;
 import org.ros.node.service.ServiceResponseListener;
+import org.ros.node.topic.Subscriber;
 
 import java.util.regex.Matcher;
 
 import geometry_msgs.Point;
 import geometry_msgs.Quaternion;
+import sensor_msgs.LaserScan;
 import vos_aa1.LocaliseFromAFeature;
 import vos_aa1.LocaliseFromAFeatureRequest;
 import vos_aa1.LocaliseFromAFeatureResponse;
@@ -22,6 +25,7 @@ import vos_aa1.RegisterVisionSource;
 import vos_aa1.RegisterVisionSourceRequest;
 import vos_aa1.RegisterVisionSourceResponse;
 import vos_aa1.VisualFeatureObservation;
+import vos_aa1.WhereIsAsPub;
 
 import static william.chamberlain.androidvosopencvros.DataExchange.posePattern;
 
@@ -36,6 +40,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     private ConnectedNode connectedNode;
     private PosedEntity posedEntity = null;
     private String baseUrl;
+    private WhereIsSubscriber whereIsSubscriber;
     private static final String TAG = "RegisterVisionSourceCli";
 
     @Override
@@ -55,7 +60,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     private void connectServiceClient() {
         try {
             serviceClient = connectedNode.newServiceClient(REGISTER_VISION_SOURCE_ROS_SERVICE_NAME, RegisterVisionSource._TYPE);  // TODO: un-hardcode the service URL
-            responseListener = new RegisterVisionSourceResponseListener(connectedNode, posedEntity);
+            responseListener = new RegisterVisionSourceResponseListener(connectedNode, posedEntity, whereIsSubscriber);
         } catch (ServiceNotFoundException e) {
             connectedNode.getLog().error("No service "+REGISTER_VISION_SOURCE_ROS_SERVICE_NAME+" of type "+RegisterVisionSource._TYPE);
             System.out.println("RegisterVisionSourceClient: onStart: fail ServiceNotFoundException");
@@ -81,6 +86,10 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
         this.baseUrl = baseUrl_;
     }
 
+    public void setWhereIsSubscriber(WhereIsSubscriber whereIsSubscriber_) {
+        this.whereIsSubscriber = whereIsSubscriber_;
+    }
+
     public void registerVisionSource() {
         Log.i(TAG,"registerVisionSource: registering as a vision source.");
         if (null == serviceClient ) {
@@ -103,10 +112,12 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
     class RegisterVisionSourceResponseListener implements ServiceResponseListener<RegisterVisionSourceResponse> {
         ConnectedNode connectedNode;
         PosedEntity posedEntity = null;
+        WhereIsSubscriber whereIsSubscriber;
 
-        public RegisterVisionSourceResponseListener(ConnectedNode connectedNode_, PosedEntity posedEntity_) {
+        public RegisterVisionSourceResponseListener(ConnectedNode connectedNode_, PosedEntity posedEntity_, WhereIsSubscriber whereIsSubscriber_) {
             connectedNode = connectedNode_;
             posedEntity = posedEntity_;
+            whereIsSubscriber = whereIsSubscriber_;
         }
 
         public void shutDown() {
@@ -142,6 +153,18 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
                     posedEntity.setPose(new double[]{x, y, z}, new double[]{qx, qy, qz, qw});
                 }
             }
+
+
+            String whereIsTopicToSubscribeTo = "/phone_cam_communications/"+baseUrl;
+            Subscriber<WhereIsAsPub> subscriber =
+                    connectedNode.newSubscriber(whereIsTopicToSubscribeTo, WhereIsAsPub._TYPE);
+            subscriber.addMessageListener(new MessageListener<WhereIsAsPub>() {
+                @Override
+                public void onNewMessage(WhereIsAsPub message) {
+                    whereIsSubscriber.called(message);
+                }
+            });
+            whereIsSubscriber.setSubscriber(subscriber);
         }
 
         @Override
