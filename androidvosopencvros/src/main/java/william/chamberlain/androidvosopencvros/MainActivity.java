@@ -516,11 +516,17 @@ public class MainActivity
     }
 
 
-    ArrayList<Integer> idsToFind = new ArrayList<Integer>();
+    ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
 
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
-        idsToFind.add(new Integer(message.getDescriptor()));
+        taskQueue.add(new VisionTask()
+                .algorithm(message.getAlgorithm())
+                .descriptor(message.getDescriptor())
+                .requestId(message.getRequestId())
+                .relationToBase(message.getRelationToBase())
+                .returnUrl(message.getReturnUrl())
+                .executionIterations(message.getRate()));
         // TODO - add a job to the queue
     }
 
@@ -607,7 +613,8 @@ Log.i(logTag,"finished registering as a vision source");
         // start BoofCV
         double BOOFCV_TAG_WIDTH=0.14; // TODO - list of tags and sizes, and tag-groups and sizes
         byte[] current_image_bytes = last_frame_bytes();
-        if(null!=current_image_bytes  && !idsToFind.isEmpty()) {
+        removeExpiredVisionTasks();
+        if(null!=current_image_bytes  && !taskQueue.isEmpty()) {
 Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
 Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
@@ -661,7 +668,15 @@ Log.i(logTagIteration,"start");
                     String logTagTag = logTagIteration+"-t"+tag_id;
 
                     /* Dev: part of robot visual model */
-                    if(idsToFind.contains(tag_id)) {  // if(isPartOfRobotVisualModel(tag_id))
+                    boolean visionTaskToExecute = false;
+                    for (VisionTask visionTask : taskQueue) {
+                        Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
+                        if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+                            Log.i(logTagTag,"will execute vision task "+visionTask);
+                            visionTaskToExecute = true;
+                        }
+                    }
+                    if(visionTaskToExecute) {  // if(isPartOfRobotVisualModel(tag_id))
                         Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
                     } else { // not part of something that we are looking for, so ignore
 Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
@@ -1121,6 +1136,19 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
 //        return matGray;
     }
 
+    private void removeExpiredVisionTasks() {
+        ArrayList<VisionTask> toRemove = new ArrayList<VisionTask>();
+        for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
+            Log.i("removeExpiredVisionTask","vision task is now "+task);
+            if(!task.canBeExecuted()) {
+                toRemove.add(task);     // could leave them in and only remove once a few have built up
+                Log.i("removeExpiredVisionTask","removed vision task "+task);
+            }
+            task.executed();
+        }
+        taskQueue.removeAll(toRemove);
+    }
+
     /* Dev: part of robot visual model */
     private boolean isPartOfRobotVisualModel(int tag_id) {
         return tag_id == 170 || tag_id == 250 || tag_id == 290 || tag_id == 330;
@@ -1492,11 +1520,13 @@ System.out.println("imuData(Imu imu): relocalising");
 
         convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());  // updates the 'image' variable
 
-        FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
-                new ConfigFiducialBinary(0.1), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);
-//        detector.setLensDistortion(lensDistortion);
-        detector.detect(image);
-        Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
+// TODO - why was this in here? - start
+//        FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+//                new ConfigFiducialBinary(0.1), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);
+////        detector.setLensDistortion(lensDistortion);
+//        detector.detect(image);
+//        Log.i(TAG, "last_frame_bytes: found "+detector.totalFound()+" tags via BoofCV");
+// TODO - why was this in here? - end
     }
 //
 //    // Algorithm + id + pose + timestamp

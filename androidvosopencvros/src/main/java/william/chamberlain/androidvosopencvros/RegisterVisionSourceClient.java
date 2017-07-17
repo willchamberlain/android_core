@@ -155,7 +155,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
             }
 
 
-            String whereIsTopicToSubscribeTo = "/phone_cam_communications/"+baseUrl;
+            String whereIsTopicToSubscribeTo = "/phone_whereis/"+baseUrl;
             Subscriber<WhereIsAsPub> subscriber =
                     connectedNode.newSubscriber(whereIsTopicToSubscribeTo, WhereIsAsPub._TYPE);
             subscriber.addMessageListener(new MessageListener<WhereIsAsPub>() {
