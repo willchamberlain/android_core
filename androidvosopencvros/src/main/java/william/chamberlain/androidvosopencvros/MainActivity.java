@@ -520,13 +520,15 @@ public class MainActivity
 
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
-        taskQueue.add(new VisionTask()
-                .algorithm(message.getAlgorithm())
-                .descriptor(message.getDescriptor())
-                .requestId(message.getRequestId())
-                .relationToBase(message.getRelationToBase())
-                .returnUrl(message.getReturnUrl())
-                .executionIterations(message.getRate()));
+        synchronized (this) {
+            taskQueue.add(new VisionTask()
+                    .algorithm(message.getAlgorithm())
+                    .descriptor(message.getDescriptor())
+                    .requestId(message.getRequestId())
+                    .relationToBase(message.getRelationToBase())
+                    .returnUrl(message.getReturnUrl())
+                    .executionIterations(message.getRate()));
+        }
         // TODO - add a job to the queue
     }
 
@@ -669,11 +671,13 @@ Log.i(logTagIteration,"start");
 
                     /* Dev: part of robot visual model */
                     boolean visionTaskToExecute = false;
-                    for (VisionTask visionTask : taskQueue) {
-                        Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
-                        if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
-                            Log.i(logTagTag,"will execute vision task "+visionTask);
-                            visionTaskToExecute = true;
+                    synchronized (this) {
+                        for (VisionTask visionTask : taskQueue) {
+                            Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
+                            if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+                                Log.i(logTagTag,"will execute vision task "+visionTask);
+                                visionTaskToExecute = true;
+                            }
                         }
                     }
                     if(visionTaskToExecute) {  // if(isPartOfRobotVisualModel(tag_id))
@@ -1136,17 +1140,21 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
 //        return matGray;
     }
 
+    private Object taskQueueLock = new Object();
+
     private void removeExpiredVisionTasks() {
         ArrayList<VisionTask> toRemove = new ArrayList<VisionTask>();
-        for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
-            Log.i("removeExpiredVisionTask","vision task is now "+task);
-            if(!task.canBeExecuted()) {
-                toRemove.add(task);     // could leave them in and only remove once a few have built up
-                Log.i("removeExpiredVisionTask","removed vision task "+task);
+        synchronized (this) {
+            for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
+                Log.i("removeExpiredVisionTask","vision task is now "+task);
+                if(!task.canBeExecuted()) {
+                    toRemove.add(task);     // could leave them in and only remove once a few have built up
+                    Log.i("removeExpiredVisionTask","removed vision task "+task);
+                }
+                task.executed();
             }
-            task.executed();
+            taskQueue.removeAll(toRemove);
         }
-        taskQueue.removeAll(toRemove);
     }
 
     /* Dev: part of robot visual model */
