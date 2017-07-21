@@ -154,7 +154,22 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
                 }
             }
 
+            setupVisionTaskListener();
+        }
 
+        /** Set up the vision task listener : listens for vision tasks from the VosServer. */
+        private void setupVisionTaskListener() {
+            // TODO - do not set up the subscriber - having this setup in a close loop with creating the service does not work cleanly
+            // TODO - could set the Subscribers up on demand - just frame as network config
+            // TODO -  using fixed set of vision tasks for now in MainActivity
+            // TODO - setupVisionTaskListenerAsSubscriber();
+            // TODO - do not set up the subscriber - having this setup in a close loop with creating the service does not work cleanly
+
+        }
+
+        /** Set up the vision task listener as a Subscriber because RosJava doesn't work for Service server on Android.
+         */
+        private void setupVisionTaskListenerAsSubscriber() {
             String whereIsTopicToSubscribeTo = "/phone_whereis/"+baseUrl;
             Subscriber<WhereIsAsPub> subscriber =
                     connectedNode.newSubscriber(whereIsTopicToSubscribeTo, WhereIsAsPub._TYPE);
@@ -167,6 +182,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
             });
             whereIsSubscriber.setSubscriber(subscriber);
         }
+
 
         @Override
         public void onFailure(RemoteException e) {

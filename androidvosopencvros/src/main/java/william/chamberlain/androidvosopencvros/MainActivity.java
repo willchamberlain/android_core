@@ -1,3 +1,18 @@
+/**
+ Copyright (c) 2017, William Chamberlain, ARC Centre of Excellence for Robotic Vision (ACRV: http://roboticvision.org) - Queensland University of Technology (QUT : http://qut.edu.au)
+ All rights reserved.
+
+ Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+ 1. Redistributions of source code must retain the above copyright notice, the above attributions of authorship and contribution, this list of conditions, and the following disclaimer.
+
+ 2. Redistributions in binary form must reproduce the above copyright notice, the above attributions of authorship and contribution, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+
+ 3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package william.chamberlain.androidvosopencvros;
 
 import android.Manifest;
@@ -18,7 +33,6 @@ import android.view.Window;
 import android.widget.Toast;
 
 import org.ejml.data.DenseMatrix64F;
-import org.ejml.data.RowD1Matrix64F;
 import org.ejml.ops.CommonOps;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfDouble;
@@ -38,10 +52,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
 import java.util.List;
-import java.util.Set;
 import java.util.regex.Matcher;
 
 
@@ -69,7 +80,6 @@ import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
 import geometry_msgs.Pose;
 import georegression.geometry.ConvertRotation3D_F64;
-import georegression.geometry.GeometryMath_F64;
 import georegression.struct.EulerType;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.point.Vector3D_F64;
@@ -88,7 +98,6 @@ import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
-import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_FRONT;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
@@ -360,10 +369,17 @@ public class MainActivity
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration8.setMasterUri(masterURI);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"registervisionsource_serviceclient_node");
-            this.whereIsSubscriber = new WhereIsSubscriber(this);
             this.registerVisionSourceClient = new RegisterVisionSourceClient();
             registerVisionSourceClient.setBaseUrl(Naming.cameraNamespace(getCamNum()));
-            registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
+            // TODO - do not set up the subscriber - having this setup in a close loop with creating the service does not work cleanly
+            // TODO - could set the Subscribers up on demand - just frame as network config
+            // TODO - this.whereIsSubscriber = new WhereIsSubscriber(this);
+            // TODO - registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","210",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","170",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","250",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","290",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","330",1));
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -521,18 +537,29 @@ public class MainActivity
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         synchronized (this) {
-            taskQueue.add(new VisionTask()
-                    .algorithm(message.getAlgorithm())
-                    .descriptor(message.getDescriptor())
-                    .requestId(message.getRequestId())
-                    .relationToBase(message.getRelationToBase())
-                    .returnUrl(message.getReturnUrl())
-                    .executionIterations(message.getRate()));
+            addVisionTaskToQueue(message);
         }
-        // TODO - add a job to the queue
     }
 
+    private void addVisionTaskToQueue(WhereIsAsPub message) {
+        taskQueue.add(new VisionTask()
+                .algorithm(message.getAlgorithm())
+                .descriptor(message.getDescriptor())
+                .requestId(message.getRequestId())
+                .relationToBase(message.getRelationToBase())
+                .returnUrl(message.getReturnUrl())
+                .executionIterations(message.getRate()));
+    }
 
+    private void addVisionTaskToQueue(WhereIsAsPubLocal message) {
+        taskQueue.add(new VisionTask()
+                .algorithm(message.getAlgorithm())
+                .descriptor(message.getDescriptor())
+                .requestId(message.getRequestId())
+                .relationToBase(message.getRelationToBase())
+                .returnUrl(message.getReturnUrl())
+                .executionIterations(message.getRate()));
+    }
 
 
     boolean screenLocked = false;
@@ -1153,7 +1180,9 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
                 }
                 task.executed();
             }
-            taskQueue.removeAll(toRemove);
+            // TODO - not removing - for quicker test setup
+            // TODO     taskQueue.removeAll(toRemove);
+            // TODO - not removing - for quicker test setup
         }
     }
 
