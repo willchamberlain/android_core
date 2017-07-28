@@ -10,7 +10,9 @@ public enum ManagementCommand {
         RESOLUTION_LIMITS("res limits"),
         RELOCALISE("relocalise"),
         DISPLAY_RGB("rgb"),
-        DISPLAY_GREY("grey");
+        DISPLAY_GREY("grey"),
+        ALLOCATE_TO_ROBOT("task: robot 170 290 250 330"),
+        ALLOCATE_TO_TARGET("task: target 210");
 
         public final String command_val;
 
