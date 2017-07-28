@@ -54,7 +54,7 @@ android {
         multiDexEnabled true
         dexOptions {            // see https://stackoverflow.com/questions/34158995/gradle-build-slow-on-transformclasseswithdexfordebug
             preDexLibraries true
-            javaMaxHeapSize "2g" // Use gig increments depending on needs
+            javaMaxHeapSize "1g" // Use gig increments depending on needs
             incremental true
         }
     }
