@@ -9,4 +9,8 @@ public interface VisionSource {
     void stop();
     void relocalise();
     void publishCurrentFrame();
+    void allocateTo(String targetKey);
+
+    public static final String ROBOT_ALLOCATION_KEY = "ROBOT";
+    public static final String TARGET_ALLOCATION_KEY = "TARGET";
 }
