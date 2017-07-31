@@ -74,6 +74,7 @@ import boofcv.factory.fiducial.ConfigFiducialBinary;
 import boofcv.factory.fiducial.FactoryFiducial;
 import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
+import boofcv.gui.fiducial.VisualizeFiducial;
 import boofcv.struct.calib.CameraPinhole;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
@@ -678,15 +679,20 @@ public class MainActivity
                         Log.i(logTagIteration,"start");
                     int tag_id = -1;
                     IsTagIdValid isTagIdValid = new IsTagIdValid(detector, i, tag_id).invoke();
-                    if (isTagIdValid.is()) { continue; }
+                    if (isTagIdValid.is()) {
+                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                        continue;
+                    }
                     tag_id = isTagIdValid.getTag_id();
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
                     if(isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
                             Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
+                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
                     } else { // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
+                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
+                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.NON_ROBOT_FEATURE);
                         continue;
                     }
                         Log.i(logTagTag,"finished checking tag_id");
@@ -694,6 +700,7 @@ public class MainActivity
                     if( detector.hasMessage() ) { System.out.println("Message   = "+detector.getMessage(i)); }
 
                     if( detector.is3D() ) {
+                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
                             Log.i(logTagTag,"start detector.getFiducialToCamera(i, targetToSensor_boofcvFrame);");
                         Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
                         detector.getFiducialToCamera(i, targetToSensor_boofcvFrame);
@@ -737,8 +744,10 @@ public class MainActivity
                         if(isPartOfRobotVisualModel(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
+                            drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
                         } else { // not part of something that we are looking for, so ignore
                                 Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
+                            drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.NON_ROBOT_FEATURE);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
@@ -749,7 +758,7 @@ public class MainActivity
                         variousUnusedAttemptsAtCoordinateSystemCorrection();
 
                     } else {  // 3D info not available for tag/marker
-                        drawMarkerLocationOnDisplay_BoofCV();
+                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                     }
                 }
                 updateTrackingData(robotFeatures);
@@ -786,6 +795,10 @@ public class MainActivity
         } else {
             return matGray;
         }
+    }
+
+    private enum FeatureModel {
+        ROBOT_FEATURE, NON_ROBOT_FEATURE, FEATURE_WITHOUT_3D_LOCATION
     }
 
     private void renderGUI() {
@@ -993,11 +1006,14 @@ public class MainActivity
         /* end Dev: part of robot visual model */
     }
 
-    private void drawMarkerLocationOnDisplay_BoofCV() {
-        //                        Point2D_F64 locationPixel = new Point2D_F64();
-//                        detector.getImageLocation(i, locationPixel);        // pixel location in input image
-//                        System.out.println("2D Image Location = "+locationPixel);
-//                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(i), g2);
+    private void drawMarkerLocationOnDisplay_BoofCV(FiducialDetector<GrayF32> detector, int index_of_tag_, FeatureModel fm ) {
+        Log.i("drawMarkerOnDisplay_BCV","tag_id = "+index_of_tag_);
+        Point2D_F64 locationPixel = new Point2D_F64();
+        detector.getImageLocation(index_of_tag_, locationPixel);        // pixel location in input image
+        System.out.println("2D Image Location = "+locationPixel);
+        Log.i("drawMarkerOnDisplay_BCV","2D Image Location = "+locationPixel);
+        displayTagCentre_OpenCV((int)locationPixel.x, (int)locationPixel.y, fm);
+//                        VisualizeFiducial.drawLabel(locationPixel, "" + detector.getId(tag_id), g2);
     }
 
     private void variousUnusedAttemptsAtCoordinateSystemCorrection() {
@@ -1218,11 +1234,41 @@ public class MainActivity
         if(allocatedTargets.get(TARGET_ALLOCATION_KEY)) {
             double[] blue = new double[] {0d,0d,255d,255d};
             for(int pixel_u = 30; pixel_u<50; pixel_u++) {
-                for(int pixel_v = 30; pixel_v<50; pixel_v++) {
+                for(int pixel_v = 10; pixel_v<30; pixel_v++) {
                     matRgb.put(pixel_u, pixel_v,  blue);
                 }
             }
         }
+    }
+
+    private void displayTagCentre_OpenCV(int tagCentreX, int tagCentreY, FeatureModel fm) {
+        Log.i("displayTagCentre_OpenCV","start");
+        Log.i("displayTagCentre_OpenCV","tag centre at "+tagCentreX+", "+tagCentreY);
+        int xmin = tagCentreX-5; if(xmin < 0) {xmin = 0;}
+        int xmax = tagCentreX+5; if(xmax > matRgb.width()) {xmax = matRgb.width();}
+        int ymin = tagCentreY-5; if(ymin < 0) {ymin = 0;}
+        int ymax = tagCentreY+5; if(ymax > matRgb.height()) {ymax = matRgb.height();}
+        double[] colour;
+        switch (fm) {
+            case ROBOT_FEATURE:
+                colour = new double[] {0d,255d,0d,255d};
+                break;
+            case NON_ROBOT_FEATURE:
+                colour = new double[] {255d,0d,0d,255d};
+                break;
+            case FEATURE_WITHOUT_3D_LOCATION:
+                colour = new double[] {200d,200d,220d,255d};
+                break;
+            default:
+                colour = new double[] {125d,125d,125d,255d};
+        }
+        Log.i("displayTagCentre_OpenCV","tag centre displayed at "+xmin+"_"+xmax+", "+ymin+"_"+ymax);
+        for(int pixel_u = xmin; pixel_u<xmax; pixel_u++) {
+            for(int pixel_v = ymin; pixel_v<ymax; pixel_v++) {
+                matRgb.put(pixel_v, pixel_u, colour);   // int put(int row, int col, double... data)
+            }
+        }
+        Log.i("displayTagCentre_OpenCV","end");
     }
 
     private Object taskQueueLock = new Object();
