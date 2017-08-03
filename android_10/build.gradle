@@ -14,7 +14,15 @@
  * the License.
  */
 
+repositories {
+  maven {
+    url 'https://github.com/rosjava/rosjava_mvn_repo/raw/master'
+  }
+  mavenCentral()
+}
+
 dependencies {
+  compile 'dnsjava:dnsjava:2.1.1'
   compile('org.ros.rosjava_core:rosjava:[0.2,0.3)') {
     exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
   }

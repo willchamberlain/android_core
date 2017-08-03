@@ -109,14 +109,14 @@ dependencies {
     compile ('org.ddogleg:ddogleg:0.10') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'}
     compile ('org.ejml:all:0.30') {
-            exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
     compile ('org.georegression:georegression:0.12') {
-                exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
     compile ('com.android.support:appcompat-v7:25.1.0') {
-                    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
     compile ('com.android.support:support-v4:25.1.0') {
-                        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
     compile ('com.android.support:multidex:1.0.1') {
-                            exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
 
 }

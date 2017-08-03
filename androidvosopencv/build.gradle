@@ -67,7 +67,9 @@ dependencies {
         exclude group: 'xmlpull', module: 'xmlpull'
     }
     compile project(':openCVLibrary310') {
-        exclude group: 'xmlpull', module: 'xmlpull' }
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
+        exclude group: 'xmlpull', module: 'xmlpull'
+    }
     //    compile('org.ros.rosjava_core:rosjava:0.2.0') {
     //        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'
     //    }

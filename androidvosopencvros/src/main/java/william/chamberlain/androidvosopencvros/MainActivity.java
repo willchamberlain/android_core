@@ -74,7 +74,6 @@ import boofcv.factory.fiducial.ConfigFiducialBinary;
 import boofcv.factory.fiducial.FactoryFiducial;
 import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
-import boofcv.gui.fiducial.VisualizeFiducial;
 import boofcv.struct.calib.CameraPinhole;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
@@ -383,11 +382,19 @@ public class MainActivity
             // TODO - could set the Subscribers up on demand - just frame as network config
             // TODO - this.whereIsSubscriber = new WhereIsSubscriber(this);
             // TODO - registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
+            // robot target marker
             addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","210",1));
+            // robot model markers
             addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","170",1));
             addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","250",1));
             addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","290",1));
             addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","330",1));
+            // fixed-position markers for PnP
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","650",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","690",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","730",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","770",1));
+            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","810",1));
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -606,6 +613,7 @@ public class MainActivity
             HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
             RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
             List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
+            List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
             /* end Dev: part of robot visual model */
         frameNumber++;
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
@@ -673,38 +681,37 @@ public class MainActivity
 
 
                 // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
-                for (int i = 0; i < detector.totalFound(); i++) {
-                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]
-                        String logTagIteration = logTag+"-i"+i;
+                for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
+                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
+                        String logTagIteration = logTag+"-detectionOrder_"+detectionOrder_;
                         Log.i(logTagIteration,"start");
                     int tag_id = -1;
-                    IsTagIdValid isTagIdValid = new IsTagIdValid(detector, i, tag_id).invoke();
-                    if (isTagIdValid.is()) {
-                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                    MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
+                    if (!isTagIdValid.isValid()) {
+                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                         continue;
                     }
                     tag_id = isTagIdValid.getTag_id();
-                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
                     if(isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
                             Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
-                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
+                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
                     } else { // not part of something that we are looking for, so ignore
                             Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
-                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.NON_ROBOT_FEATURE);
+                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.NON_ROBOT_FEATURE);
                         continue;
                     }
                         Log.i(logTagTag,"finished checking tag_id");
 
-                    if( detector.hasMessage() ) { System.out.println("Message   = "+detector.getMessage(i)); }
+                    if( detector.hasMessage() ) { System.out.println("Message   = "+detector.getMessage(detectionOrder_)); }
 
                     if( detector.is3D() ) {
-                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
-                            Log.i(logTagTag,"start detector.getFiducialToCamera(i, targetToSensor_boofcvFrame);");
+                            Log.i(logTagTag,"start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
                         Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
-                        detector.getFiducialToCamera(i, targetToSensor_boofcvFrame);
-                            Log.i(logTagTag,"after detector.getFiducialToCamera(i, targetToSensor_boofcvFrame);");
+                        detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
+                            Log.i(logTagTag,"after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
@@ -733,7 +740,7 @@ public class MainActivity
                         sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 
-                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after applying transformations");
                         detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
@@ -744,24 +751,35 @@ public class MainActivity
                         if(isPartOfRobotVisualModel(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
-                            drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.ROBOT_FEATURE);
+                        } else if(isALandmark(tag_id)) {
+                            Point2D_F64 locationPixel = new Point2D_F64();
+                            detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
+                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
+                            landmarkFeatures.add(detectedTag);
                         } else { // not part of something that we are looking for, so ignore
                                 Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
-                            drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.NON_ROBOT_FEATURE);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
 
-                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
                         updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
                         variousUnusedAttemptsAtCoordinateSystemCorrection();
 
                     } else {  // 3D info not available for tag/marker
-                        drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                     }
                 }
                 updateTrackingData(robotFeatures);
+                if(4>=landmarkFeatures.size()) {
+                    Se3_F64 cameraPose = updatePoseEstimate(landmarkFeatures);
+                    int numElementsInRot = cameraPose.R.getNumElements();
+                    Vector3D_F64 translation = cameraPose.T;
+                    Log.i(TAG, "onCameraFrame: cameraPose: rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + ", translation =" + translation.toString());
+                } else {
+                    Log.i(TAG, "onCameraFrame: cameraPose: not enough landmarks detected to estimate camera pose.");
+                }
 
                 Log.i(TAG, "onCameraFrame: after processing for "+detector.totalFound()+" tags found via BoofCV");
 
@@ -1208,6 +1226,41 @@ public class MainActivity
         }
     }
 
+    private HashMap<Integer, double[]> fixedLandmarks = new HashMap<Integer, double[]>();
+
+
+    private Se3_F64 updatePoseEstimate(List<DetectedTag> landmarkFeatures) {
+
+/*  TODO - HARDCODING  */
+        fixedLandmarks.put(690,new double[]{-40.0,510.0});  // todo - some visualisation of the world points nominated - e.g. --> RViz markers
+        fixedLandmarks.put(650,new double[]{380.0,510.0});
+        fixedLandmarks.put(770,new double[]{380.0,  0.0});
+        fixedLandmarks.put(730,new double[]{  0.0,  0.0});
+/*  TODO - HARDCODING  */
+
+        double[] worldX = new double[landmarkFeatures.size()];
+        double[] worldY = new double[landmarkFeatures.size()];
+        double[] pixelsX = new double[landmarkFeatures.size()];
+        double[] pixelsY = new double[landmarkFeatures.size()];
+        int i_ = 0;
+        for (DetectedTag tag:
+             landmarkFeatures) {
+            double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
+            Point2D_F64 pixelLocation = tag.getLocationPixel();
+            worldX[i_]  = worldCoordinates[0];
+            worldY[i_]  = worldCoordinates[1];
+            pixelsX[i_] = pixelLocation.getX();
+            pixelsY[i_] = pixelLocation.getY();
+
+            i_++;
+        }
+        PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
+        return estimator.estimateCameraPoseFrom3D2DPointMatches(
+                CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
+                landmarkFeatures.size(), worldX, worldY, pixelsX, pixelsY);
+
+    }
+
     private void eventLog_DetectedFeaturesClient_notAvailable(String tagId) {
         System.out.print("MainActivity: onCameraFrame: detectedFeaturesClient is null: cannot report the poses of detected tags");
         System.out.println(tagId);
@@ -1293,6 +1346,11 @@ public class MainActivity
     /* Dev: part of robot visual model */
     private boolean isPartOfRobotVisualModel(int tag_id) {
         return tag_id == 170 || tag_id == 250 || tag_id == 290 || tag_id == 330;
+    }
+
+    /* Dev: part of knowledge about landmarks */
+    private boolean isALandmark(int tag_id) {
+        return tag_id == 650 || tag_id == 690 || tag_id == 730 || tag_id == 770 || tag_id == 810;
     }
 
     private boolean isAnOutlier(DetectedFeature feature_) {
@@ -1874,27 +1932,28 @@ System.out.println("imuData(Imu imu): relocalising");
         }
     }
 
-    private class IsTagIdValid {
-        private boolean myResult;
+    private class MarkerIdValidator {
+        private boolean isValid;
         private FiducialDetector<GrayF32> detector;
         private int i;
         private int tag_id;
 
-        public IsTagIdValid(FiducialDetector<GrayF32> detector, int i, int tag_id) {
+        public MarkerIdValidator(FiducialDetector<GrayF32> detector, int i, int tag_id) {
             this.detector = detector;
             this.i = i;
             this.tag_id = tag_id;
+            this.isValid= false;
         }
 
-        boolean is() {
-            return myResult;
+        boolean isValid() {
+            return isValid;
         }
 
         public int getTag_id() {
             return tag_id;
         }
 
-        public IsTagIdValid invoke() {
+        public MarkerIdValidator invoke() {
             if( detector.hasUniqueID() ) {
                     System.out.println("Target ID = " + detector.getId(i));
                 long tag_id_long = detector.getId(i);
@@ -1902,11 +1961,11 @@ System.out.println("imuData(Imu imu): relocalising");
                 if ((long)tag_id != tag_id_long) {
                     //throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
                     System.out.println(" BoofCV: cannot use tag: tag_id_long '"+tag_id_long+"' cannot be cast to int without changing its value.");
-                    myResult = true;
+                    isValid = false;
                     return this;
                 }
             }
-            myResult = false;
+            isValid = true;
             return this;
         }
     }
