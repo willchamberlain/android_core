@@ -850,10 +850,10 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
         ArrayList<VisionTask> toRemove = new ArrayList<VisionTask>();
         synchronized (this) {
             for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
-                Log.i("removeExpiredVisionTask","vision task is now "+task);
+                Log.i("MainActivityRosLess","removeExpiredVisionTask: vision task is now "+task);
                 if(!task.canBeExecuted()) {
                     toRemove.add(task);     // could leave them in and only remove once a few have built up
-                    Log.i("removeExpiredVisionTask","removed vision task "+task);
+                    Log.i("MainActivityRosLess","removeExpiredVisionTask: removed vision task "+task);
                 }
                 task.executed();
             }

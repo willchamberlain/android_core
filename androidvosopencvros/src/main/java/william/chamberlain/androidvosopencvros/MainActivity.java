@@ -118,7 +118,7 @@ public class MainActivity
         DimmableScreen, VariableResolution, VisionSource,
         ResilientNetworkActivity {
 
-    public static final double BOOFCV_TAG_SIZE_M = 0.20;            ////  TODO - list of tags and sizes, and tag-groups and sizes
+    public static final double BOOFCV_TAG_SIZE_M = 0.13; //0.20;  //0.14  //14.0            ////  TODO - list of tags and sizes, and tag-groups and sizes
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
 
     public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_BACK;
@@ -148,6 +148,8 @@ public class MainActivity
     long frameNumber = 0;
 //    PowerManager.WakeLock screenLock;
 
+
+    VosTaskSet vosTaskSet;
 
     private BaseLoaderCallback _baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -300,6 +302,9 @@ public class MainActivity
     protected void init(NodeMainExecutor nodeMainExecutor) // configure nodes: config gets fed to an AsyncTask to start the Nodes in a Bound Service: see https://developer.android.com/reference/android/app/Service.html , https://developer.android.com/guide/components/processes-and-threads.html
     {
         final String NODE_NAMESPACE = Naming.cameraNamespace(getCamNum());
+
+        vosTaskSet = new VosTaskSet();
+
         System.out.print("init: camNum=");System.out.print(getCamNum()); System.out.print("NODE_NAMESPACE = ");System.out.println(NODE_NAMESPACE);
 
         URI masterURI = getMasterUri();
@@ -372,6 +377,7 @@ public class MainActivity
             nodeMainExecutor.execute(this.localiseFromAFeatureClient, nodeConfiguration8);
         }
 
+
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
             nodeConfiguration8.setMasterUri(masterURI);
@@ -383,18 +389,29 @@ public class MainActivity
             // TODO - this.whereIsSubscriber = new WhereIsSubscriber(this);
             // TODO - registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
             // robot target marker
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","210",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","210",1));
             // robot model markers
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","170",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","250",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","290",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","330",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","170",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","250",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","290",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","330",1));
             // fixed-position markers for PnP
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","650",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","690",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","730",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","770",1));
-            addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","810",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","650",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","690",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","730",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","770",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","810",1));
+
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","850",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","930",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1090",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1010",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","970",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1050",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","890",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1250",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1210",1));
+            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1170",1));
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -566,34 +583,14 @@ public class MainActivity
     }
 
 
-    ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
-
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         synchronized (this) {
-            addVisionTaskToQueue(message);
+            vosTaskSet.addVisionTaskToQueue(message);
         }
     }
 
-    private void addVisionTaskToQueue(WhereIsAsPub message) {
-        taskQueue.add(new VisionTask()
-                .algorithm(message.getAlgorithm())
-                .descriptor(message.getDescriptor())
-                .requestId(message.getRequestId())
-                .relationToBase(message.getRelationToBase())
-                .returnUrl(message.getReturnUrl())
-                .executionIterations(message.getRate()));
-    }
 
-    private void addVisionTaskToQueue(WhereIsAsPubLocal message) {
-        taskQueue.add(new VisionTask()
-                .algorithm(message.getAlgorithm())
-                .descriptor(message.getDescriptor())
-                .requestId(message.getRequestId())
-                .relationToBase(message.getRelationToBase())
-                .returnUrl(message.getReturnUrl())
-                .executionIterations(message.getRate()));
-    }
 
 
     boolean screenLocked = false;
@@ -655,9 +652,9 @@ public class MainActivity
 
         // start BoofCV
         byte[] current_image_bytes = last_frame_bytes();
-        removeExpiredVisionTasks();
+        vosTaskSet.removeExpiredVisionTasks();
         CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
-        if(null!=current_image_bytes  && !taskQueue.isEmpty()) {
+        if(null!=current_image_bytes  && vosTaskSet.isThereAVisionTaskToExecute() ) {
                 Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
                 Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
@@ -695,7 +692,7 @@ public class MainActivity
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
-                    if(isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
+                    if(vosTaskSet.isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
                             Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
                         drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
                     } else { // not part of something that we are looking for, so ignore
@@ -749,15 +746,18 @@ public class MainActivity
                         /* Dev: part of robot visual model */
                         robotsDetected.put(singleDummyRobotId,robotFeatures);
                         if(isPartOfRobotVisualModel(tag_id)) {
+                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id);
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
                         } else if(isALandmark(tag_id)) {
+                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id);
                             Point2D_F64 locationPixel = new Point2D_F64();
                             detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
                             landmarkFeatures.add(detectedTag);
+                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size());
                         } else { // not part of something that we are looking for, so ignore
-                                Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id");
+                                Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
@@ -1149,19 +1149,6 @@ public class MainActivity
 ////  end 2017_05_11 homography attempt - comment out the non-homography
     }
 
-    private boolean isThereAVisionTaskToExecute(int tag_id, String logTagTag) {
-        boolean visionTaskToExecute = false;
-        synchronized (this) {
-            for (VisionTask visionTask : taskQueue) {
-                Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
-                if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
-                    Log.i(logTagTag,"will execute vision task "+visionTask);
-                    visionTaskToExecute = true;
-                }
-            }
-        }
-        return visionTaskToExecute;
-    }
 
     private void rotateImage() {
         //        Core.flip(matGray,matGray,1);
@@ -1232,32 +1219,45 @@ public class MainActivity
     private Se3_F64 updatePoseEstimate(List<DetectedTag> landmarkFeatures) {
 
 /*  TODO - HARDCODING  */
-        fixedLandmarks.put(690,new double[]{-40.0,510.0});  // todo - some visualisation of the world points nominated - e.g. --> RViz markers
-        fixedLandmarks.put(650,new double[]{380.0,510.0});
-        fixedLandmarks.put(770,new double[]{380.0,  0.0});
-        fixedLandmarks.put(730,new double[]{  0.0,  0.0});
+        fixedLandmarks.put(690,new double[]{0.0, -40.0, 510.0});  // todo - some visualisation of the world points nominated - e.g. --> RViz markers
+        fixedLandmarks.put(650,new double[]{0.0, 380.0, 510.0});
+        fixedLandmarks.put(770,new double[]{0.0, 380.0,   0.0});
+        fixedLandmarks.put(730,new double[]{0.0,   0.0,   0.0});
+        fixedLandmarks.put(850,new double[]{0.0,    2560,   1540});
+        fixedLandmarks.put(930,new double[]{0.0,    2270,   1170});
+        fixedLandmarks.put(1090,new double[]{0.0,   1955,   1490});
+        fixedLandmarks.put(1010,new double[]{0.0,   1650,   1540});
+        fixedLandmarks.put(970,new double[]{0.0,    1365,   1070});
+        fixedLandmarks.put(1050,new double[]{0.0,   1060,   1390});
+        fixedLandmarks.put(890,new double[]{0.0,    1050,   1020});
+        fixedLandmarks.put(1250,new double[]{-280,   0.0,    1340});
+        fixedLandmarks.put(1210,new double[]{-380,   0.0,    920});
+        fixedLandmarks.put(1170,new double[]{-750,   0.0,    1260});
 /*  TODO - HARDCODING  */
 
         double[] worldX = new double[landmarkFeatures.size()];
         double[] worldY = new double[landmarkFeatures.size()];
+        double[] worldZ = new double[landmarkFeatures.size()];
         double[] pixelsX = new double[landmarkFeatures.size()];
         double[] pixelsY = new double[landmarkFeatures.size()];
         int i_ = 0;
         for (DetectedTag tag:
              landmarkFeatures) {
             double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
-            Point2D_F64 pixelLocation = tag.getLocationPixel();
-            worldX[i_]  = worldCoordinates[0];
-            worldY[i_]  = worldCoordinates[1];
-            pixelsX[i_] = pixelLocation.getX();
-            pixelsY[i_] = pixelLocation.getY();
-
-            i_++;
+            if(null != worldCoordinates) {
+                Point2D_F64 pixelLocation = tag.getLocationPixel();
+                worldX[i_] = worldCoordinates[0];
+                worldY[i_] = worldCoordinates[1];
+                worldZ[i_] = worldCoordinates[2];
+                pixelsX[i_] = pixelLocation.getX();
+                pixelsY[i_] = pixelLocation.getY();
+                i_++;
+            }
         }
         PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
         return estimator.estimateCameraPoseFrom3D2DPointMatches(
                 CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
-                landmarkFeatures.size(), worldX, worldY, pixelsX, pixelsY);
+                landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
 
     }
 
@@ -1324,24 +1324,6 @@ public class MainActivity
         Log.i("displayTagCentre_OpenCV","end");
     }
 
-    private Object taskQueueLock = new Object();
-
-    private void removeExpiredVisionTasks() {
-        ArrayList<VisionTask> toRemove = new ArrayList<VisionTask>();
-        synchronized (this) {
-            for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
-                Log.i("removeExpiredVisionTask","vision task is now "+task);
-                if(!task.canBeExecuted()) {
-                    toRemove.add(task);     // could leave them in and only remove once a few have built up
-                    Log.i("removeExpiredVisionTask","removed vision task "+task);
-                }
-                task.executed();
-            }
-            // TODO - not removing - for quicker test setup
-            // TODO     taskQueue.removeAll(toRemove);
-            // TODO - not removing - for quicker test setup
-        }
-    }
 
     /* Dev: part of robot visual model */
     private boolean isPartOfRobotVisualModel(int tag_id) {
@@ -1350,7 +1332,7 @@ public class MainActivity
 
     /* Dev: part of knowledge about landmarks */
     private boolean isALandmark(int tag_id) {
-        return tag_id == 650 || tag_id == 690 || tag_id == 730 || tag_id == 770 || tag_id == 810;
+        return tag_id == 650 || tag_id == 690 || tag_id == 730 || tag_id == 770 || tag_id == 810 || tag_id == 850 || tag_id == 930 || tag_id == 1090 || tag_id == 1010 || tag_id == 970 || tag_id == 1050 || tag_id == 890 || tag_id == 1250 || tag_id == 1210 || tag_id == 1170;
     }
 
     private boolean isAnOutlier(DetectedFeature feature_) {

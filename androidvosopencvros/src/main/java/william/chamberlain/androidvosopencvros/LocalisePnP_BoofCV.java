@@ -53,6 +53,7 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
         // test #2 : reduced set: check whether is stable for smaller baseline.
         double[] worldX_test  = {1280,               1920,               1920,               1280};
         double[] worldY_test  = {1920,               1920,               2240,               2240};
+        double[] worldZ_test  = {0,               0,               0,               0};
         double[] pixelsX_test = {2839.60714285714,	3518.62500000000,	3278.35714285714,	2648.08928571429};
         double[] pixelsY_test = {2700.90178571429,	2526.79464285714,	2331.79464285714,	2478.04464285714};
 
@@ -65,7 +66,7 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
             numPointsToUse = Integer.parseInt(args[0]);
         }
         System.out.println("Estimate camera pose from real image, measured pixels, and measured world points.");
-        Se3_F64 refinedWorldToCamera = app.estimateCameraPoseFrom3D2DPointMatches(cameraDistortionCoefficients, numPointsToUse, worldX_test, worldY_test, pixelsX_test, pixelsY_test);
+        Se3_F64 refinedWorldToCamera = app.estimateCameraPoseFrom3D2DPointMatches(cameraDistortionCoefficients, numPointsToUse, worldX_test, worldY_test, worldZ_test, pixelsX_test, pixelsY_test);
 
         System.out.println("refinedWorldToCamera:");
         int numElementsInRot = refinedWorldToCamera.R.getNumElements();
@@ -97,11 +98,11 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
      - -0.1418426025730499
      */
     @Override
-    public Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] pixelsX, double[] pixelsY) {
-        return estimateCameraPoseFrom3D2DPointMatchesStatic(cameraDistortionCoefficients,  numPointsToUse,  worldX,  worldY,  pixelsX,  pixelsY);
+    public Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY) {
+        return estimateCameraPoseFrom3D2DPointMatchesStatic(cameraDistortionCoefficients,  numPointsToUse,  worldX,  worldY,  worldZ, pixelsX,  pixelsY);
     }
 
-    public static Se3_F64 estimateCameraPoseFrom3D2DPointMatchesStatic(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] pixelsX, double[] pixelsY) {
+    public static Se3_F64 estimateCameraPoseFrom3D2DPointMatchesStatic(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY) {
         // CameraPinholeRadial(double fx, double fy, double skew, double cx, double cy, int width, int height)
 
         List<Point2D3D> observations = new ArrayList<Point2D3D>();
@@ -113,9 +114,9 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
         z=0;
         double x_pixel,y_pixel;
         for (int i_ = 0; i_ < worldX.length && i_< numPointsToUse; i_++) {
-            x=worldX[i_];          y=worldY[i_];               z=0;  // world 3d coordinates
             x_pixel=pixelsX[i_];   y_pixel=pixelsY[i_];
             pixelToNormAndRectTrans.compute(x_pixel,y_pixel,normalisedAndRectPoint); //rectify and normalise
+            x=worldX[i_];          y=worldY[i_];               z=worldZ[i_];  // world 3d coordinates
             addToObservations( x, y, z, normalisedAndRectPoint,  observations ); // Save the observation
         }
         // get the PnP estimate
