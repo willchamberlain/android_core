@@ -75,6 +75,7 @@ import boofcv.factory.fiducial.FactoryFiducial;
 import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
 import boofcv.struct.calib.CameraPinhole;
+import boofcv.struct.calib.CameraPinholeRadial;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
@@ -119,6 +120,7 @@ public class MainActivity
         ResilientNetworkActivity {
 
     public static final double BOOFCV_TAG_SIZE_M = 0.13; //0.20;  //0.14  //14.0            ////  TODO - list of tags and sizes, and tag-groups and sizes
+    private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
 
     public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_BACK;
@@ -745,19 +747,18 @@ public class MainActivity
 
                         /* Dev: part of robot visual model */
                         robotsDetected.put(singleDummyRobotId,robotFeatures);
+                        Point2D_F64 locationPixel = new Point2D_F64();
+                        detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                         if(isPartOfRobotVisualModel(tag_id)) {
-                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id);
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
+                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                         } else if(isALandmark(tag_id)) {
-                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id);
-                            Point2D_F64 locationPixel = new Point2D_F64();
-                            detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
                             landmarkFeatures.add(detectedTag);
-                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size());
+                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
                         } else { // not part of something that we are looking for, so ignore
-                                Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id);
+                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
@@ -1213,27 +1214,11 @@ public class MainActivity
         }
     }
 
-    private HashMap<Integer, double[]> fixedLandmarks = new HashMap<Integer, double[]>();
+    private HashMap<Integer, double[]> fixedLandmarks;
 
 
     private Se3_F64 updatePoseEstimate(List<DetectedTag> landmarkFeatures) {
-
-/*  TODO - HARDCODING  */
-        fixedLandmarks.put(690,new double[]{0.0, -40.0, 510.0});  // todo - some visualisation of the world points nominated - e.g. --> RViz markers
-        fixedLandmarks.put(650,new double[]{0.0, 380.0, 510.0});
-        fixedLandmarks.put(770,new double[]{0.0, 380.0,   0.0});
-        fixedLandmarks.put(730,new double[]{0.0,   0.0,   0.0});
-        fixedLandmarks.put(850,new double[]{0.0,    2560,   1540});
-        fixedLandmarks.put(930,new double[]{0.0,    2270,   1170});
-        fixedLandmarks.put(1090,new double[]{0.0,   1955,   1490});
-        fixedLandmarks.put(1010,new double[]{0.0,   1650,   1540});
-        fixedLandmarks.put(970,new double[]{0.0,    1365,   1070});
-        fixedLandmarks.put(1050,new double[]{0.0,   1060,   1390});
-        fixedLandmarks.put(890,new double[]{0.0,    1050,   1020});
-        fixedLandmarks.put(1250,new double[]{-280,   0.0,    1340});
-        fixedLandmarks.put(1210,new double[]{-380,   0.0,    920});
-        fixedLandmarks.put(1170,new double[]{-750,   0.0,    1260});
-/*  TODO - HARDCODING  */
+        loadLandmarkFeaturesOnce();
 
         double[] worldX = new double[landmarkFeatures.size()];
         double[] worldY = new double[landmarkFeatures.size()];
@@ -1255,10 +1240,21 @@ public class MainActivity
             }
         }
         PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
+        FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator(); focalLengthCalculator.invoke();
+        CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
+        //CameraPinhole(double fx, double fy, double skew, double cx, double cy, int width, int height)
+        CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(focalLengthCalculator.focal_length_in_pixels_x, focalLengthCalculator.focal_length_in_pixels_y, 0, calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), (int)matGray.size().width, (int)matGray.size().height);
+
         return estimator.estimateCameraPoseFrom3D2DPointMatches(
-                CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
+                cameraIntrinsics,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
                 landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
 
+    }
+
+    private void loadLandmarkFeaturesOnce() {
+        /*  TODO - HARDCODING  */
+        if(null == fixedLandmarks) {fixedLandmarks = landmarkFeatureLoader.loadLandmarkFeatures();}
+        /*  TODO - HARDCODING  */
     }
 
     private void eventLog_DetectedFeaturesClient_notAvailable(String tagId) {
