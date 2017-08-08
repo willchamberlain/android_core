@@ -94,6 +94,7 @@ configurations {
 
 dependencies {
     compile project(':android_15')
+    compile project(':vos')
     compile project(':openCVLibrary310')
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'

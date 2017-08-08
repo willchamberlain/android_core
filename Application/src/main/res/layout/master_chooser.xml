@@ -25,13 +25,13 @@
             android:layout_weight="20"
             android:hint="@string/master_uri_hint"
             android:singleLine="true">
-
             <requestFocus/>
         </EditText>
     </LinearLayout>
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="fill_parent">
+
         <TextView
             android:id="@+id/textView2"
             android:layout_width="wrap_content"
@@ -39,6 +39,7 @@
             android:layout_weight="1"
             android:text="@string/cam_num_text"
             android:textSize="18dp"/>
+
         <EditText
             android:id="@+id/cam_num_chooser_num"
             android:layout_width="0dp"
@@ -129,14 +130,13 @@
         </LinearLayout>
 
     </LinearLayout>
-
     <Button
-        android:id="@+id/master_chooser_cancel"
-        style="@style/padded"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:onClick="cancelButtonClicked"
-        android:text="@string/cancel"/>
+    android:id="@+id/master_chooser_cancel"
+    style="@style/padded"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:onClick="cancelButtonClicked"
+    android:text="@string/cancel"/>
 
 </LinearLayout>

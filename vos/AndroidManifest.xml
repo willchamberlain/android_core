@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest package="william.chamberlain.vos"/> <!-- 'package' name for Android to label generated compenent classes e.g. org.ros.android.android_15 in [path]/android_core/android_15/build/generated/source/r/release/org/ros/android/android_15/R.java -->

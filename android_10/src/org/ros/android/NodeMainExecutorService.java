@@ -57,7 +57,10 @@ import java.util.concurrent.ScheduledExecutorService;
 /**
  * @author damonkohler@google.com (Damon Kohler)
  */
-public class NodeMainExecutorService extends Service implements NodeMainExecutor {
+public class NodeMainExecutorService
+        extends Service             /** ... A Service is an application component representing either an application's desire to perform a longer-running operation while not interacting with the user or to supply functionality for other applications to use.  Each service class must have a corresponding {@link android.R.styleable#AndroidManifestService &lt;service&gt;} declaration in its package's <code>AndroidManifest.xml</code>.  Services can be started with {@link android.content.Context#startService Context.startService()} and {@link android.content.Context#bindService Context.bindService()}. ... */
+        implements NodeMainExecutor /** ... Executes {@link NodeMain}s and allows shutting down individual {@link NodeMain}s or all currently running {@link NodeMain}s as a group. */
+{
 
   private static final String TAG = "NodeMainExecutorService";
 
@@ -87,7 +90,7 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
    * Class for clients to access. Because we know this service always runs in
    * the same process as its clients, we don't need to deal with IPC.
    */
-  class LocalBinder extends Binder {
+  class LocalBinder extends Binder {  /** ... a remotable object, the core part of a lightweight remote procedure call mechanism ... */
     NodeMainExecutorService getService() {
       return NodeMainExecutorService.this;
     }
@@ -100,15 +103,23 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
     binder = new LocalBinder();
     listeners =
         new ListenerGroup<NodeMainExecutorServiceListener>(
-            nodeMainExecutor.getScheduledExecutorService());
+            nodeMainExecutor.getScheduledExecutorService());  /** ... An { ExecutorService} that can schedule commands to run after a given delay, or to execute periodically ... */
   }
 
   @Override
   public void onCreate() {
     handler = new Handler();
+    acquirePowerWakeLock();
+    acquireWiFiLock();
+  }
+
+  private void acquirePowerWakeLock() {
     PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
     wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
     wakeLock.acquire();
+  }
+
+  private void acquireWiFiLock() {
     int wifiLockType = WifiManager.WIFI_MODE_FULL;
     try {
       wifiLockType = WifiManager.class.getField("WIFI_MODE_FULL_HIGH_PERF").getInt(null);
@@ -117,7 +128,6 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
       Log.w(TAG, "Unable to acquire high performance wifi lock.");
     }
     WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-
     wifiLock = wifiManager.createWifiLock(wifiLockType, TAG);
     wifiLock.acquire();
   }
@@ -203,6 +213,9 @@ public class NodeMainExecutorService extends Service implements NodeMainExecutor
     super.onDestroy();
   }
 
+  /**
+   * ... called by the system every time a client explicitly starts the service by calling {@link android.content.Context#startService} ...
+   */
   @Override
   public int onStartCommand(Intent intent, int flags, int startId) {
     if (intent.getAction() == null) {

@@ -120,6 +120,7 @@ public class MainActivity
         ResilientNetworkActivity {
 
     public static final double BOOFCV_TAG_SIZE_M = 0.13; //0.20;  //0.14  //14.0            ////  TODO - list of tags and sizes, and tag-groups and sizes
+    public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
 
@@ -298,6 +299,7 @@ public class MainActivity
             _baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
+
 
 
     @Override
@@ -773,11 +775,11 @@ public class MainActivity
                     }
                 }
                 updateTrackingData(robotFeatures);
-                if(4>=landmarkFeatures.size()) {
+                if(FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
                     Se3_F64 cameraPose = updatePoseEstimate(landmarkFeatures);
                     int numElementsInRot = cameraPose.R.getNumElements();
                     Vector3D_F64 translation = cameraPose.T;
-                    Log.i(TAG, "onCameraFrame: cameraPose: rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + ", translation =" + translation.toString());
+                    Log.i(TAG, "onCameraFrame: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
                 } else {
                     Log.i(TAG, "onCameraFrame: cameraPose: not enough landmarks detected to estimate camera pose.");
                 }

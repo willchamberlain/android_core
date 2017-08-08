@@ -49,6 +49,14 @@ public abstract class RosActivity extends Activity {
   protected NodeMainExecutorService nodeMainExecutorService;
   protected boolean readyToProcessImages = false;
 
+/***************************************************************************************************/
+  /**
+   * Interface for monitoring the state of an application service.  See
+   * {@link android.app.Service} and
+   * { Context#bindService Context.bindService() } for more information.
+   * <p>Like many callbacks from the system, the methods on this class are called
+   * from the main thread of your process.
+   */
   private final class NodeMainExecutorServiceConnection implements ServiceConnection {
 
     private URI customMasterUri;
@@ -59,7 +67,11 @@ public abstract class RosActivity extends Activity {
     }
 
     URI[] masterUriList = new URI[]{};
-
+    /**
+     * Called when a connection to the Service has been established, with
+     * the {@link android.os.IBinder} of the communication channel to the
+     * Service.
+     */
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
       // See https://developer.android.com/guide/components/bound-services.html
@@ -104,10 +116,19 @@ public abstract class RosActivity extends Activity {
       }
     }
 
+    /**
+     * Called when a connection to the Service has been lost.  This typically
+     * happens when the process hosting the service has crashed or been killed.
+     * This does <em>not</em> remove the ServiceConnection itself -- this
+     * binding to the service will remain active, and you will receive a call
+     * to {@link #onServiceConnected} when the Service is next running.
+     */
     @Override
     public void onServiceDisconnected(ComponentName name) {
     }
   };
+
+/***************************************************************************************************/
 
   protected RosActivity(String notificationTicker, String notificationTitle) {
     this(notificationTicker, notificationTitle, null);
@@ -170,7 +191,7 @@ public abstract class RosActivity extends Activity {
     Preconditions.checkState(getMasterUri() == null);
     // Call this method on super to avoid triggering our precondition in the
     // overridden startActivityForResult().
-    super.startActivityForResult(new Intent(this, MasterChooser.class), 0);
+    super.startActivityForResult(new Intent(this, MasterChooser.class), 0);  // start the MasterChooser activity to get the ROS Master/roscore URL and cam_id/cam number
   }
 
   public int getCamNum() {
