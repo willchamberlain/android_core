@@ -5,7 +5,7 @@ package william.chamberlain.androidvosopencvros;
  *
  * Created by will on 2/03/17.
  */
-public interface DimmableScreen {
+public interface DimmableScreenUnused {
 
     /**
      * Turns off / dims the screen as far as possible.

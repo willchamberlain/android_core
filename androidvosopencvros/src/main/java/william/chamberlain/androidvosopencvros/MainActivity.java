@@ -117,11 +117,12 @@ public class MainActivity
             DetectedFeaturesHolder,
         ImuCallback,
         DimmableScreen, VariableResolution, VisionSource,
-        ResilientNetworkActivity {
+        ResilientNetworkActivity, VisionSource_WhereIs {
 
     public static final double BOOFCV_TAG_SIZE_M = 0.13; //0.20;  //0.14  //14.0            ////  TODO - list of tags and sizes, and tag-groups and sizes
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
+
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
 
     public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_BACK;
@@ -392,30 +393,7 @@ public class MainActivity
             // TODO - could set the Subscribers up on demand - just frame as network config
             // TODO - this.whereIsSubscriber = new WhereIsSubscriber(this);
             // TODO - registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
-            // robot target marker
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","210",1));
-            // robot model markers
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","170",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","250",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","290",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","330",1));
-            // fixed-position markers for PnP
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","650",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","690",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","730",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","770",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","810",1));
-
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","850",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","930",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1090",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1010",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","970",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1050",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","890",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1250",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1210",1));
-            vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv","1170",1));
+            Hardcoding.hardcodeTargetMarkers(vosTaskSet);
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -458,6 +436,14 @@ public class MainActivity
 //        }
 
 
+    }
+
+    private void hardcodeTargetMarkers() {
+        // robot target marker
+        // robot model markers
+        // fixed-position markers for PnP
+
+        Hardcoding.hardcodeTargetMarkers(vosTaskSet);
     }
 
     public URI[] possibleMasterUris() {
@@ -587,6 +573,8 @@ public class MainActivity
     }
 
 
+    /*** implement VisionSource_WhereIs ***********************************************************/
+
     public void dealWithRequestForInformation(WhereIsAsPub message){
         Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         synchronized (this) {
@@ -594,6 +582,7 @@ public class MainActivity
         }
     }
 
+    /*** end implement VisionSource_WhereIs ***********************************************************/
 
 
 
@@ -609,6 +598,7 @@ public class MainActivity
     List<Point2D_F64> robotFeatureTrackingAverages = new ArrayList<Point2D_F64>();      // TODO - make this a queue or something that won't overrun
     Object robotFeatureTrackingMonitor = new Object();
 
+    /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
             /* Dev: part of robot visual model */
             HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
@@ -1402,6 +1392,8 @@ public class MainActivity
                 +", focal length y = "+  focal_length_in_pixels_y );
     }
 
+    /*** implement DimmableScreen *****************************************************************/
+
     @Override
     public void screenOff() {
         screenLocked = true;
@@ -1425,6 +1417,7 @@ public class MainActivity
         screenOn(1.0f);
     }
 
+    @Override
     public void screenOn(float percentBrightness) {
         screenLocked = false;
         if(0.0 > percentBrightness) {
@@ -1445,13 +1438,14 @@ public class MainActivity
         });
     }
 
-    public void displayGrey() {
-        displayRgb = false;
-    }
+    @Override
+    public void displayGrey() { displayRgb = false; }
 
-    public void displayRgb() {
-        displayRgb = true;
-    }
+    @Override
+    public void displayRgb() { displayRgb = true; }
+
+    /*** end implement DimmableScreen *****************************************************************/
+
 
     @Override
     public void setPose(double[] poseXyz, double[] orientationQuaternion_) {

@@ -12,10 +12,10 @@ import vos_aa1.WhereIsAsPub;
 
 public class WhereIsSubscriber {
     Subscriber<WhereIsAsPub> subscriber;
-    MainActivity activity;
+    VisionSource_WhereIs visionSource;
 
-    public WhereIsSubscriber(MainActivity activity_) {
-        activity = activity_;
+    public WhereIsSubscriber(VisionSource_WhereIs activity_) {
+        visionSource = activity_;
     }
 
 
@@ -25,6 +25,6 @@ public class WhereIsSubscriber {
 
     public void called(WhereIsAsPub message){
         Log.i("WhereIsSubscriber","called(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
-        activity.dealWithRequestForInformation(message);
+        visionSource.dealWithRequestForInformation(message);
     }
 }

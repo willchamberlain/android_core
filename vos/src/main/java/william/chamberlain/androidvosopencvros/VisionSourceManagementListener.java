@@ -15,9 +15,6 @@ import java.util.regex.Pattern;
 import std_msgs.String;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 
-import static william.chamberlain.androidvosopencvros.VisionSource.ROBOT_ALLOCATION_KEY;
-import static william.chamberlain.androidvosopencvros.VisionSource.TARGET_ALLOCATION_KEY;
-
 /**
  * Listens for management commands on the /management topic.
  *
@@ -133,10 +130,10 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             dimmableScreen.displayGrey();
                             break;
                         case ALLOCATE_TO_ROBOT:
-                            visionSource.allocateTo(ROBOT_ALLOCATION_KEY);
+                            visionSource.allocateTo(VisionSource.ROBOT_ALLOCATION_KEY);
                             break;
                         case ALLOCATE_TO_TARGET:
-                            visionSource.allocateTo(TARGET_ALLOCATION_KEY);
+                            visionSource.allocateTo(VisionSource.TARGET_ALLOCATION_KEY);
                             break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");

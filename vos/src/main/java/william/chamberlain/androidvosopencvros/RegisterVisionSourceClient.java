@@ -141,7 +141,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
                 }
                 /*
                 */
-                Matcher matcher = posePattern.matcher(response.getAcknowledgement());
+                Matcher matcher = DataExchange.posePattern.matcher(response.getAcknowledgement());
                 if(matcher.matches()) {
                     double x = Double.parseDouble(matcher.group(2));
                     double y = Double.parseDouble(matcher.group(3));
