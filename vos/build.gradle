@@ -22,6 +22,14 @@ android {
 }
 dependencies {
     compile project(':android_15')
+
+    ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
+    compile ('org.ddogleg:ddogleg:0.10') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'}
+    compile ('org.ejml:all:0.30') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
+    compile ('org.georegression:georegression:0.12') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
 }
 
 sourceCompatibility = "1.7"

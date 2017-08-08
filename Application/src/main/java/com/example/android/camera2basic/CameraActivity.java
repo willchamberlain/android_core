@@ -30,9 +30,15 @@ import org.ros.node.NodeMainExecutor;
 import java.net.URI;
 import java.util.ArrayList;
 
+import geometry_msgs.Point;
 import geometry_msgs.Pose;
+import geometry_msgs.Quaternion;
+import vos_aa1.LocaliseFromAFeatureRequest;
+import vos_aa1.VisualFeatureObservation;
 import william.chamberlain.androidvosopencvros.DetectedFeaturesClient;
+import william.chamberlain.androidvosopencvros.Geometry;
 import william.chamberlain.androidvosopencvros.Hardcoding;
+import william.chamberlain.androidvosopencvros.LocaliseFromAFeatureClient;
 import william.chamberlain.androidvosopencvros.Naming;
 import william.chamberlain.androidvosopencvros.PosedEntity;
 import william.chamberlain.androidvosopencvros.RegisterVisionSourceClient;
@@ -42,6 +48,8 @@ import william.chamberlain.androidvosopencvros.VisionSource;
 import william.chamberlain.androidvosopencvros.VisionSourceManagementListener;
 import william.chamberlain.androidvosopencvros.VosTaskSet;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
+
+import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 
 public class CameraActivity
         extends RosActivity
@@ -114,6 +122,7 @@ public class CameraActivity
 
     private DetectedFeaturesClient detectedFeaturesClient;
     private VisionSourceManagementListener visionSourceManagementListener;
+    private LocaliseFromAFeatureClient localiseFromAFeatureClient;
     private RegisterVisionSourceClient registerVisionSourceClient;
 
     public CameraActivity() {
@@ -151,6 +160,16 @@ public class CameraActivity
             visionSourceManagementListener.setVariableResolution(this);
             visionSourceManagementListener.setVisionSource(this);
             nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
+        }
+
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceclient_node");
+            this.localiseFromAFeatureClient = new LocaliseFromAFeatureClient();
+            localiseFromAFeatureClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
+            localiseFromAFeatureClient.setPosedEntity(this);
+            nodeMainExecutor.execute(this.localiseFromAFeatureClient, nodeConfiguration8);
         }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
@@ -199,16 +218,41 @@ public class CameraActivity
         Log.i("CameraActivity","onResume: end");
     }
 
+
+    /*****************************************/
+
+
+
     boolean registeredAsVisionSource = false;
     public void registerAsVisionSource() {                //// TODO - move into control loop
         if (!registeredAsVisionSource & null != registerVisionSourceClient) {
             String logTag = "c"+getCamNum();
-            Log.i(logTag,"start registering as a vision source");       //// TODO - timing here  c[camera_num]-f[frameprocessed]
+            Log.i("CameraActivity",logTag+": registerAsVisionSource: start registering as a vision source");       //// TODO - timing here  c[camera_num]-f[frameprocessed]
             registerVisionSourceClient.registerVisionSource();
             registeredAsVisionSource = true;
-            Log.i(logTag,"finished registering as a vision source");    //// TODO - timing here  c[camera_num]-f[frameprocessed]
+            Log.i("CameraActivity",logTag+": registerAsVisionSource: finished registering as a vision source");    //// TODO - timing here  c[camera_num]-f[frameprocessed]
         }
     }
+
+    public void reportDetectedFeature(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
+        detectedFeaturesClient.reportDetectedFeature(9000+tagId,
+                x, y, z,
+                qx, qy, qz, qw);
+    }
+
+
+    public void updateLocationFromDetectedFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw) {
+        String logTag = "c"+getCamNum();
+        if (!poseKnown) {
+            Log.i("CameraActivity",logTag+": updateLocationFromDetectedFeature: before localiseFromAFeatureClient.localiseFromAFeature");
+            localiseFromAFeatureClient.localiseFromAFeature(tagId,
+                    x, y, z,
+                    qx, qy, qz, qw);
+            //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+            Log.i("CameraActivity",logTag+": updateLocationFromDetectedFeature: after localiseFromAFeatureClient.localiseFromAFeature");
+        }
+    }
+
 
     /******************************************/
 

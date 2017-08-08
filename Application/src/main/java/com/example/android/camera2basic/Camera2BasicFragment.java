@@ -63,6 +63,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.ops.CommonOps;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -71,6 +74,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +99,15 @@ import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
 import boofcv.struct.calib.CameraPinhole;
 import boofcv.struct.image.GrayF32;
+import georegression.geometry.ConvertRotation3D_F64;
+import georegression.struct.EulerType;
+import georegression.struct.point.Point2D_F64;
+import georegression.struct.point.Vector3D_F64;
+import georegression.struct.se.Se3_F64;
+import georegression.struct.so.Quaternion_F64;
+import william.chamberlain.androidvosopencvros.DetectedTag;
+import william.chamberlain.androidvosopencvros.Hardcoding;
+import william.chamberlain.androidvosopencvros.RobotId;
 import william.chamberlain.androidvosopencvros.RosThingy;
 
 
@@ -1375,6 +1388,14 @@ public class Camera2BasicFragment extends Fragment
 
         @Override
         protected Long doInBackground(Void... params) { //(Image...  images) {
+
+            /* Dev: part of robot visual model */
+            HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
+            RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
+            List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
+            List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
+            /* end Dev: part of robot visual model */
+
             executionThreadId = Thread.currentThread().getId();
             String logTag = "ImgeSv_p="+executionThreadId;
             long procStartTime = Calendar.getInstance().getTimeInMillis();
@@ -1443,10 +1464,13 @@ public class Camera2BasicFragment extends Fragment
                         Log.i(logTag, "doInBackground() : start detector.detect(grayImage) at " + timeNow);
                     detector.detect(grayImage);
                         Log.i(logTag, "doInBackground() : after detector.detect(grayImage) in " + timeElapsed(timeNow) + "ms: time since start = " + timeElapsed(procStartTime) + "ms");
-                    for (int i = 0; i < detector.totalFound(); i++) {
+                    for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
+                        String logTagIteration = logTag+" c"+rosThingy.getCamNum()+"-detectionOrder_"+detectionOrder_;
                         timeNow = Calendar.getInstance().getTimeInMillis();
                         int tag_id = -1;
-                        MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, i, tag_id).invoke();
+                        MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
+
+
                         if (!isTagIdValid.isValid()) {
 //// todo - might want to do this processing and image processing in a background thread but then push the image into a short queue that the UI thread can pull the latest from
 //// todo (cont) e.g. see https://stackoverflow.com/questions/19216893/android-camera-asynctask-with-preview-callback
@@ -1464,18 +1488,86 @@ public class Camera2BasicFragment extends Fragment
                             continue;
                         }
                         tag_id = isTagIdValid.getTag_id();
+                        String logTagTag = logTagIteration+"-t"+tag_id;
 
                         finishedUsingGrayImage(grayImage); grayImage = null;  // finished using the image, return it to the queue : cannot use it after this point
 
                         if( detector.hasUniqueID() ) {
-                            long tag_id_long = detector.getId(i);
-                                Log.i(logTag, "doInBackground() : tag detection "+i+" after detector.getId("+i+") = "+tag_id_long+" in " + timeElapsed(timeNow) + "ms : in " + timeElapsed(procStartTime) + "ms from start");
+                            long tag_id_long = detector.getId(detectionOrder_);
+                                Log.i(logTag, "doInBackground() : tag detection "+detectionOrder_+" after detector.getId("+detectionOrder_+") = "+tag_id_long+" in " + timeElapsed(timeNow) + "ms : in " + timeElapsed(procStartTime) + "ms from start");
                             // if is for a current task, track it
 
                             // if is for a current task, report it
                         } else {
-                                Log.i(logTag, "doInBackground() : tag detection "+i+" has no id; detector.hasUniqueID() == false ");
+                                Log.i(logTag, "doInBackground() : tag detection "+detectionOrder_+" has no id; detector.hasUniqueID() == false ");
                             continue;
+                        }
+
+
+                        if( detector.is3D() ) {
+                            Log.i(logTagTag,"start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                            Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
+                            detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
+                            Log.i(logTagTag,"after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+
+                            Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
+                            Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
+                            ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                            System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                            System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+                            ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                            DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
+                                    = new DenseMatrix64F(new double[][]{
+                                    {  0.0 ,  0.0 , -1.0 } ,
+                                    { -1.0 ,  0.0 ,  0.0 } ,
+                                    {  0.0 , +1.0 ,  0.0 } });
+                            Se3_F64 sensorToTargetViaTransform = new Se3_F64();
+                            DenseMatrix64F sensorToTargetViaTransformRot = CommonOps.identity(3);
+                            CommonOps.mult(transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag,targetToSensor_boofcvFrame.getR(),sensorToTargetViaTransformRot);
+                            sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
+                            sensorToTargetViaTransform.setTranslation(transBoofCV_TtoS.getZ(), -1.0*transBoofCV_TtoS.getX(), -1.0*transBoofCV_TtoS.getY());
+                            Quaternion_F64 sensorToTargetViaTransformQuat = new Quaternion_F64();
+                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
+
+                            double[] eulerBefore=new double[]{0,0,0};
+                            ConvertRotation3D_F64.matrixToEuler(sensorToTargetViaTransformRot, EulerType.YXY,eulerBefore);
+                            double[] eulerAfter = new double[] { eulerBefore[0], -1.0*eulerBefore[1], eulerBefore[2] };  // robot+Z+Y+Z = boof+Y-X+Y
+                            ConvertRotation3D_F64.eulerToMatrix(EulerType.ZYZ, eulerAfter[0],   eulerAfter[1],      eulerAfter[2],    sensorToTargetViaTransformRot);
+                            sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
+                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
+
+                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                            Log.i(logTagTag,"after applying transformations");
+                            rosThingy.reportDetectedFeature(9000+tag_id,
+                                    sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                                    sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+
+                        /* Dev: part of robot visual model */
+                            robotsDetected.put(singleDummyRobotId,robotFeatures);
+                            Point2D_F64 locationPixel = new Point2D_F64();
+                            detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
+                            if(Hardcoding.isPartOfRobotVisualModel(tag_id)) {
+                                DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
+                                robotFeatures.add(detectedTag);
+                                Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            } else if(Hardcoding.isALandmark(tag_id)) {
+                                DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
+                                landmarkFeatures.add(detectedTag);
+                                Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
+                            } else { // not part of something that we are looking for, so ignore
+                                Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                                continue;
+                            }
+                        /* end Dev: part of robot visual model */
+
+                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                            Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
+                            updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
+//                            variousUnusedAttemptsAtCoordinateSystemCorrection();
+
+                        } else {  // 3D info not available for tag/marker
+//                            drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                         }
                     }
                 } catch (IOException e) {
@@ -1488,6 +1580,19 @@ public class Camera2BasicFragment extends Fragment
                 }
             executionEndTimeMs = Calendar.getInstance().getTimeInMillis();
             return new Long(0L);
+        }
+
+
+
+        private boolean  poseKnown   = false;
+        private void updateLocationFromDetectedFeature(int tag_id, String logTagTag, Se3_F64 sensorToTargetViaTransform, Quaternion_F64 sensorToTargetViaTransformQuat) {
+            if (!poseKnown) {
+                rosThingy.updateLocationFromDetectedFeature(tag_id,
+                        sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                        sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
+            }
         }
 
         private void recordPerformance(long startTime, int fps) {
