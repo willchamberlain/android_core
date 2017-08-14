@@ -102,6 +102,7 @@ import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
+import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -119,7 +120,7 @@ public class MainActivity
         DimmableScreen, VariableResolution, VisionSource,
         ResilientNetworkActivity, VisionSource_WhereIs {
 
-    public static final double BOOFCV_TAG_SIZE_M = 0.13; //0.20;  //0.14  //14.0            ////  TODO - list of tags and sizes, and tag-groups and sizes
+    //public static final double BOOFCV_TAG_SIZE_M = 0.189;  // 0.20  // 0.14 // 0.13;             ////  TODO - list of tags and sizes, and tag-groups and sizes
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
@@ -654,7 +655,7 @@ public class MainActivity
                 Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
             try {
                 FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
-                        new ConfigFiducialBinary(BOOFCV_TAG_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
+                        new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
 
                 //        detector.setLensDistortion(lensDistortion);
 
@@ -733,9 +734,13 @@ public class MainActivity
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after applying transformations");
-                        detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
+                        int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+                        detectedFeaturesClient.reportDetectedFeature(tag_id_reported,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
 
                         /* Dev: part of robot visual model */
                         robotsDetected.put(singleDummyRobotId,robotFeatures);
@@ -1009,7 +1014,7 @@ public class MainActivity
                 Quaternion_F64 meanSensorToTargetViaTransformQuat = new Quaternion_F64();
                 ConvertRotation3D_F64.matrixToQuaternion(meanSensorToTargetTransformRot, meanSensorToTargetViaTransformQuat);
                     Log.i(robotId_.idString(), "estimated pose from "+numTagsForRobot+" tag detections");
-                detectedFeaturesClient.reportDetectedFeature(9000+robotId_.idInt(),
+                detectedFeaturesClient.reportDetectedFeature(90000+robotId_.idInt(),
                     xTranslationMean, yTranslationMean, zTranslationMean,
                     meanSensorToTargetViaTransformQuat.x,meanSensorToTargetViaTransformQuat.y,meanSensorToTargetViaTransformQuat.z,meanSensorToTargetViaTransformQuat.w);
             }

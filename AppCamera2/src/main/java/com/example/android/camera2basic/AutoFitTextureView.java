@@ -17,6 +17,7 @@
 package com.example.android.camera2basic;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.util.AttributeSet;
 import android.view.TextureView;
 
@@ -72,5 +73,16 @@ public class AutoFitTextureView extends TextureView {
             }
         }
     }
+
+//    /* Subclasses of TextureView cannot do their own rendering with the canvas object. */
+//    protected void onDraw(Canvas canvas) {
+//    }
+
+    /**
+     * https://developer.android.com/reference/android/view/TextureView.html
+     * Using a TextureView is simple: all you need to do is get its SurfaceTexture.
+     * The SurfaceTexture can then be used to render content.
+     * The following example demonstrates how to render the camera preview into a TextureView:
+     */
 
 }

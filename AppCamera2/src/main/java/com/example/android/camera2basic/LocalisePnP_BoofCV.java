@@ -18,30 +18,37 @@
  */
 
 
-package william.chamberlain.androidvosopencvros;
+package com.example.android.camera2basic;
 
 
-        import boofcv.abst.geo.Estimate1ofPnP;
-        import boofcv.abst.geo.RefinePnP;
-        import boofcv.alg.distort.LensDistortionOps;
-        import boofcv.factory.geo.*;
-        import boofcv.struct.calib.CameraPinholeRadial;
-        import boofcv.struct.distort.Point2Transform2_F64;
-        import boofcv.struct.geo.Point2D3D;
-        import georegression.struct.point.Point2D_F64;
-        import georegression.struct.point.Point3D_F64;
-        import georegression.struct.se.Se3_F64;
+import org.ddogleg.fitting.modelset.ransac.Ransac;
 
-        import org.ddogleg.fitting.modelset.ransac.Ransac;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
+import boofcv.abst.geo.Estimate1ofPnP;
+import boofcv.abst.geo.RefinePnP;
+import boofcv.alg.distort.LensDistortionOps;
+import boofcv.alg.fiducial.square.QuadPoseEstimator;
+import boofcv.alg.geo.PerspectiveOps;
+import boofcv.factory.geo.ConfigPnP;
+import boofcv.factory.geo.ConfigRansac;
+import boofcv.factory.geo.EnumPNP;
+import boofcv.factory.geo.FactoryMultiView;
+import boofcv.factory.geo.FactoryMultiViewRobust;
+import boofcv.struct.calib.CameraPinholeRadial;
+import boofcv.struct.distort.Point2Transform2_F64;
+import boofcv.struct.geo.Point2D3D;
+import georegression.struct.point.Point2D_F64;
+import georegression.struct.point.Point3D_F64;
+import georegression.struct.point.Vector3D_F64;
+import georegression.struct.se.Se3_F64;
+import georegression.struct.shapes.Quadrilateral_F64;
 
-        import georegression.struct.point.Vector3D_F64;
 //        import org.ejml.data.DenseMatrix64F;
 //        import org.ejml.ops.CommonOps;
 
-        import java.util.ArrayList;
-        import java.util.List;
-        import java.util.Random;
 public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
 
     // describes the intrinsic camera parameters.
@@ -72,9 +79,8 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
         double[] pixelsY_test = {446.5404d,	419.1445d,	421.4275d,	449.3942d};
         //CameraPinholeRadial(double fx, double fy, double skew, double cx, double cy, int width, int height)
         CameraPinholeRadial intrinsic = new CameraPinholeRadial(432.4505,1009.4002,0,243,319,640,480).fsetRadial(0.0702,-0.11197);
-
-
-        CameraPinholeRadial cameraDistortionCoefficients = CameraIntrinsics.exampleCameraPinholeRadial();
+        //CameraPinholeRadial cameraDistortionCoefficients = CameraIntrinsics.exampleCameraPinholeRadial();
+        CameraPinholeRadial cameraDistortionCoefficients = intrinsic;
 
         PoseFrom3D2DPointMatches app = new LocalisePnP_BoofCV();
 
@@ -140,6 +146,28 @@ public class LocalisePnP_BoofCV implements PoseFrom3D2DPointMatches {
 //        Se3_F64 refinedWorldToCamera = estimateNoOutliers(observations);
         Se3_F64 refinedWorldToCamera = estimateOutliers(cameraDistortionCoefficients, observations);
         return refinedWorldToCamera;
+    }
+
+
+    public Se3_F64 estimateCameraPoseQuad(CameraPinholeRadial cameraDistortionCoefficients, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY) {
+        return estimateCameraPoseQuadStatic(cameraDistortionCoefficients, worldX, worldY, worldZ, pixelsX, pixelsY);
+    }
+
+    public static Se3_F64 estimateCameraPoseQuadStatic(CameraPinholeRadial cameraDistortionCoefficients, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY) {
+        QuadPoseEstimator estimator = new QuadPoseEstimator(1e-8, 200);  // TODO - try this!
+        estimator.setLensDistoriton(LensDistortionOps.transformPoint(cameraDistortionCoefficients));
+        estimator.setFiducial(worldX[0],worldY[0],worldX[1],worldY[1],worldX[2],worldY[2],worldX[3],worldY[3]);
+        Point2D_F64 normCorner1 = new Point2D_F64();
+        Point2D_F64 normCorner2 = new Point2D_F64();
+        Point2D_F64 normCorner3 = new Point2D_F64();
+        Point2D_F64 normCorner4 = new Point2D_F64();
+        PerspectiveOps.convertPixelToNorm(cameraDistortionCoefficients, new Point2D_F64(pixelsX[0], pixelsY[0]),normCorner1);
+        PerspectiveOps.convertPixelToNorm(cameraDistortionCoefficients, new Point2D_F64(pixelsX[1], pixelsY[1]),normCorner2);
+        PerspectiveOps.convertPixelToNorm(cameraDistortionCoefficients, new Point2D_F64(pixelsX[2], pixelsY[2]),normCorner3);
+        PerspectiveOps.convertPixelToNorm(cameraDistortionCoefficients, new Point2D_F64(pixelsX[3], pixelsY[3]),normCorner4);
+        Quadrilateral_F64 normCorners = new Quadrilateral_F64(normCorner1,normCorner2,normCorner3,normCorner4);
+        estimator.process(normCorners);
+        return estimator.getWorldToCamera();
     }
 
     /** ****************************************

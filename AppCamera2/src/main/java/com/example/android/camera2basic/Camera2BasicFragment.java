@@ -48,7 +48,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Process;
-import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
@@ -98,6 +97,7 @@ import boofcv.factory.fiducial.FactoryFiducial;
 import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
 import boofcv.struct.calib.CameraPinhole;
+import boofcv.struct.calib.CameraPinholeRadial;
 import boofcv.struct.image.GrayF32;
 import georegression.geometry.ConvertRotation3D_F64;
 import georegression.struct.EulerType;
@@ -107,8 +107,11 @@ import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import william.chamberlain.androidvosopencvros.DetectedTag;
 import william.chamberlain.androidvosopencvros.Hardcoding;
+import william.chamberlain.androidvosopencvros.LandmarkFeatureLoader;
 import william.chamberlain.androidvosopencvros.RobotId;
 import william.chamberlain.androidvosopencvros.RosThingy;
+
+import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
 
 public class Camera2BasicFragment extends Fragment
@@ -123,6 +126,11 @@ public class Camera2BasicFragment extends Fragment
     static final int targetFPS = 6;
     static final int maxConcurrentThreads = 8;
     static final int numRecordsToUse = 10;
+    public static final float FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 519.902859f;
+    public static final float FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 518.952669f;
+    public static final float IMAGE_WIDTH_PIXELS_AS_CALIBRATED = 640.0f;
+    public static final float IMAGE_HEIGHT_PIXELS_AS_CALIBRATED = 480.0f;
+    public static final double SKEW_PIXELS_AS_CALIBRATED = 0.0;
     static int fps = 5;
     public static  Range<Integer> fpsRange = new Range<>(fps, fps);
 
@@ -835,6 +843,7 @@ public class Camera2BasicFragment extends Fragment
 
     /**
      * TODO see https://stackoverflow.com/a/43564630/1200764
+     * TODO see https://developer.android.com/reference/android/view/TextureView.html for getSurfaceTexture()
      * Creates a new {@link CameraCaptureSession} for camera preview.
      */
     private void createCameraPreviewSession() {
@@ -1206,7 +1215,7 @@ public class Camera2BasicFragment extends Fragment
                     Log.i("ImageSaver","run() : after converting nv21ToGray in "+timeElapsed(algorithmStepStartTime)+"ms");
 
                 // start try detecting tags in the frame
-                double BOOFCV_TAG_WIDTH=0.14; // TODO - tag size is a parameter
+                double BOOFCV_TAG_WIDTH= Hardcoding.BOOFCV_MARKER_SIZE_M; // TODO - tag size is a parameter
                 int imageWidthInt = grayImage.getHeight(); // new Double(matGray.size().width).intValue();
                 int imageHeightInt = grayImage.getWidth(); //new Double(matGray.size().height).intValue();detect
                     Log.i("ImageSaver","run() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
@@ -1394,6 +1403,7 @@ public class Camera2BasicFragment extends Fragment
             RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
             List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
             List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
+            List<DetectedTag> quadFeatures = new ArrayList<DetectedTag>();
             /* end Dev: part of robot visual model */
 
             executionThreadId = Thread.currentThread().getId();
@@ -1426,7 +1436,7 @@ public class Camera2BasicFragment extends Fragment
                         Log.i(logTag, "doInBackground() : after converting nv21ToGray in " + timeElapsed(algorithmStepStartTime) + "ms");
 
                     // start try detecting tags in the frame
-                    double BOOFCV_TAG_WIDTH = 0.14;
+                    double BOOFCV_TAG_WIDTH = Hardcoding.BOOFCV_MARKER_SIZE_M;
                     int imageWidthInt = grayImage.getHeight(); // new Double(matGray.size().width).intValue();
                     int imageHeightInt = grayImage.getWidth(); //new Double(matGray.size().height).intValue();
                         Log.i(logTag,"doInBackground() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
@@ -1435,11 +1445,11 @@ public class Camera2BasicFragment extends Fragment
                     float focal_midpoint_pixels_x = imageWidthFloat / 2.0f;
                     float focal_midpoint_pixels_y = imageHeightFloat / 2.0f;
 
-                    double skew = 0.0;
+                    double skew = SKEW_PIXELS_AS_CALIBRATED;
 
                     // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
-                    float focal_length_in_pixels_x = 519.902859f * (imageWidthFloat / 640.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-                    float focal_length_in_pixels_y = 518.952669f * (imageHeightFloat / 480.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                    float focal_length_in_pixels_x = FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                    float focal_length_in_pixels_y = FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
 
 
                         Log.i(logTag, "doInBackground() : config FactoryFiducial.squareBinary");
@@ -1539,23 +1549,40 @@ public class Camera2BasicFragment extends Fragment
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after applying transformations");
-                            rosThingy.reportDetectedFeature(9000+tag_id,
+                            int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+                            rosThingy.reportDetectedFeature(tag_id_reported,
                                     sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                     sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                            System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                            System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
 
                         /* Dev: part of robot visual model */
                             robotsDetected.put(singleDummyRobotId,robotFeatures);
                             Point2D_F64 locationPixel = new Point2D_F64();
                             detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
+                            boolean used=false;
                             if(Hardcoding.isPartOfRobotVisualModel(tag_id)) {
                                 DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                                 robotFeatures.add(detectedTag);
+                                used=true;
                                 Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
-                            } else if(Hardcoding.isALandmark(tag_id)) {
-                                DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
+                            }
+                            if(Hardcoding.isALandmark(tag_id)) {
+                                DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
                                 landmarkFeatures.add(detectedTag);
-                                Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
-                            } else { // not part of something that we are looking for, so ignore
+                                if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                                used=true;
+                                Log.i(logTagTag, "isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
+                            }
+                            if(Hardcoding.isAQuad(tag_id)) {
+                                DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
+                                quadFeatures.add(detectedTag);
+                                if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                                used=true;
+                                Log.i(logTagTag, "isAQuad TAG - tag_id " + tag_id + " quadFeatures.size()=" + quadFeatures.size() + " - 2D Image Location = " + locationPixel);
+                            }
+                            if(!used){ // not part of something that we are looking for, so ignore
                                 Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                                 continue;
                             }
@@ -1570,6 +1597,25 @@ public class Camera2BasicFragment extends Fragment
 //                            drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                         }
                     }
+                    if(quadFeatures.size() >=4 ) {
+                        Log.i(logTag,"quadFeatures: enough quadFeatures found in image to estimate camera pose: quadFeatures.size()="+quadFeatures.size());
+//                        Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY);
+                        CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(
+                                focal_length_in_pixels_x, focal_length_in_pixels_y,
+                                skew,
+                                focal_midpoint_pixels_x, focal_midpoint_pixels_y,
+                                imageWidthInt, imageHeightInt);
+
+
+                        Se3_F64 cameraPose = updatePoseEstimate(cameraIntrinsics,quadFeatures);
+                        int numElementsInRot = cameraPose.R.getNumElements();
+                        Vector3D_F64 translation = cameraPose.T;
+                        Log.i(TAG, "quadFeatures: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
+
+                    } else {
+                        Log.i(logTag,"quadFeatures: not enough quadFeatures found in image: quadFeatures.size()="+quadFeatures.size());
+                    }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
@@ -1582,6 +1628,49 @@ public class Camera2BasicFragment extends Fragment
             return new Long(0L);
         }
 
+
+        /***************************************************************/
+
+        private HashMap<Integer, double[]> fixedLandmarks;
+
+
+        private Se3_F64 updatePoseEstimate(final CameraPinholeRadial cameraIntrinsics_, final List<DetectedTag> landmarkFeatures) {
+            loadLandmarkFeaturesOnce();
+
+            double[] worldX = new double[landmarkFeatures.size()];
+            double[] worldY = new double[landmarkFeatures.size()];
+            double[] worldZ = new double[landmarkFeatures.size()];
+            double[] pixelsX = new double[landmarkFeatures.size()];
+            double[] pixelsY = new double[landmarkFeatures.size()];
+            int i_ = 0;
+            for (DetectedTag tag:
+                    landmarkFeatures) {
+                double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
+                if(null != worldCoordinates) {
+                    Point2D_F64 pixelLocation = tag.getLocationPixel();
+                    worldX[i_] = worldCoordinates[0];
+                    worldY[i_] = worldCoordinates[1];
+                    worldZ[i_] = worldCoordinates[2];
+                    pixelsX[i_] = pixelLocation.getX();  //
+                    pixelsY[i_] = pixelLocation.getY();
+                    i_++;
+                }
+            }
+            PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
+//            return estimator.estimateCameraPoseFrom3D2DPointMatches(
+//                    cameraIntrinsics_,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
+//                    landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
+            return estimator.estimateCameraPoseQuad(cameraIntrinsics_,worldX, worldY, worldZ, pixelsX, pixelsY);
+        }
+        ////  TODO - list of tags and sizes, and tag-groups and sizes
+        public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
+        private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
+        private void loadLandmarkFeaturesOnce() {
+        /*  TODO - HARDCODING  */
+            if(null == fixedLandmarks) {fixedLandmarks = landmarkFeatureLoader.loadLandmarkFeatures();}
+        /*  TODO - HARDCODING  */
+        }
+        /***************************************************************/
 
 
         private boolean  poseKnown   = false;

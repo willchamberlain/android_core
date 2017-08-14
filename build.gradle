@@ -152,8 +152,8 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
     }
 }
 
-//  Application
-configure(subprojects.findAll { it.name.startsWith("Application") }) {
+//  AppCamera2
+configure(subprojects.findAll { it.name.startsWith("AppCamera2") }) {
     /*
      * The android plugin configures a few things:
      *
@@ -215,7 +215,7 @@ configure(subprojects.findAll { it.name.startsWith("Application") }) {
 }
 
 
-//  Application
+//  
 configure(subprojects.findAll { it.name.startsWith("vos") }) {
     /*
      * The android plugin configures a few things:

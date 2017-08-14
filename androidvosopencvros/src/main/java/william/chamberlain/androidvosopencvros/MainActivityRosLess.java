@@ -431,7 +431,7 @@ Log.i(logTag,"start frame");
 // TODO - try reducing image size to increase framerate , AND check /Users/will/Downloads/simbaforrest/cv2cg_mini_version_for_apriltag , https://github.com/ikkiChung/MyRealTimeImageProcessing , http://include-memory.blogspot.com.au/2015/02/speeding-up-opencv-javacameraview.html , https://developer.qualcomm.com/software/fastcv-sdk , http://nezarobot.blogspot.com.au/2016/03/android-surfacetexture-camera2-opencv.html , https://www.youtube.com/watch?v=nv4MEliij14 ,
 
         // start BoofCV
-        double BOOFCV_TAG_WIDTH=0.14; // TODO - list of tags and sizes, and tag-groups and sizes
+        double BOOFCV_TAG_WIDTH=Hardcoding.BOOFCV_MARKER_SIZE_M; // TODO - list of tags and sizes, and tag-groups and sizes
         byte[] current_image_bytes = last_frame_bytes();
         removeExpiredVisionTasks();
         if(null!=current_image_bytes  && !taskQueue.isEmpty()) {
@@ -560,7 +560,7 @@ Log.i(logTagTag,"after detector.getFiducialToCamera(i, targetToSensor);");
                         Quaternion_F64 sensorToTargetViaTransformQuat = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 //                        ConvertRotation3D_F64.setRotZ();
-//                        detectedFeaturesClient.reportDetectedFeature(9000+tag_id,
+//                        detectedFeaturesClient.reportDetectedFeature(MARKER_OFFSET_INT+tag_id,
 //                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
 //                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
 

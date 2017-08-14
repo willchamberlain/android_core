@@ -50,6 +50,7 @@ import william.chamberlain.androidvosopencvros.VosTaskSet;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
 public class CameraActivity
         extends RosActivity
@@ -235,13 +236,19 @@ public class CameraActivity
     }
 
     public void reportDetectedFeature(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
-        detectedFeaturesClient.reportDetectedFeature(9000+tagId,
+        if(null == detectedFeaturesClient ) {
+            return;
+        }
+        detectedFeaturesClient.reportDetectedFeature(tagId,
                 x, y, z,
                 qx, qy, qz, qw);
     }
 
 
     public void updateLocationFromDetectedFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw) {
+        if(null == localiseFromAFeatureClient) {
+            return;
+        }
         String logTag = "c"+getCamNum();
         if (!poseKnown) {
             Log.i("CameraActivity",logTag+": updateLocationFromDetectedFeature: before localiseFromAFeatureClient.localiseFromAFeature");
