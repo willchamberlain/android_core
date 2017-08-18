@@ -98,7 +98,7 @@ import boofcv.factory.filter.binary.ConfigThreshold;
 import boofcv.factory.filter.binary.ThresholdType;
 import boofcv.struct.calib.CameraPinhole;
 import boofcv.struct.calib.CameraPinholeRadial;
-import boofcv.struct.image.GrayF32;
+import boofcv.struct.image.GrayU8;
 import georegression.geometry.ConvertRotation3D_F64;
 import georegression.struct.EulerType;
 import georegression.struct.point.Point2D_F64;
@@ -123,8 +123,7 @@ public class Camera2BasicFragment extends Fragment
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
-    static final int targetFPS = 6;
-    static final int maxConcurrentThreads = 8;
+    static final int targetFPS = 4; //8;
     static final int numRecordsToUse = 10;
     public static final float FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 519.902859f;
     public static final float FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 518.952669f;
@@ -297,25 +296,58 @@ public class Camera2BasicFragment extends Fragment
 
 
     /**********************************************************************************************/
+
+    final int RUN_SYNCHRONOUS =  0;
+    final int RUN_ASYNC_BACKGROUNDHANDLER =  10;
+    final int RUN_ASYNC_ASYNCTASK =         20;
+    final int RUN_ASYNC_METHOD =  RUN_ASYNC_ASYNCTASK; // RUN_ASYNC_BACKGROUNDHANDLER; //RUN_ASYNC_ASYNCTASK; // RUN_SYNCHRONOUS;  // RUN_ASYNC_ASYNCTASK;
+
+    TaskHolder taskHolder = null;
+    boolean currentlyProcessing = false;
+
     /**
      * Do the image processing - this a callback object for the {@link ImageReader}. "onImageAvailable" will be called when a
      * still image is ready to be saved.
      */
     private final ImageReader.OnImageAvailableListener onImageAvailableListener
             = new ImageReader.OnImageAvailableListener() {
-        final int RUN_ASYNC_BACKGROUNDHANDLER =  10;
-        final int RUN_ASYNC_ASYNCTASK =         20;
-        final int RUN_ASYNC_METHOD =            RUN_ASYNC_ASYNCTASK;
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            Image image =  reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
             frameNum++;  if (frameNum == Long.MAX_VALUE) { frameNum=1; }
 
+            long registerAsVisionSourceStartTime = Calendar.getInstance().getTimeInMillis();
             rosThingy.registerAsVisionSource();
+            Log.i("Camera2BasicFragment", "onImageAvailable: ROS timing: rosThingy.updateLocationFromDetectedFeature took "+timeElapsed(registerAsVisionSourceStartTime)+"ms");
+            Log.i("Camera2BasicFragment", "onImageAvailable: ROS timing: rosThingy.updateLocationFromDetectedFeature + LOGGING took "+timeElapsed(registerAsVisionSourceStartTime)+"ms");
 
             switch (RUN_ASYNC_METHOD) {
+                case RUN_SYNCHRONOUS: {
+                    Image image = null;
+                    try {
+                        if (currentlyProcessing) {
+                            Log.i("Camera2BasicFragment", "onImageAvailable: currentlyProcessing so returning");
+                            return;
+                        }
+                        if (null == taskHolder) {
+                            Log.i("Camera2BasicFragment", "onImageAvailable: taskHolder = new TaskHolder()");
+                            taskHolder = new TaskHolder();
+                        }
+                        currentlyProcessing = true;
+                        image = reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
+                            // reader.getMaxImages();
+                        taskHolder.setup(image, TaskCompletionTimer.instance(), Calendar.getInstance().getTimeInMillis());
+                        taskHolder.imageProcessingAndRosCalling();
+                        currentlyProcessing = false;
+                    } finally {
+                        if (image != null) {             // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+                            image.close();               // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+                        }
+                    }
+                    break;
+                }
                 case RUN_ASYNC_BACKGROUNDHANDLER: {
+                    Image image =  reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
                     if (null != backgroundHandler) {
                         backgroundHandler.post(
                                 new ImageSaver(
@@ -328,6 +360,7 @@ public class Camera2BasicFragment extends Fragment
                     break;
                 }
                 case RUN_ASYNC_ASYNCTASK: {
+                    Image image =  reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
                     if (skipFrame(image)) break;
                     try {
                         //  new ImageSaverAsyncTask(image, taskCompletionTimer).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);  // https://stackoverflow.com/questions/18266161/achieving-concurrency-using-asynctask  https://developer.android.com/reference/java/util/concurrent/Executor.html
@@ -359,11 +392,13 @@ public class Camera2BasicFragment extends Fragment
 
     private boolean skipFrame(Image image) {
         if (skipRate <= 10 && skipRate>0 && frameNum%skipRate == 0 ) { // skip this image - e.g. if skipRate == 8 and frameNum == 16
-            Log.i("Camera2BasicFragment","skipping frame "+frameNum+" on skipRate "+skipRate);
-            if (image != null) {             // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
-                image.close();               // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
-            }
+            Log.i("Camera2BasicFragment","!! SKIPPING DISABLED !! skipping frame "+frameNum+" on skipRate "+skipRate);
             return true;
+//            Log.i("Camera2BasicFragment","skipping frame "+frameNum+" on skipRate "+skipRate);
+//            if (image != null) {             // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+//                image.close();               // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+//            }
+//            return true;
         }
         int TARGET_FRAME_RATE = 10;
         if ( skipRateReducedOnFrameNum < frameNum - 100 && skipRate > 2 && taskCompletionTimer.overlapWithLastInitiation() > (5000/TARGET_FRAME_RATE)) { // more than 1s overlap; going wrong
@@ -983,7 +1018,7 @@ public class Camera2BasicFragment extends Fragment
             i_++;
         }
         countOfFpsAndThreads.clear();
-        return FPS.calc(fps_,concurrentThreads,numRecordsToUse,targetFPS,maxConcurrentThreads);
+        return FPS.calc(fps_,concurrentThreads,numRecordsToUse,targetFPS, MAX_CONCURRENT_THREADS);
     }
 
     private boolean dontHaveEnoughDataYet() {
@@ -1207,7 +1242,7 @@ public class Camera2BasicFragment extends Fragment
                 }
                 // dummy image processing code - https://boofcv.org/index.php?title=Android_support
                 long algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
-                GrayF32 grayImage = new GrayF32(imageWidth,imageHeight);
+                GrayU8 grayImage = new GrayU8(imageWidth,imageHeight);
                     Log.i("ImageSaver","run() : after constructing grayImage in "+timeElapsed(algorithmStepStartTime)+"ms");
                 // from NV21 to gray scale
                 algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
@@ -1233,10 +1268,10 @@ public class Camera2BasicFragment extends Fragment
 
 
                     Log.i("ImageSaver","run() : config FactoryFiducial.squareBinary");
-                FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+                FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
                         new ConfigFiducialBinary(BOOFCV_TAG_WIDTH),
                         ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?
-                        GrayF32.class);  // tag size,  type,  ?'radius'?
+                        GrayU8.class);  // tag size,  type,  ?'radius'?
                 //        detector.setLensDistortion(lensDistortion);
                     Log.i("ImageSaver","run() : config CameraPinhole pinholeModel");
                 CameraPinhole pinholeModel = new CameraPinhole(
@@ -1312,16 +1347,19 @@ public class Camera2BasicFragment extends Fragment
 
         void completedTask(long executionThreadId, long initiationTimeMs, long executionStartTimeMs, long executionEndTimeMs) {
             decConcurrentThreadsExecuting();
+            completionAfterPrevious = 0;
             if (threadCompletions>1) {
                 overlapWithLastInitiation = executionEndTimeMs-previousInitiationTimeMs;
                 overlapWithLastExecution = executionEndTimeMs-previousInitiationTimeMs;
                 completionAfterPrevious = executionEndTimeMs-previousExecutionEndTimeMs;
                 executionPeriod = executionEndTimeMs-executionStartTimeMs;
-                Log.i("completedTask","thread completion "+completionAfterPrevious+"ms after previous: "+overlapWithLastInitiation+"ms overlap with last started: thread "+executionThreadId+" was the "+threadCompletions+"th thread to complete at "+executionEndTimeMs+", started at "+executionStartTimeMs);
             }
-            previousInitiationTimeMs = initiationTimeMs;
-            previousExecutionStartTimeMs = executionStartTimeMs;
-            previousExecutionEndTimeMs = executionEndTimeMs;
+            if (completionAfterPrevious > 0) {
+                Log.i("completedTask","thread completion "+completionAfterPrevious+"ms after previous: "+overlapWithLastInitiation+"ms overlap with last started: thread "+executionThreadId+" was the "+threadCompletions+"th thread to complete at "+executionEndTimeMs+", started at "+executionStartTimeMs);
+                previousInitiationTimeMs = initiationTimeMs;
+                previousExecutionStartTimeMs = executionStartTimeMs;
+                previousExecutionEndTimeMs = executionEndTimeMs;
+            }
             threadCompletions++;
         }
     }
@@ -1351,14 +1389,20 @@ public class Camera2BasicFragment extends Fragment
         }
     };
 
+    final static int THREADING_NUM_THREADS_CORE = 4; // 8
+    final static int THREADING_NUM_THREADS_MAX  = 8; // 6 // 16
+    static final int MAX_CONCURRENT_THREADS = THREADING_NUM_THREADS_MAX;  // Manual skip-if-over value
+    final static int THREADING_QUEUE_SIZE = 256; //64; // 6 // 16
+    static final int KEEP_ALIVE_TIME = 5; // 30
+
     private static final BlockingQueue<Runnable> sPoolWorkQueue =
-            new LinkedBlockingQueue<Runnable>(128);  // allow 128 in the queue
+            new LinkedBlockingQueue<Runnable>(THREADING_QUEUE_SIZE);  //128);  // allow 128 in the queue
 
 
     ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
-            8 , 16 , 30 , TimeUnit.SECONDS,    // CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
+            THREADING_NUM_THREADS_CORE, THREADING_NUM_THREADS_MAX
+            , KEEP_ALIVE_TIME , TimeUnit.SECONDS,    // CORE_POOL_SIZE, MAXIMUM_POOL_SIZE, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS,
             sPoolWorkQueue, sThreadFactory);
-
 
 
     /*
@@ -1367,7 +1411,8 @@ public class Camera2BasicFragment extends Fragment
     /**
      * Saves a JPEG {@link Image} into the specified {@link File}.
      */
-    private class ImageSaverAsyncTask extends AsyncTask<Void, Void, Long> { //parameter array type, progress type, return type
+
+    private class TaskHolder {
         byte[] luminanceBytes;
         int imageWidth;
         int imageHeight;
@@ -1377,27 +1422,60 @@ public class Camera2BasicFragment extends Fragment
         long executionStartTimeMs = -1L;
         long executionEndTimeMs = -1L;
 
-        public ImageSaverAsyncTask(Image image, TaskCompletionTimer taskCompletionTimer_) {
-            super();
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image)");
-            long startTime = Calendar.getInstance().getTimeInMillis();
-            instantiationTimeMs = startTime;
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image): start = "+startTime);
-            ByteBuffer luminanceBuffer = /*mImage*/image.getPlanes()[0].getBuffer();
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image): after image.getPlanes()[0].getBuffer() in "+timeElapsed(startTime)+"ms");
-            /*byte[]*/ luminanceBytes = new byte[luminanceBuffer.remaining()];  // buffer size: current position is zero, remaining() gives "the number of elements between the current position and the limit"
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image): after luminanceBytes = new byte[luminanceBuffer.remaining()] in "+timeElapsed(startTime)+"ms");
-            luminanceBuffer.get(luminanceBytes);                            // copy from buffer to bytes: get() "transfers bytes from this buffer into the given destination array"
-            imageWidth = image.getWidth();
-            imageHeight = image.getHeight();
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image): image dimensions: "+imageWidth+" pixels wide, "+imageHeight+" pixels high");
-            taskCompletionTimer = taskCompletionTimer_;
-            Log.i("ImageSaverAsyncTask","ImageSaverAsyncTask(Image image): end after "+timeElapsed(startTime)+"ms");
+        TaskHolder() {
         }
 
-        @Override
-        protected Long doInBackground(Void... params) { //(Image...  images) {
+        TaskHolder(Image image, TaskCompletionTimer taskCompletionTimer_) {
+            Log.i("TaskHolder","TaskHolder(Image image, TaskCompletionTimer taskCompletionTimer_)");
+            long startTime = Calendar.getInstance().getTimeInMillis();
+            setup(image, taskCompletionTimer_,startTime);
+            Log.i("TaskHolder","ImageSaverAsyncTask(Image image, TaskCompletionTimer taskCompletionTimer_): end after "+timeElapsed(startTime)+"ms");
+        }
 
+        private void setup(Image image, TaskCompletionTimer taskCompletionTimer_, long startTime) {
+            instantiationTimeMs = startTime;
+            Log.i("TaskHolder","setup(Image image, TaskCompletionTimer taskCompletionTimer_): start = "+startTime);
+            luminanceToBytes(image.getPlanes()[0], startTime);
+            imageWidth = image.getWidth();
+            imageHeight = image.getHeight();
+            Log.i("TaskHolder","setup(Image image, TaskCompletionTimer taskCompletionTimer_): image dimensions: "+imageWidth+" pixels wide, "+imageHeight+" pixels high");
+            taskCompletionTimer = taskCompletionTimer_;
+        }
+
+        private void luminanceToBytes(Image.Plane plane, long startTime) {
+            ByteBuffer luminanceBuffer = /*mImage*/plane.getBuffer();
+            Log.i("TaskHolder","luminanceToBytes(Image image): after image.getPlanes()[0].getBuffer() in "+timeElapsed(startTime)+"ms");
+            /*byte[]*/
+            luminanceBytes = new byte[luminanceBuffer.remaining()];  // buffer size: current position is zero, remaining() gives "the number of elements between the current position and the limit"
+            Log.i("TaskHolder","luminanceToBytes(Image image): after luminanceBytes = new byte[luminanceBuffer.remaining()] in "+timeElapsed(startTime)+"ms");
+            luminanceBuffer.get(luminanceBytes);                            // copy from buffer to bytes: get() "transfers bytes from this buffer into the given destination array"
+            Log.i("TaskHolder","luminanceToBytes(Image image): after luminanceBuffer.get(luminanceBytes) in "+timeElapsed(startTime)+"ms");
+        }
+
+
+        private boolean  poseKnown   = false;
+
+        private void updateLocationFromDetectedFeature(int tag_id, String logTagTag, Se3_F64 sensorToTargetViaTransform, Quaternion_F64 sensorToTargetViaTransformQuat) {
+            if (!poseKnown) {
+                long updateLocationFromDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                rosThingy.updateLocationFromDetectedFeature(tag_id,
+                        sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                        sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                // long updateLocationFromDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                Log.i(logTagTag, "ROS timing: rosThingy.updateLocationFromDetectedFeature took "+timeElapsed(updateLocationFromDetectedFeatureStartTime)+"ms");
+                Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
+            }
+        }
+
+        private void recordPerformance(long startTime, int fps) {
+            countOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
+            logOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
+        }
+
+
+
+        Long imageProcessingAndRosCalling() {
             /* Dev: part of robot visual model */
             HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
             RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
@@ -1409,37 +1487,445 @@ public class Camera2BasicFragment extends Fragment
             executionThreadId = Thread.currentThread().getId();
             String logTag = "ImgeSv_p="+executionThreadId;
             long procStartTime = Calendar.getInstance().getTimeInMillis();
-            Log.i(logTag, "doInBackground(): start = " + procStartTime);
-            if( maxConcurrentThreads < taskCompletionTimer.incConcurrentThreadsExecuting() ) {
-                Log.i(logTag, "doInBackground(): stopping without processing: there are too many threads executing ");
+            Log.i(logTag, "imageProcessingAndRosCalling(): start = " + procStartTime);
+            if( MAX_CONCURRENT_THREADS < taskCompletionTimer.incConcurrentThreadsExecuting() ) {
+                Log.i(logTag, "imageProcessingAndRosCalling(): stopping without processing: there are too many threads executing ");
                 return new Long(0L);
             }
+            executionStartTimeMs = procStartTime;
+            try {
+                Log.i(logTag, "imageProcessingAndRosCalling() : doing some work in the Try block: concurrentThreadsExecuting = "+taskCompletionTimer.concurrentThreadsExecuting());
+                Log.i(logTag, "imageProcessingAndRosCalling() : doing some work in the Try block: Runtime.getRuntime().availableProcessors() = "+Runtime.getRuntime().availableProcessors());
+
+                Random random = new Random();
+                if (1 == random.nextInt()) {
+                    Log.i(logTag, "imageProcessingAndRosCalling() : throwing an IOException at random while doing some work in the Try block");
+                    throw new IOException("No particular reason: ImageSaver.doInBackground() : throwing an IOException at random while doing some work in the Try block");
+                }
+                // dummy image processing code - https://boofcv.org/index.php?title=Android_support
+                long algorithmStepStartTime = 0L;
+                algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
+                GrayU8 grayImage = fetchAGrayImageToUse(imageWidth, imageHeight); //  new GrayU8(imageWidth, imageHeight);
+                Log.i(logTag, "imageProcessingAndRosCalling() : after constructing grayImage in " + timeElapsed(algorithmStepStartTime) + "ms");
+                // from NV21 to gray scale
+                algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
+                ConvertNV21.nv21ToGray(luminanceBytes, imageWidth, imageHeight, grayImage);
+                Log.i(logTag, "imageProcessingAndRosCalling() : after converting nv21ToGray in " + timeElapsed(algorithmStepStartTime) + "ms");
+
+                // start try detecting tags in the frame
+                double BOOFCV_TAG_WIDTH = Hardcoding.BOOFCV_MARKER_SIZE_M;
+                int imageWidthInt = grayImage.getHeight(); // new Double(matGray.size().width).intValue();
+                int imageHeightInt = grayImage.getWidth(); //new Double(matGray.size().height).intValue();
+                Log.i(logTag,"imageProcessingAndRosCalling() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
+                float imageWidthFloat = (float) imageWidthInt; // new Double(matGray.size().width).intValue();
+                float imageHeightFloat = (float) imageHeightInt; //new Double(matGray.size().height).intValue();
+                float focal_midpoint_pixels_x = imageWidthFloat / 2.0f;
+                float focal_midpoint_pixels_y = imageHeightFloat / 2.0f;
+
+                double skew = SKEW_PIXELS_AS_CALIBRATED;
+
+                // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
+                float focal_length_in_pixels_x = FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                float focal_length_in_pixels_y = FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+
+
+                Log.i(logTag, "imageProcessingAndRosCalling() : config FactoryFiducial.squareBinary");
+                ConfigFiducialBinary config = new ConfigFiducialBinary(BOOFCV_TAG_WIDTH);
+                boolean robust = true;
+                int binaryThreshold_fixed = 50;
+                ConfigThreshold configThreshold;
+                if (robust) {
+                    configThreshold = ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 6);
+                } else {
+                    configThreshold = ConfigThreshold.fixed(binaryThreshold_fixed);
+                }
+                FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(config, configThreshold, GrayU8.class);
+//                FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
+//                        new ConfigFiducialBinary(BOOFCV_TAG_WIDTH),
+//                        ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?
+//                        GrayU8.class);  // tag size,  type,  ?'radius'?
+                //        detector.setLensDistortion(lensDistortion);
+                Log.i(logTag, "imageProcessingAndRosCalling() : config CameraPinhole pinholeModel");
+                CameraPinholeRadial pinholeModel = new CameraPinholeRadial(
+                        focal_length_in_pixels_x, focal_length_in_pixels_y,
+                        skew,
+                        focal_midpoint_pixels_x, focal_midpoint_pixels_y,
+                        imageWidthInt, imageHeightInt);
+                Log.i(logTag, "imageProcessingAndRosCalling() : config LensDistortionNarrowFOV pinholeDistort");
+                LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
+                Log.i(logTag, "imageProcessingAndRosCalling() : config detector.setLensDistortion(pinholeDistort)");
+                detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
+
+                // TODO - timing here  c[camera_num]-f[frameprocessed]
+                long timeNow = Calendar.getInstance().getTimeInMillis();
+                Log.i(logTag, "imageProcessingAndRosCalling() : start detector.detect(grayImage) at " + timeNow);
+                detector.detect(grayImage);
+                Log.i(logTag, "imageProcessingAndRosCalling() : after detector.detect(grayImage) in " + timeElapsed(timeNow) + "ms: time since start = " + timeElapsed(procStartTime) + "ms");
+                for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
+                    String logTagIteration = logTag+" c"+rosThingy.getCamNum()+"-detectionOrder_"+detectionOrder_;
+                    timeNow = Calendar.getInstance().getTimeInMillis();
+                    int tag_id = -1;
+                    MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
+
+
+                    if (!isTagIdValid.isValid()) {
+                        //// todo - might want to do this processing and image processing in a background thread but then push the image into a short queue that the UI thread can pull the latest from
+                        //// todo (cont) e.g. see https://stackoverflow.com/questions/19216893/android-camera-asynctask-with-preview-callback
+                        //// todo (cont) note that BoofCV draws to Swing windows, which is nice because it's cross-platform
+                        //// todo (cont) Processing or OpenGL or Unity might be better cross-platform choices
+                        ////   todo - Processing - http://blog.blprnt.com/blog/blprnt/processing-android-mobile-app-development-made-very-easy  then  http://android.processing.org/  then https://www.mobileprocessing.org/cameras.html
+                        ////
+                        //// todo - for threaded, have a look at why this wouldn't work: https://stackoverflow.com/questions/14963773/android-asynctask-to-process-live-video-frames
+                        ////    https://stackoverflow.com/questions/18183016/android-camera-frame-processing-with-multithreading?rq=1
+                        ////    https://stackoverflow.com/questions/12215702/how-to-use-blocking-queue-to-process-camera-feed-in-background?noredirect=1&lq=1
+                        ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/displaying-bitmaps/process-bitmap.html
+                        ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/multiple-threads/index.html
+                        ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/graphics/opengl/index.html
+                        ////                          drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                        continue;
+                    }
+                    tag_id = isTagIdValid.getTag_id();
+                    String logTagTag = logTagIteration+"-t"+tag_id;
+
+                    finishedUsingGrayImage(grayImage); grayImage = null;  // finished using the image, return it to the queue : cannot use it after this point
+
+                    if( detector.hasUniqueID() ) {
+                        long tag_id_long = detector.getId(detectionOrder_);
+                        Log.i(logTag, "imageProcessingAndRosCalling() : tag detection "+detectionOrder_+" after detector.getId("+detectionOrder_+") = "+tag_id_long+" in " + timeElapsed(timeNow) + "ms : in " + timeElapsed(procStartTime) + "ms from start");
+                        // if is for a current task, track it
+
+                        // if is for a current task, report it
+                    } else {
+                        Log.i(logTag, "imageProcessingAndRosCalling() : tag detection "+detectionOrder_+" has no id; detector.hasUniqueID() == false ");
+                        continue;
+                    }
+
+
+                    if( detector.is3D() ) {
+                        Log.i(logTagTag,"start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                        Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
+                        detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
+                        Log.i(logTagTag,"after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+
+                        Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
+                        Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                        System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+                        ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                        DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
+                                = new DenseMatrix64F(new double[][]{
+                                {  0.0 ,  0.0 , -1.0 } ,
+                                { -1.0 ,  0.0 ,  0.0 } ,
+                                {  0.0 , +1.0 ,  0.0 } });
+                        Se3_F64 sensorToTargetViaTransform = new Se3_F64();
+                        DenseMatrix64F sensorToTargetViaTransformRot = CommonOps.identity(3);
+                        CommonOps.mult(transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag,targetToSensor_boofcvFrame.getR(),sensorToTargetViaTransformRot);
+                        sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
+                        sensorToTargetViaTransform.setTranslation(transBoofCV_TtoS.getZ(), -1.0*transBoofCV_TtoS.getX(), -1.0*transBoofCV_TtoS.getY());
+                        Quaternion_F64 sensorToTargetViaTransformQuat = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
+
+                        double[] eulerBefore=new double[]{0,0,0};
+                        ConvertRotation3D_F64.matrixToEuler(sensorToTargetViaTransformRot, EulerType.YXY,eulerBefore);
+                        double[] eulerAfter = new double[] { eulerBefore[0], -1.0*eulerBefore[1], eulerBefore[2] };  // robot+Z+Y+Z = boof+Y-X+Y
+                        ConvertRotation3D_F64.eulerToMatrix(EulerType.ZYZ, eulerAfter[0],   eulerAfter[1],      eulerAfter[2],    sensorToTargetViaTransformRot);
+                        sensorToTargetViaTransform.setRotation(sensorToTargetViaTransformRot);
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
+
+                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                        Log.i(logTagTag,"after applying transformations");
+                        int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+
+                        long reportDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                        Log.i("TaskHolder","imageProcessingAndRosCalling() : after constructing grayImage in "+timeElapsed(algorithmStepStartTime)+"ms");
+                        rosThingy.reportDetectedFeature(tag_id_reported,
+                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                        Log.i(logTagTag, "ROS timing: rosThingy.reportDetectedFeature took "+timeElapsed(reportDetectedFeatureStartTime)+"ms");
+                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+
+                        /* Dev: part of robot visual model */
+                        robotsDetected.put(singleDummyRobotId,robotFeatures);
+                        Point2D_F64 locationPixel = new Point2D_F64();
+                        detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
+                        boolean used=false;
+                        if(Hardcoding.isPartOfRobotVisualModel(tag_id)) {
+                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
+                            robotFeatures.add(detectedTag);
+                            used=true;
+                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                        }
+                        if(Hardcoding.isALandmark(tag_id)) {
+                            DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
+                            landmarkFeatures.add(detectedTag);
+                            if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                            used=true;
+                            Log.i(logTagTag, "isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
+                        }
+                        if(Hardcoding.isAQuad(tag_id)) {
+                            DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
+                            quadFeatures.add(detectedTag);
+                            if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                            used=true;
+                            Log.i(logTagTag, "isAQuad TAG - tag_id " + tag_id + " quadFeatures.size()=" + quadFeatures.size() + " - 2D Image Location = " + locationPixel);
+                        }
+                        if(!used){ // not part of something that we are looking for, so ignore
+                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            continue;
+                        }
+                        /* end Dev: part of robot visual model */
+
+                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                        Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
+                        updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
+                        //                            variousUnusedAttemptsAtCoordinateSystemCorrection();
+
+                    } else {  // 3D info not available for tag/marker
+                        //                            drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                    }
+                }
+                if(quadFeatures.size() >=4 ) {
+                    Log.i(logTag,"quadFeatures: enough quadFeatures found in image to estimate camera pose: quadFeatures.size()="+quadFeatures.size());
+                    //                        Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY);
+                    CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(
+                            focal_length_in_pixels_x, focal_length_in_pixels_y,
+                            skew,
+                            focal_midpoint_pixels_x, focal_midpoint_pixels_y,
+                            imageWidthInt, imageHeightInt);
+
+
+                    Se3_F64 cameraPose = updatePoseEstimate(cameraIntrinsics,quadFeatures);
+                    int numElementsInRot = cameraPose.R.getNumElements();
+                    Vector3D_F64 translation = cameraPose.T;
+                    Log.i(TAG, "quadFeatures: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
+
+                } else {
+                    Log.i(logTag,"quadFeatures: not enough quadFeatures found in image: quadFeatures.size()="+quadFeatures.size());
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                long timeNow = Calendar.getInstance().getTimeInMillis();
+                long timeElapsed = timeNow - procStartTime;
+                int fps = (int) (1.0/(timeElapsed/1000.0));
+                recordPerformance(procStartTime, fps);
+            }
+            executionEndTimeMs = Calendar.getInstance().getTimeInMillis();
+            return new Long(0L);
+        }
+
+
+
+        /***************************************************************/
+
+        private HashMap<Integer, double[]> fixedLandmarks;
+
+
+        private Se3_F64 updatePoseEstimate(final CameraPinholeRadial cameraIntrinsics_, final List<DetectedTag> landmarkFeatures) {
+            loadLandmarkFeaturesOnce();
+
+            double[] worldX = new double[landmarkFeatures.size()];
+            double[] worldY = new double[landmarkFeatures.size()];
+            double[] worldZ = new double[landmarkFeatures.size()];
+            double[] pixelsX = new double[landmarkFeatures.size()];
+            double[] pixelsY = new double[landmarkFeatures.size()];
+            int i_ = 0;
+            for (DetectedTag tag:
+                    landmarkFeatures) {
+                double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
+                if(null != worldCoordinates) {
+                    Point2D_F64 pixelLocation = tag.getLocationPixel();
+                    worldX[i_] = worldCoordinates[0];
+                    worldY[i_] = worldCoordinates[1];
+                    worldZ[i_] = worldCoordinates[2];
+                    pixelsX[i_] = pixelLocation.getX();  //
+                    pixelsY[i_] = pixelLocation.getY();
+                    i_++;
+                }
+            }
+            PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
+//            return estimator.estimateCameraPoseFrom3D2DPointMatches(
+//                    cameraIntrinsics_,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
+//                    landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
+            return estimator.estimateCameraPoseQuad(cameraIntrinsics_,worldX, worldY, worldZ, pixelsX, pixelsY);
+        }
+
+        public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
+
+        private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();  ////  TODO - list of tags and sizes, and tag-groups and sizes
+
+        private void loadLandmarkFeaturesOnce() {
+        /*  TODO - HARDCODING  */
+            if(null == fixedLandmarks) {fixedLandmarks = landmarkFeatureLoader.loadLandmarkFeatures();}
+        /*  TODO - HARDCODING  */
+        }
+        /***************************************************************/
+
+    }
+
+
+    /**********************************************************************************************/
+
+
+    private class ImageSaverAsyncTask extends AsyncTask<Void, Void, Long> { //parameter array type, progress type, return type
+        byte[] luminanceBytes;
+        int imageWidth;
+        int imageHeight;
+
+        long instantiationTimeMs = -1L;
+        long executionThreadId = -1L;
+        long executionStartTimeMs = -1L;
+        long executionEndTimeMs = -1L;
+
+        TaskHolder taskHolder = null;
+
+        public ImageSaverAsyncTask(Image image, TaskCompletionTimer taskCompletionTimer_) {
+            super();
+            taskHolder = new TaskHolder(image, taskCompletionTimer_);
+        }
+
+        @Override
+        protected Long doInBackground(Void... params) { //(Image...  images) {
+            return taskHolder.imageProcessingAndRosCalling();
+
+
+        }
+
+        @NonNull
+        private Long imageProcessingAndRosCalling() {
+            return new TaskHolderMethodObject().invoke();
+
+        }
+
+
+        /***************************************************************/
+
+        private HashMap<Integer, double[]> fixedLandmarks;
+
+
+        private Se3_F64 updatePoseEstimate(final CameraPinholeRadial cameraIntrinsics_, final List<DetectedTag> landmarkFeatures) {
+            loadLandmarkFeaturesOnce();
+
+            double[] worldX = new double[landmarkFeatures.size()];
+            double[] worldY = new double[landmarkFeatures.size()];
+            double[] worldZ = new double[landmarkFeatures.size()];
+            double[] pixelsX = new double[landmarkFeatures.size()];
+            double[] pixelsY = new double[landmarkFeatures.size()];
+            int i_ = 0;
+            for (DetectedTag tag:
+                    landmarkFeatures) {
+                double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
+                if(null != worldCoordinates) {
+                    Point2D_F64 pixelLocation = tag.getLocationPixel();
+                    worldX[i_] = worldCoordinates[0];
+                    worldY[i_] = worldCoordinates[1];
+                    worldZ[i_] = worldCoordinates[2];
+                    pixelsX[i_] = pixelLocation.getX();  //
+                    pixelsY[i_] = pixelLocation.getY();
+                    i_++;
+                }
+            }
+            PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
+//            return estimator.estimateCameraPoseFrom3D2DPointMatches(
+//                    cameraIntrinsics_,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
+//                    landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
+            return estimator.estimateCameraPoseQuad(cameraIntrinsics_,worldX, worldY, worldZ, pixelsX, pixelsY);
+        }
+
+        public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
+        private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();  ////  TODO - list of tags and sizes, and tag-groups and sizes
+        private void loadLandmarkFeaturesOnce() {
+        /*  TODO - HARDCODING  */
+            if(null == fixedLandmarks) {fixedLandmarks = landmarkFeatureLoader.loadLandmarkFeatures();}
+        /*  TODO - HARDCODING  */
+        }
+        /***************************************************************/
+
+
+        private boolean  poseKnown   = false;
+        private void updateLocationFromDetectedFeature(int tag_id, String logTagTag, Se3_F64 sensorToTargetViaTransform, Quaternion_F64 sensorToTargetViaTransformQuat) {
+            if (!poseKnown) {
+                long updateLocationFromDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                rosThingy.updateLocationFromDetectedFeature(tag_id,
+                        sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+                        sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
+                // long updateLocationFromDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                Log.i(logTagTag, "ROS timing: rosThingy.updateLocationFromDetectedFeature took "+timeElapsed(updateLocationFromDetectedFeatureStartTime)+"ms");
+                Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
+            }
+        }
+
+        private void recordPerformance(long startTime, int fps) {
+            countOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
+            logOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
+        }
+
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onProgressUpdate(Void... values) {
+            super.onProgressUpdate(values);
+        }
+
+        @Override
+        protected void onPostExecute(Long result) {
+            super.onPostExecute(result);
+            taskCompletionTimer.completedTask(executionThreadId, instantiationTimeMs, executionStartTimeMs, executionEndTimeMs);
+        }
+
+        private class TaskHolderMethodObject {
+            public Long invoke() {
+    /* Dev: part of robot visual model */
+                HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
+                RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
+                List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
+                List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
+                List<DetectedTag> quadFeatures = new ArrayList<DetectedTag>();
+            /* end Dev: part of robot visual model */
+
+                executionThreadId = Thread.currentThread().getId();
+                String logTag = "ImgeSv_p="+executionThreadId;
+                long procStartTime = Calendar.getInstance().getTimeInMillis();
+                Log.i(logTag, "imageProcessingAndRosCalling(): start = " + procStartTime);
+                if( MAX_CONCURRENT_THREADS < taskCompletionTimer.incConcurrentThreadsExecuting() ) {
+                    Log.i(logTag, "invoke(): stopping without processing: there are too many threads executing ");
+                    return new Long(0L);
+                }
                 executionStartTimeMs = procStartTime;
                 try {
-                        Log.i(logTag, "doInBackground() : doing some work in the Try block: concurrentThreadsExecuting = "+taskCompletionTimer.concurrentThreadsExecuting());
-                        Log.i(logTag, "doInBackground() : doing some work in the Try block: Runtime.getRuntime().availableProcessors() = "+Runtime.getRuntime().availableProcessors());
+                        Log.i(logTag, "invoke() : doing some work in the Try block: concurrentThreadsExecuting = "+taskCompletionTimer.concurrentThreadsExecuting());
+                        Log.i(logTag, "invoke() : doing some work in the Try block: Runtime.getRuntime().availableProcessors() = "+Runtime.getRuntime().availableProcessors());
 
                     Random random = new Random();
                     if (1 == random.nextInt()) {
-                        Log.i(logTag, "doInBackground() : throwing an IOException at random while doing some work in the Try block");
+                        Log.i(logTag, "invoke() : throwing an IOException at random while doing some work in the Try block");
                         throw new IOException("No particular reason: ImageSaver.doInBackground() : throwing an IOException at random while doing some work in the Try block");
                     }
                     // dummy image processing code - https://boofcv.org/index.php?title=Android_support
-                    long algorithmStepStartTime = 0L;
-                    algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
-                    GrayF32 grayImage = fetchAGrayImageToUse(imageWidth, imageHeight); //  new GrayF32(imageWidth, imageHeight);
-
-                        Log.i(logTag, "doInBackground() : after constructing grayImage in " + timeElapsed(algorithmStepStartTime) + "ms");
+                        long algorithmStepStartTime = 0L;
+                        algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
+                    GrayU8 grayImage = fetchAGrayImageToUse(imageWidth, imageHeight); //  new GrayU8(imageWidth, imageHeight);
+                        Log.i(logTag, "invoke() : after constructing grayImage in " + timeElapsed(algorithmStepStartTime) + "ms");
                     // from NV21 to gray scale
-                    algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
+                        algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
                     ConvertNV21.nv21ToGray(luminanceBytes, imageWidth, imageHeight, grayImage);
-                        Log.i(logTag, "doInBackground() : after converting nv21ToGray in " + timeElapsed(algorithmStepStartTime) + "ms");
+                        Log.i(logTag, "invoke() : after converting nv21ToGray in " + timeElapsed(algorithmStepStartTime) + "ms");
 
                     // start try detecting tags in the frame
                     double BOOFCV_TAG_WIDTH = Hardcoding.BOOFCV_MARKER_SIZE_M;
                     int imageWidthInt = grayImage.getHeight(); // new Double(matGray.size().width).intValue();
                     int imageHeightInt = grayImage.getWidth(); //new Double(matGray.size().height).intValue();
-                        Log.i(logTag,"doInBackground() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
+                        Log.i(logTag,"invoke() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
                     float imageWidthFloat = (float) imageWidthInt; // new Double(matGray.size().width).intValue();
                     float imageHeightFloat = (float) imageHeightInt; //new Double(matGray.size().height).intValue();
                     float focal_midpoint_pixels_x = imageWidthFloat / 2.0f;
@@ -1452,28 +1938,28 @@ public class Camera2BasicFragment extends Fragment
                     float focal_length_in_pixels_y = FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
 
 
-                        Log.i(logTag, "doInBackground() : config FactoryFiducial.squareBinary");
-                    FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+                        Log.i(logTag, "invoke() : config FactoryFiducial.squareBinary");
+                    FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
                             new ConfigFiducialBinary(BOOFCV_TAG_WIDTH),
                             ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?
-                            GrayF32.class);  // tag size,  type,  ?'radius'?
+                            GrayU8.class);  // tag size,  type,  ?'radius'?
                     //        detector.setLensDistortion(lensDistortion);
-                    Log.i(logTag, "doInBackground() : config CameraPinhole pinholeModel");
+                    Log.i(logTag, "invoke() : config CameraPinhole pinholeModel");
                     CameraPinhole pinholeModel = new CameraPinhole(
                             focal_length_in_pixels_x, focal_length_in_pixels_y,
                             skew,
                             focal_midpoint_pixels_x, focal_midpoint_pixels_y,
                             imageWidthInt, imageHeightInt);
-                    Log.i(logTag, "doInBackground() : config LensDistortionNarrowFOV pinholeDistort");
+                    Log.i(logTag, "invoke() : config LensDistortionNarrowFOV pinholeDistort");
                     LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
-                    Log.i(logTag, "doInBackground() : config detector.setLensDistortion(pinholeDistort)");
+                    Log.i(logTag, "invoke() : config detector.setLensDistortion(pinholeDistort)");
                     detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
                     // TODO - timing here  c[camera_num]-f[frameprocessed]
                     long timeNow = Calendar.getInstance().getTimeInMillis();
-                        Log.i(logTag, "doInBackground() : start detector.detect(grayImage) at " + timeNow);
+                        Log.i(logTag, "invoke() : start detector.detect(grayImage) at " + timeNow);
                     detector.detect(grayImage);
-                        Log.i(logTag, "doInBackground() : after detector.detect(grayImage) in " + timeElapsed(timeNow) + "ms: time since start = " + timeElapsed(procStartTime) + "ms");
+                        Log.i(logTag, "invoke() : after detector.detect(grayImage) in " + timeElapsed(timeNow) + "ms: time since start = " + timeElapsed(procStartTime) + "ms");
                     for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
                         String logTagIteration = logTag+" c"+rosThingy.getCamNum()+"-detectionOrder_"+detectionOrder_;
                         timeNow = Calendar.getInstance().getTimeInMillis();
@@ -1482,19 +1968,19 @@ public class Camera2BasicFragment extends Fragment
 
 
                         if (!isTagIdValid.isValid()) {
-//// todo - might want to do this processing and image processing in a background thread but then push the image into a short queue that the UI thread can pull the latest from
-//// todo (cont) e.g. see https://stackoverflow.com/questions/19216893/android-camera-asynctask-with-preview-callback
-//// todo (cont) note that BoofCV draws to Swing windows, which is nice because it's cross-platform
-//// todo (cont) Processing or OpenGL or Unity might be better cross-platform choices
-////   todo - Processing - http://blog.blprnt.com/blog/blprnt/processing-android-mobile-app-development-made-very-easy  then  http://android.processing.org/  then https://www.mobileprocessing.org/cameras.html
-////
-//// todo - for threaded, have a look at why this wouldn't work: https://stackoverflow.com/questions/14963773/android-asynctask-to-process-live-video-frames
-////    https://stackoverflow.com/questions/18183016/android-camera-frame-processing-with-multithreading?rq=1
-////    https://stackoverflow.com/questions/12215702/how-to-use-blocking-queue-to-process-camera-feed-in-background?noredirect=1&lq=1
-////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/displaying-bitmaps/process-bitmap.html
-////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/multiple-threads/index.html
-////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/graphics/opengl/index.html
-////                          drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+    //// todo - might want to do this processing and image processing in a background thread but then push the image into a short queue that the UI thread can pull the latest from
+    //// todo (cont) e.g. see https://stackoverflow.com/questions/19216893/android-camera-asynctask-with-preview-callback
+    //// todo (cont) note that BoofCV draws to Swing windows, which is nice because it's cross-platform
+    //// todo (cont) Processing or OpenGL or Unity might be better cross-platform choices
+    ////   todo - Processing - http://blog.blprnt.com/blog/blprnt/processing-android-mobile-app-development-made-very-easy  then  http://android.processing.org/  then https://www.mobileprocessing.org/cameras.html
+    ////
+    //// todo - for threaded, have a look at why this wouldn't work: https://stackoverflow.com/questions/14963773/android-asynctask-to-process-live-video-frames
+    ////    https://stackoverflow.com/questions/18183016/android-camera-frame-processing-with-multithreading?rq=1
+    ////    https://stackoverflow.com/questions/12215702/how-to-use-blocking-queue-to-process-camera-feed-in-background?noredirect=1&lq=1
+    ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/displaying-bitmaps/process-bitmap.html
+    ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/multiple-threads/index.html
+    ////    https://stuff.mit.edu/afs/sipb/project/android/docs/training/graphics/opengl/index.html
+    ////                          drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                             continue;
                         }
                         tag_id = isTagIdValid.getTag_id();
@@ -1504,12 +1990,12 @@ public class Camera2BasicFragment extends Fragment
 
                         if( detector.hasUniqueID() ) {
                             long tag_id_long = detector.getId(detectionOrder_);
-                                Log.i(logTag, "doInBackground() : tag detection "+detectionOrder_+" after detector.getId("+detectionOrder_+") = "+tag_id_long+" in " + timeElapsed(timeNow) + "ms : in " + timeElapsed(procStartTime) + "ms from start");
+                                Log.i(logTag, "invoke() : tag detection "+detectionOrder_+" after detector.getId("+detectionOrder_+") = "+tag_id_long+" in " + timeElapsed(timeNow) + "ms : in " + timeElapsed(procStartTime) + "ms from start");
                             // if is for a current task, track it
 
                             // if is for a current task, report it
                         } else {
-                                Log.i(logTag, "doInBackground() : tag detection "+detectionOrder_+" has no id; detector.hasUniqueID() == false ");
+                                Log.i(logTag, "invoke() : tag detection "+detectionOrder_+" has no id; detector.hasUniqueID() == false ");
                             continue;
                         }
 
@@ -1550,9 +2036,13 @@ public class Camera2BasicFragment extends Fragment
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after applying transformations");
                             int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+
+                            long reportDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
+                            Log.i(logTagTag,"invoke() : after constructing grayImage in "+timeElapsed(algorithmStepStartTime)+"ms");
                             rosThingy.reportDetectedFeature(tag_id_reported,
                                     sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                     sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+                            Log.i(logTagTag, "ROS timing: rosThingy.reportDetectedFeature took "+timeElapsed(reportDetectedFeatureStartTime)+"ms");
                             System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
                             System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
@@ -1591,15 +2081,15 @@ public class Camera2BasicFragment extends Fragment
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
                             updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
-//                            variousUnusedAttemptsAtCoordinateSystemCorrection();
+    //                            variousUnusedAttemptsAtCoordinateSystemCorrection();
 
                         } else {  // 3D info not available for tag/marker
-//                            drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+    //                            drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                         }
                     }
                     if(quadFeatures.size() >=4 ) {
                         Log.i(logTag,"quadFeatures: enough quadFeatures found in image to estimate camera pose: quadFeatures.size()="+quadFeatures.size());
-//                        Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY);
+    //                        Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY);
                         CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(
                                 focal_length_in_pixels_x, focal_length_in_pixels_y,
                                 skew,
@@ -1624,88 +2114,10 @@ public class Camera2BasicFragment extends Fragment
                     int fps = (int) (1.0/(timeElapsed/1000.0));
                     recordPerformance(procStartTime, fps);
                 }
-            executionEndTimeMs = Calendar.getInstance().getTimeInMillis();
-            return new Long(0L);
-        }
-
-
-        /***************************************************************/
-
-        private HashMap<Integer, double[]> fixedLandmarks;
-
-
-        private Se3_F64 updatePoseEstimate(final CameraPinholeRadial cameraIntrinsics_, final List<DetectedTag> landmarkFeatures) {
-            loadLandmarkFeaturesOnce();
-
-            double[] worldX = new double[landmarkFeatures.size()];
-            double[] worldY = new double[landmarkFeatures.size()];
-            double[] worldZ = new double[landmarkFeatures.size()];
-            double[] pixelsX = new double[landmarkFeatures.size()];
-            double[] pixelsY = new double[landmarkFeatures.size()];
-            int i_ = 0;
-            for (DetectedTag tag:
-                    landmarkFeatures) {
-                double[] worldCoordinates = fixedLandmarks.get(tag.getTag_id());
-                if(null != worldCoordinates) {
-                    Point2D_F64 pixelLocation = tag.getLocationPixel();
-                    worldX[i_] = worldCoordinates[0];
-                    worldY[i_] = worldCoordinates[1];
-                    worldZ[i_] = worldCoordinates[2];
-                    pixelsX[i_] = pixelLocation.getX();  //
-                    pixelsY[i_] = pixelLocation.getY();
-                    i_++;
-                }
-            }
-            PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
-//            return estimator.estimateCameraPoseFrom3D2DPointMatches(
-//                    cameraIntrinsics_,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
-//                    landmarkFeatures.size(), worldX, worldY, worldZ, pixelsX, pixelsY);
-            return estimator.estimateCameraPoseQuad(cameraIntrinsics_,worldX, worldY, worldZ, pixelsX, pixelsY);
-        }
-        ////  TODO - list of tags and sizes, and tag-groups and sizes
-        public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
-        private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
-        private void loadLandmarkFeaturesOnce() {
-        /*  TODO - HARDCODING  */
-            if(null == fixedLandmarks) {fixedLandmarks = landmarkFeatureLoader.loadLandmarkFeatures();}
-        /*  TODO - HARDCODING  */
-        }
-        /***************************************************************/
-
-
-        private boolean  poseKnown   = false;
-        private void updateLocationFromDetectedFeature(int tag_id, String logTagTag, Se3_F64 sensorToTargetViaTransform, Quaternion_F64 sensorToTargetViaTransformQuat) {
-            if (!poseKnown) {
-                rosThingy.updateLocationFromDetectedFeature(tag_id,
-                        sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
-                        sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
-                //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
-                Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
+                executionEndTimeMs = Calendar.getInstance().getTimeInMillis();
+                return new Long(0L);
             }
         }
-
-        private void recordPerformance(long startTime, int fps) {
-            countOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
-            logOfFpsAndThreads.put("p="+executionThreadId+",t="+startTime, new PerformanceMetric(fps, taskCompletionTimer.concurrentThreadsExecuting()));
-        }
-
-
-        @Override
-        protected void onPreExecute() {
-            super.onPreExecute();
-        }
-
-        @Override
-        protected void onProgressUpdate(Void... values) {
-            super.onProgressUpdate(values);
-        }
-
-        @Override
-        protected void onPostExecute(Long result) {
-            super.onPostExecute(result);
-            taskCompletionTimer.completedTask(executionThreadId, instantiationTimeMs, executionStartTimeMs, executionEndTimeMs);
-        }
-
     }
 
     class PerformanceMetric{
@@ -1738,9 +2150,9 @@ public class Camera2BasicFragment extends Fragment
         }
     });
 
-    ConcurrentLinkedQueue<GrayF32> unusedGrayImageQueue = new ConcurrentLinkedQueue<GrayF32>();   //  todo - persist in the application across onSleep/onResume for re-orientations
+    ConcurrentLinkedQueue<GrayU8> unusedGrayImageQueue = new ConcurrentLinkedQueue<GrayU8>();   //  todo - persist in the application across onSleep/onResume for re-orientations
 
-    private void finishedUsingGrayImage(GrayF32 image_) {
+    private void finishedUsingGrayImage(GrayU8 image_) {
         Log.i("finishedUsingGrayImage","finishedUsingGrayImage");
         if(null!=unusedGrayImageQueue && null!=image_) {
             try {
@@ -1751,14 +2163,14 @@ public class Camera2BasicFragment extends Fragment
             }
         }
     }
-    private GrayF32 fetchAGrayImageToUse(int imageWidth_, int imageHeight_) {
-        GrayF32 unusedImage;
+    private GrayU8 fetchAGrayImageToUse(int imageWidth_, int imageHeight_) {
+        GrayU8 unusedImage;
         while(true) {
             try {
                 unusedImage = unusedGrayImageQueue.remove();
             } catch (NoSuchElementException e) {                    // queue is empty, so make a new image
                 Log.i("fetchAGrayImageToUse","queue is empty, so make a new image");
-                return new GrayF32(imageWidth_, imageHeight_);
+                return new GrayU8(imageWidth_, imageHeight_);
             }
             if(unusedImage.getWidth() == imageWidth_ && unusedImage.getHeight() == imageHeight_) {
                 Log.i("fetchAGrayImageToUse","image is the right size");

@@ -83,6 +83,8 @@ configure(subprojects.findAll { it.name.startsWith("android_") }) {
             }
 
             compileOptions {
+                // sourceCompatibility JavaVersion.VERSION_1_8
+                // targetCompatibility JavaVersion.VERSION_1_8
                 sourceCompatibility JavaVersion.VERSION_1_7
                 targetCompatibility JavaVersion.VERSION_1_7
             }
@@ -145,6 +147,8 @@ configure(subprojects.findAll { it.name.startsWith("androidvosopencv") }) {
             }
 
             compileOptions {
+                // sourceCompatibility JavaVersion.VERSION_1_8
+                // targetCompatibility JavaVersion.VERSION_1_8
                 sourceCompatibility JavaVersion.VERSION_1_7
                 targetCompatibility JavaVersion.VERSION_1_7
             }
@@ -207,6 +211,8 @@ configure(subprojects.findAll { it.name.startsWith("AppCamera2") }) {
             }
 
             compileOptions {
+                // sourceCompatibility JavaVersion.VERSION_1_8
+                // targetCompatibility JavaVersion.VERSION_1_8
                 sourceCompatibility JavaVersion.VERSION_1_7
                 targetCompatibility JavaVersion.VERSION_1_7
             }
@@ -270,6 +276,8 @@ configure(subprojects.findAll { it.name.startsWith("vos") }) {
             }
 
             compileOptions {
+                // sourceCompatibility JavaVersion.VERSION_1_8
+                // targetCompatibility JavaVersion.VERSION_1_8
                 sourceCompatibility JavaVersion.VERSION_1_7
                 targetCompatibility JavaVersion.VERSION_1_7
             }

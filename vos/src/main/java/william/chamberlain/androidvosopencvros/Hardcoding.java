@@ -45,6 +45,14 @@ public class Hardcoding {
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "1690", 1));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "1730", 1));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "1650", 1));
+
+        /** big markers for distance ***/
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv",  "57", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "157", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "257", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "357", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "457", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "557", 1));
     }
 
 
@@ -57,7 +65,8 @@ public class Hardcoding {
     /* Dev: part of knowledge about landmarks */
     public static boolean isALandmark(final int tag_id) {
         return tag_id == 650 || tag_id == 690 || tag_id == 730 || tag_id == 770 || tag_id == 810 || tag_id == 850 || tag_id == 930 || tag_id == 1090 || tag_id == 1010 || tag_id == 970 || tag_id == 1050 || tag_id == 890 || tag_id == 1250 || tag_id == 1210 || tag_id == 1170
-                || tag_id == 1610 || tag_id == 1690 || tag_id == 1730 || tag_id == 170 ;
+                || tag_id == 1610 || tag_id == 1690 || tag_id == 1730 || tag_id == 170
+                || tag_id == 57 || tag_id == 157 || tag_id == 257 || tag_id == 357 || tag_id == 457 || tag_id == 557;
     }
 
     public static boolean isAQuad(final int tag_id) {

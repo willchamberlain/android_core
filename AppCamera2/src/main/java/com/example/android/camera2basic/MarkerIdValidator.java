@@ -1,7 +1,7 @@
 package com.example.android.camera2basic;
 
 import boofcv.abst.fiducial.FiducialDetector;
-import boofcv.struct.image.GrayF32;
+import boofcv.struct.image.GrayU8;
 
 /**
  * Created by will on 31/07/17.
@@ -9,11 +9,11 @@ import boofcv.struct.image.GrayF32;
 
 public class MarkerIdValidator {
     private boolean isValid;
-    private FiducialDetector<GrayF32> detector;
+    private FiducialDetector<GrayU8> detector;
     private int i;
     private int tag_id;
 
-    public MarkerIdValidator(FiducialDetector<GrayF32> detector, int i, int tag_id) {
+    public MarkerIdValidator(FiducialDetector<GrayU8> detector, int i, int tag_id) {
         this.detector = detector;
         this.i = i;
         this.tag_id = tag_id;

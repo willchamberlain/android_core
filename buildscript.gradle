@@ -40,7 +40,16 @@ rootProject.buildscript {
   }
   apply from: "github_com_rosjava_rosjava_bootstrap_raw_indigo_buildscript.gradle"
   /* apply from: "https://github.com/rosjava/rosjava_bootstrap/raw/indigo/buildscript.gradle" */
+  repositories {
+    mavenLocal()
+    jcenter()
+    mavenCentral()
+    maven {
+      url = "https://oss.sonatype.org/content/repositories/snapshots/"
+    }
+  }
   dependencies {
-    classpath "com.android.tools.build:gradle:2.3.0"
+    classpath "com.android.tools.build:gradle:2.2.3"  // added 2017_08_17 : speeds up BoofCV from e.g. 0.5fps to 5fps in BoofCVDemo
+    // classpath "com.android.tools.build:gradle:2.3.0"
   }
 }
