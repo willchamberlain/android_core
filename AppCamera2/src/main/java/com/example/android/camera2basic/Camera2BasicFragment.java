@@ -125,8 +125,8 @@ public class Camera2BasicFragment extends Fragment
     private static final String FRAGMENT_DIALOG = "dialog";
     static final int targetFPS = 4; //8;
     static final int numRecordsToUse = 10;
-    public static final float FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 519.902859f;
-    public static final float FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 518.952669f;
+    public static final float FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 263.1f*2.0f; // 519.902859f;
+    public static final float FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 262.8f*2.0f; // 518.952669f;
     public static final float IMAGE_WIDTH_PIXELS_AS_CALIBRATED = 640.0f;
     public static final float IMAGE_HEIGHT_PIXELS_AS_CALIBRATED = 480.0f;
     public static final double SKEW_PIXELS_AS_CALIBRATED = 0.0;

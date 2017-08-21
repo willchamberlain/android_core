@@ -4,7 +4,7 @@ public class Hardcoding {
 
 
     public static final int MARKER_OFFSET_INT = 90000;
-    public static final double BOOFCV_MARKER_SIZE_M = 0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
+    public static final double BOOFCV_MARKER_SIZE_M = 0.257; //0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
 
 
     public static void hardcodeTargetMarkers(VosTaskSet vosTaskSet) {
