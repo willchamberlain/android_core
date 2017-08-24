@@ -266,7 +266,7 @@ public class MainActivity
         }
 
         if(running_native) {
-            tagDetectorPointer = newTagDetectorUmich();
+//            tagDetectorPointer = newTagDetectorUmich();  // 2017_08_23 - remove to allow for Android API 16
 //        tagDetectorPointer = newTagDetectorKaess();
             Log.i("onCreate", "tagDetectorPointer created");
         }
@@ -688,28 +688,46 @@ public class MainActivity
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
                     if(vosTaskSet.isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
-                            Log.i(logTagTag,"checking on tag "+tag_id+": is part of robot visual model");
+                            Log.i(logTagTag,"onCameraFrame: checking on tag "+tag_id+": is part of robot visual model");
                         drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
                     } else { // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
+                            Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
                         drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.NON_ROBOT_FEATURE);
                         continue;
                     }
-                        Log.i(logTagTag,"finished checking tag_id");
+                        Log.i(logTagTag,"onCameraFrame: finished checking tag_id");
 
-                    if( detector.hasMessage() ) { System.out.println("Message   = "+detector.getMessage(detectionOrder_)); }
+                    if( detector.hasMessage() ) { System.out.println("onCameraFrame: Message   = "+detector.getMessage(detectionOrder_)); }
 
                     if( detector.is3D() ) {
-                            Log.i(logTagTag,"start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                            Log.i(logTagTag,"onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
                         Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
                         detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
-                            Log.i(logTagTag,"after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                            Log.i(logTagTag,"onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
-                            System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-                            System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+                        System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+
+                        // testing 2017_08_23
+                            double[] eulerZYZ=new double[]{0,0,0};
+                            ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ,eulerZYZ);
+                            Log.i(logTagTag,"onCameraFrame : testing 2017_08_23: eulerZYZ = "+eulerZYZ[0]+","+eulerZYZ[1]+","+eulerZYZ[2]);
+
+                            Se3_F64 sensorToTarget_testing = null;
+                            sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
+                            double[] eulerZYZ_fromInvert=new double[]{0,0,0};
+                            ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
+                            Log.i(logTagTag,"onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = "+eulerZYZ_fromInvert[0]+","+eulerZYZ_fromInvert[1]+","+eulerZYZ_fromInvert[2]);
+                            Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
+                            Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
+                            Quaternion_F64 sensorToTarget_testing_quat = new Quaternion_F64();
+                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
+                            Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
+
 
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
                         DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
@@ -733,13 +751,15 @@ public class MainActivity
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                            Log.i(logTagTag,"after applying transformations");
+                            Log.i(logTagTag,"onCameraFrame: after applying transformations");
+                            Log.i(logTagTag,"onCameraFrame: calcAndReportRobotPose: detectedFeaturesClient.reportDetectedFeature");
+                            Log.i(logTagTag,"onCameraFrame: detectedFeaturesClient.reportDetectedFeature");
                         int tag_id_reported = MARKER_OFFSET_INT+tag_id;
                         detectedFeaturesClient.reportDetectedFeature(tag_id_reported,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
-                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+                        System.out.println("onCameraFrame: 3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("onCameraFrame: 3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
 
                         /* Dev: part of robot visual model */
@@ -749,19 +769,19 @@ public class MainActivity
                         if(isPartOfRobotVisualModel(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
-                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag,"onCameraFrame: isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                         } else if(isALandmark(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
                             landmarkFeatures.add(detectedTag);
-                            Log.i(logTagTag,"isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag,"onCameraFrame: isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
                         } else { // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                            Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
+                            Log.i(logTagTag,"onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
                         updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
                         variousUnusedAttemptsAtCoordinateSystemCorrection();
 
@@ -823,7 +843,8 @@ public class MainActivity
 
     private void imageProcessingNative(FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim) {
         Log.i(TAG, "starting OpenCV processing ");
-        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(), matRgb.getNativeObjAddr(), tagDetectorPointer, tagSize_metres, focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels());
+        String[] tags = new String[]{};
+//        String[] tags = aprilTagsUmichOneShot(matGray.getNativeObjAddr(), matRgb.getNativeObjAddr(), tagDetectorPointer, tagSize_metres, focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels());
 //        System.out.println("\\n\\n\\n ---------- hardcoding to ZERO AprilTags detections ---------- \\n\\n\\n");
 //        String[] tags = new String[]{};
 
@@ -966,21 +987,21 @@ public class MainActivity
                 zTranslationMean += detectedTag.getSensorToTargetViaTransform().getTranslation().getZ();
 //                detectedTag.sensorToTargetViaTransform.getRotation();
                 double[] eulerAngles = ConvertRotation3D_F64.quaternionToEuler(detectedTag.getSensorToTargetViaTransformQuat(), EulerType.ZYX, null);
-                Log.i(robotId_.idString(), "Tag id = "+detectedTag.getTag_id()+" euler angles are "+eulerAngles[0]+" , "+eulerAngles[1]+" , "+eulerAngles[2]+"");
+                Log.i(robotId_.idString(), "calcAndReportRobotPose: Tag id = "+detectedTag.getTag_id()+" euler angles are "+eulerAngles[0]+" , "+eulerAngles[1]+" , "+eulerAngles[2]+"");
                 double zRotation = eulerAngles[0];
                 if(zRotation>Math.PI) {zRotation = zRotation - (Math.PI*2.0); } //e.g. convert 345 degrees to -15 degrees
-                Log.i(robotId_.idString(), "Tag id = "+detectedTag.getTag_id()+" zRotation is "+zRotation);
+                Log.i(robotId_.idString(), "calcAndReportRobotPose: Tag id = "+detectedTag.getTag_id()+" zRotation is "+zRotation);
                 zRotationSum += zRotation;
                 if(zRotation<0.0) {zRotationPositive=(Math.PI*2.0)+zRotation;} else {zRotationPositive=zRotation;}
-                Log.i(robotId_.idString(), "Tag id = "+detectedTag.getTag_id()+" zRotationPositive is "+zRotationPositive);
+                Log.i(robotId_.idString(), "calcAndReportRobotPose: Tag id = "+detectedTag.getTag_id()+" zRotationPositive is "+zRotationPositive);
                 if(1 < numTagsForRobot) {
-                    Log.w(robotId_.idString(), "UNWEIGHTED MEAN zRotationMean ONLY WORKS FOR 2 TAGS");
+                    Log.w(robotId_.idString(), "calcAndReportRobotPose: calcAndReportRobotPose: UNWEIGHTED MEAN zRotationMean ONLY WORKS FOR 2 TAGS");
                     double diff = Math.abs(zRotationPositivePrev - zRotationPositive);
                     double diffDiv2 = diff/2.0;
-                    Log.i(robotId_.idString(), "Tag id = "+detectedTag.getTag_id()+" diffDiv2 = "+diffDiv2);
+                    Log.i(robotId_.idString(), "calcAndReportRobotPose: Tag id = "+detectedTag.getTag_id()+" diffDiv2 = "+diffDiv2);
                     if(diff > Math.PI) {
                         diffDiv2 = (Math.PI-diffDiv2);
-                        Log.i(robotId_.idString(), "Tag id = "+detectedTag.getTag_id()+" diffDiv2 = "+diffDiv2);
+                        Log.i(robotId_.idString(), "calcAndReportRobotPose: Tag id = "+detectedTag.getTag_id()+" diffDiv2 = "+diffDiv2);
                         if (zRotationPositivePrev > zRotationPositive) {
                             zRotationIncrementalMean = zRotationPositive - diffDiv2;
                         } else {
@@ -1005,15 +1026,16 @@ public class MainActivity
 //                zRotationMean = zRotationSum/numTagsForRobot;
 //                Log.i(robotId_.idString(), "zRotationMean is "+zRotationMean);
 //                meanSensorToTargetTransformRot = ConvertRotation3D_F64.eulerToMatrix(EulerType.ZYX, zRotationMean, 0.0, 0.0, null);
-                    Log.i(robotId_.idString(), "zRotationIncrementalMean is "+zRotationIncrementalMean);
+                    Log.i(robotId_.idString(), "calcAndReportRobotPose: zRotationIncrementalMean is "+zRotationIncrementalMean);
                 meanSensorToTargetTransformRot = ConvertRotation3D_F64.eulerToMatrix(EulerType.ZYX, zRotationIncrementalMean, 0.0, 0.0, null);
-                    Log.i(robotId_.idString(), "meanSensorToTargetTransformRot = "+meanSensorToTargetTransformRot);
+                    Log.i(robotId_.idString(), "calcAndReportRobotPose: meanSensorToTargetTransformRot = "+meanSensorToTargetTransformRot);
                 Se3_F64 meanSensorToTargetViaTransform = new Se3_F64();
                 meanSensorToTargetViaTransform.setTranslation(xTranslationMean,yTranslationMean,zTranslationMean);
                 meanSensorToTargetViaTransform.setRotation(meanSensorToTargetTransformRot);
                 Quaternion_F64 meanSensorToTargetViaTransformQuat = new Quaternion_F64();
                 ConvertRotation3D_F64.matrixToQuaternion(meanSensorToTargetTransformRot, meanSensorToTargetViaTransformQuat);
-                    Log.i(robotId_.idString(), "estimated pose from "+numTagsForRobot+" tag detections");
+                    Log.i(robotId_.idString(), "calcAndReportRobotPose: estimated pose from "+numTagsForRobot+" tag detections");
+                    Log.i(robotId_.idString(), "calcAndReportRobotPose: detectedFeaturesClient.reportDetectedFeature");
                 detectedFeaturesClient.reportDetectedFeature(90000+robotId_.idInt(),
                     xTranslationMean, yTranslationMean, zTranslationMean,
                     meanSensorToTargetViaTransformQuat.x,meanSensorToTargetViaTransformQuat.y,meanSensorToTargetViaTransformQuat.z,meanSensorToTargetViaTransformQuat.w);
@@ -1320,7 +1342,9 @@ public class MainActivity
 
     /* Dev: part of robot visual model */
     private boolean isPartOfRobotVisualModel(int tag_id) {
-        return tag_id == 170 || tag_id == 250 || tag_id == 290 || tag_id == 330;
+        return tag_id == 170 || tag_id == 250 || tag_id == 290 || tag_id == 330
+                || tag_id == 1650
+                || tag_id == 557;
     }
 
     /* Dev: part of knowledge about landmarks */
@@ -1425,9 +1449,11 @@ public class MainActivity
     @Override
     public void screenOn(float percentBrightness) {
         screenLocked = false;
-        if(0.0 > percentBrightness) {
-            percentBrightness = 0.0f;
-        } else if (1.0 < percentBrightness) {
+//        2017_08_24 - allow preferred/adaptive brightness
+//        if(0.0 > percentBrightness) {
+//            percentBrightness = 0.0f;
+//        } else
+        if (1.0 < percentBrightness) {
             percentBrightness = 1.0f;
         }
         // --> android.view.ViewRootImpl$CalledFromWrongThreadException: Only the original thread that created a view hierarchy can touch its views.
@@ -1478,18 +1504,18 @@ public class MainActivity
     }
 
 
-    public native void salt(long matAddrGray, int nbrElem);
-    public native void canny(long matAddrGray);
-
-    public native long newTagDetectorKaess();   // Apriltags
-    public native void deleteTagDetectorKaess(long tagDetectorPointer);     // Apriltags
-    public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags
-
-    public native long newTagDetectorUmich();   // Apriltags
-    public native void deleteTagDetectorUmich(long tagDetectorPointer, long tagFamilyPointer);     // Apriltags
-    public native long aprilTagsUmich(       long matAddrGray, long matAddrRgb, long tagDetectorPointer, long tagFamilyPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
-    public native String[] aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, float fx_pixels, float fy_pixels, float px_pixels, float py_pixels);  // Apriltags_umich
-
+//    public native void salt(long matAddrGray, int nbrElem);
+//    public native void canny(long matAddrGray);
+//
+//    public native long newTagDetectorKaess();   // Apriltags          //  // 2017_08_23
+//    public native void deleteTagDetectorKaess(long tagDetectorPointer);     // Apriltags
+//    public native String[] aprilTags(long matAddrGray, long matAddrRgb, long tagDetectorPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags
+//
+//    public native long newTagDetectorUmich();   // Apriltags
+//    public native void deleteTagDetectorUmich(long tagDetectorPointer, long tagFamilyPointer);     // Apriltags
+//    public native long aprilTagsUmich(       long matAddrGray, long matAddrRgb, long tagDetectorPointer, long tagFamilyPointer, double tagSize_metres, double fx_pixels, double fy_pixels);  // Apriltags_umich
+//    public native String[] aprilTagsUmichOneShot(long matAddrGray, long matAddrRgb, long tagDetectorPointer,                        double tagSize_metres, float fx_pixels, float fy_pixels, float px_pixels, float py_pixels);  // Apriltags_umich
+//
 
     @Override
     public void lowResolution() {

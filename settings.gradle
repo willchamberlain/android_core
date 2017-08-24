@@ -25,6 +25,7 @@ include "android_15"
 //include "android_tutorial_pubsub"
 //include "android_tutorial_teleop"
 //include "docs"
+include "openCVLibrary310"
 include "androidvosopencvros"
 include "AppCamera2"
 //include "androidvosopencv"
@@ -36,6 +37,5 @@ include "/mnt/nixbig/downloads/android_cv_bridge"
 // (should they be in a java repo instead?)
 // include "compressed_map_transport"
 // include "polling_input_stream"
-include ':openCVLibrary310'
 
 include ':vos'

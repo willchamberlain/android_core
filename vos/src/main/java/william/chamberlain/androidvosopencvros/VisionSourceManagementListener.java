@@ -99,6 +99,18 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case SCREEN_ON:
                             dimmableScreen.screenOn();
                             break;
+                        case SCREEN_ON_PREFERRED:
+                            dimmableScreen.screenOn(-1.0F);
+                            break;
+                        case SCREEN_ON_BRIGHT:
+                            dimmableScreen.screenOn(1.0F);
+                            break;
+                        case SCREEN_ON_MID:
+                            dimmableScreen.screenOn(0.6F);
+                            break;
+                        case SCREEN_ON_LOW:
+                            dimmableScreen.screenOn(0.3F);
+                            break;
                         case SCREEN_OFF:
                             dimmableScreen.screenOff();
                             break;
@@ -110,8 +122,13 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             dimmableScreen.screenOff();
                             visionSource.stop();
                             break;
+                        case RESOLUTION_VERY_VERY_HIGH:
+                            variableResolution.resolutionMinMax(650,490,960,720); // --> 960x720
+                            break;
+                        case RESOLUTION_VERY_HIGH:
+                            variableResolution.resolutionMinMax(490,370,650,490); // --> 640x480
+                            break;
                         case RESOLUTION_HIGH:
-//                            variableResolution.resolutionMinMax(600,450,700,550); // --> 640x480
                             variableResolution.resolutionMinMax(320,240,490,370); // --> 480X
                             break;
                         case RESOLUTION_LOW:

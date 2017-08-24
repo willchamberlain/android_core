@@ -3,7 +3,7 @@ android {
     compileSdkVersion 25
     buildToolsVersion "25.0.2"
     defaultConfig {
-        minSdkVersion 18
+        minSdkVersion 16
         targetSdkVersion 25
     }
     buildTypes {
@@ -20,4 +20,9 @@ android {
         pickFirst '/org/xmlpull/v1/XmlPullParser.class'
         pickFirst '/org/xmlpull/v1/XmlPullParser'
     }
+    productFlavors {
+    }
+}
+
+dependencies {
 }

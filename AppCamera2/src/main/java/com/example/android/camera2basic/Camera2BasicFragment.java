@@ -91,6 +91,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import boofcv.abst.fiducial.FiducialDetector;
 import boofcv.alg.distort.LensDistortionNarrowFOV;
 import boofcv.alg.distort.pinhole.LensDistortionPinhole;
+import boofcv.alg.distort.radtan.LensDistortionRadialTangential;
 import boofcv.core.encoding.ConvertNV21;
 import boofcv.factory.fiducial.ConfigFiducialBinary;
 import boofcv.factory.fiducial.FactoryFiducial;
@@ -110,6 +111,7 @@ import william.chamberlain.androidvosopencvros.Hardcoding;
 import william.chamberlain.androidvosopencvros.LandmarkFeatureLoader;
 import william.chamberlain.androidvosopencvros.RobotId;
 import william.chamberlain.androidvosopencvros.RosThingy;
+import william.chamberlain.androidvosopencvros.VosTaskSet;
 
 import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
@@ -123,14 +125,20 @@ public class Camera2BasicFragment extends Fragment
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
-    static final int targetFPS = 4; //8;
+    static final int targetFPS = 3; //4; //8;
     static final int numRecordsToUse = 10;
-    public static final float FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 263.1f*2.0f; // 519.902859f;
-    public static final float FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 262.8f*2.0f; // 518.952669f;
+    public static final float FX_FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 528.65F;  // Nexus 6 # 510  //= 263.1f*2.0f; // 519.902859f;
+    public static final float FY_FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 527.93F;  // Nexus 6 # 510  //= 262.8f*2.0f; // 518.952669f;
+    public static final float CX_FOCAL_MIDPOINT_X_PIXELS_AS_CALIBRATED = 325.23F;  // Nexus 6 # 510
+    public static final float CY_FOCAL_MIDPOINT_Y_PIXELS_AS_CALIBRATED = 236.43F;  // Nexus 6 # 510
+    public static final float CX = 325.23F;  // Nexus 6 # 510
+    public static final float CY = 236.43F;  // Nexus 6 # 510
+    public static final double SKEW_PIXELS_AS_CALIBRATED = 0.0;
+    public static final float RADIAL_1_AS_CALIBRATED = 7.22F*0.01F;
+    public static final float RADIAL_2_AS_CALIBRATED = -1.49F*0.1F;
     public static final float IMAGE_WIDTH_PIXELS_AS_CALIBRATED = 640.0f;
     public static final float IMAGE_HEIGHT_PIXELS_AS_CALIBRATED = 480.0f;
-    public static final double SKEW_PIXELS_AS_CALIBRATED = 0.0;
-    static int fps = 5;
+    static int fps = 3; //5;
     public static  Range<Integer> fpsRange = new Range<>(fps, fps);
 
     static {
@@ -347,21 +355,35 @@ public class Camera2BasicFragment extends Fragment
                     break;
                 }
                 case RUN_ASYNC_BACKGROUNDHANDLER: {
-                    Image image =  reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
+                    Image image = null;
+                    try {
+                        image = reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
+                    } catch (IllegalStateException e) {
+                        break;
+                    }
                     if (null != backgroundHandler) {
                         backgroundHandler.post(
                                 new ImageSaver(
                                         image /*,                          // TODO see https://stackoverflow.com/a/43564630/1200764
-                                mFile */ ));  // push ImageSaver runnable/task onto the backgroundthread's message queue to be executed on the backgroundthread
+                            mFile */));  // push ImageSaver runnable/task onto the backgroundthread's message queue to be executed on the backgroundthread
                         if (image != null) {             // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
                             image.close();               // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
                         }
                     }
                     break;
                 }
-                case RUN_ASYNC_ASYNCTASK: {
-                    Image image =  reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
-                    if (skipFrame(image)) break;
+                case RUN_ASYNC_ASYNCTASK: {Image image = null;
+                    try {
+                        image = reader.acquireNextImage();       // TODO see https://stackoverflow.com/a/43564630/1200764
+                    } catch (IllegalStateException e) {
+                        break;
+                    }
+                    if (skipFrame(image)) {
+                        if (image != null) {             // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+                            image.close();               // ?? causes an exception because !when the app starts! closed before can save                // TODO see https://stackoverflow.com/a/43564630/1200764
+                        }
+                        break;
+                    }
                     try {
                         //  new ImageSaverAsyncTask(image, taskCompletionTimer).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);  // https://stackoverflow.com/questions/18266161/achieving-concurrency-using-asynctask  https://developer.android.com/reference/java/util/concurrent/Executor.html
                         new ImageSaverAsyncTask(image, taskCompletionTimer).executeOnExecutor(threadPoolExecutor);  // https://stackoverflow.com/questions/18266161/achieving-concurrency-using-asynctask  https://developer.android.com/reference/java/util/concurrent/Executor.html
@@ -593,21 +615,24 @@ public class Camera2BasicFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
-        hookUpGuiButtons(view);
+        //    hookUpGuiButtons(view);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
     }
 
-    private void hookUpGuiButtons(View view) {
-        view.findViewById(R.id.picture).setOnClickListener(this);
-        view.findViewById(R.id.fps).setOnClickListener(this);
-        view.findViewById(R.id.info).setOnClickListener(this);
-    }
+        //    private void hookUpGuiButtons(View view) {
+        //        view.findViewById(R.id.picture).setOnClickListener(this);
+        //        view.findViewById(R.id.fps).setOnClickListener(this);
+        //        view.findViewById(R.id.info).setOnClickListener(this);
+        //    }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
     }
+
+
+    VosTaskSet vosTaskSet;
 
     @Override
     public void onResume() {
@@ -618,6 +643,8 @@ public class Camera2BasicFragment extends Fragment
 
         startBackgroundThread();
         threadPoolExecutor.allowCoreThreadTimeOut(true);
+        vosTaskSet = new VosTaskSet();
+        Hardcoding.hardcodeTargetMarkers(vosTaskSet);
 
 
         // When the screen is turned off and turned back on, the SurfaceTexture is already
@@ -1177,26 +1204,26 @@ public class Camera2BasicFragment extends Fragment
     @Override
     public void onClick(View view) {
         Log.i("Camera2BasicFragment","onClick(View view)");
-        switch (view.getId()) {
-            case R.id.picture: {
-                takePicture();
-                break;
-            }
-            case R.id.fps: {
-                adjustFps();
-                break;
-            }
-            case R.id.info: {
-                Activity activity = getActivity();
-                if (null != activity) {
-                    new AlertDialog.Builder(activity)
-                            .setMessage(R.string.intro_message)
-                            .setPositiveButton(android.R.string.ok, null)
-                            .show();
-                }
-                break;
-            }
-        }
+        //        switch (view.getId()) {
+        //            case R.id.picture: {
+        //                takePicture();
+        //                break;
+        //            }
+        //            case R.id.fps: {
+        //                adjustFps();
+        //                break;
+        //            }
+        //            case R.id.info: {
+        //                Activity activity = getActivity();
+        //                if (null != activity) {
+        //                    new AlertDialog.Builder(activity)
+        //                            .setMessage(R.string.intro_message)
+        //                            .setPositiveButton(android.R.string.ok, null)
+        //                            .show();
+        //                }
+        //                break;
+        //            }
+        //        }
     }
 
     private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
@@ -1270,11 +1297,11 @@ public class Camera2BasicFragment extends Fragment
                     Log.i("ImageSaver","run() : config FactoryFiducial.squareBinary");
                 FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
                         new ConfigFiducialBinary(BOOFCV_TAG_WIDTH),
-                        ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?
+                        ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?  // TOOD - see other config thresholds
                         GrayU8.class);  // tag size,  type,  ?'radius'?
                 //        detector.setLensDistortion(lensDistortion);
                     Log.i("ImageSaver","run() : config CameraPinhole pinholeModel");
-                CameraPinhole pinholeModel = new CameraPinhole(
+                CameraPinhole pinholeModel = new CameraPinhole( // TODO - radial --> non-linearity with distance?
                         focal_length_in_pixels_x, focal_length_in_pixels_y,
                         skew,
                         focal_midpoint_pixels_x,focal_midpoint_pixels_y,
@@ -1282,7 +1309,7 @@ public class Camera2BasicFragment extends Fragment
                     Log.i("ImageSaver","run() : config LensDistortionNarrowFOV pinholeDistort");
                 LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
                     Log.i("ImageSaver","run() : config detector.setLensDistortion(pinholeDistort)");
-                detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
+                detector.setLensDistortion(pinholeDistort);  // TODO TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
                 // TODO - timing here  c[camera_num]-f[frameprocessed]
                 long timeNow;
@@ -1372,8 +1399,7 @@ public class Camera2BasicFragment extends Fragment
 //            return new Thread(r, "AsyncTask #" + mCount.getAndIncrement());
 //        }
 
-        @Override
-        public Thread newThread(final Runnable runnable_) {
+        @Override       public Thread newThread(final Runnable runnable_) {
             Runnable wrapperRunnable = new Runnable() {
                 @Override
                 public void run() {
@@ -1392,11 +1418,11 @@ public class Camera2BasicFragment extends Fragment
     final static int THREADING_NUM_THREADS_CORE = 4; // 8
     final static int THREADING_NUM_THREADS_MAX  = 8; // 6 // 16
     static final int MAX_CONCURRENT_THREADS = THREADING_NUM_THREADS_MAX;  // Manual skip-if-over value
-    final static int THREADING_QUEUE_SIZE = 256; //64; // 6 // 16
+    final static int THREADING_QUEUE_SIZE = 256; //8; // 256; //64; // 6 // 16
     static final int KEEP_ALIVE_TIME = 5; // 30
 
     private static final BlockingQueue<Runnable> sPoolWorkQueue =
-            new LinkedBlockingQueue<Runnable>(THREADING_QUEUE_SIZE);  //128);  // allow 128 in the queue
+            new LinkedBlockingQueue<Runnable>(THREADING_QUEUE_SIZE);
 
 
     ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
@@ -1519,15 +1545,18 @@ public class Camera2BasicFragment extends Fragment
                 Log.i(logTag,"imageProcessingAndRosCalling() : image dimensions: "+imageWidthInt+" pixels wide, "+imageHeightInt+" pixels high");
                 float imageWidthFloat = (float) imageWidthInt; // new Double(matGray.size().width).intValue();
                 float imageHeightFloat = (float) imageHeightInt; //new Double(matGray.size().height).intValue();
-                float focal_midpoint_pixels_x = imageWidthFloat / 2.0f;
-                float focal_midpoint_pixels_y = imageHeightFloat / 2.0f;
+                //                float focal_midpoint_pixels_x = imageWidthFloat * 0.5f;
+                //                float focal_midpoint_pixels_y = imageHeightFloat * 0.5f;
 
                 double skew = SKEW_PIXELS_AS_CALIBRATED;
 
                 // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
-                float focal_length_in_pixels_x = FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-                float focal_length_in_pixels_y = FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-
+                float focal_length_in_pixels_x = FX_FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                float focal_length_in_pixels_y = FY_FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                float focal_midpoint_pixels_x = CX_FOCAL_MIDPOINT_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                float focal_midpoint_pixels_y = CY_FOCAL_MIDPOINT_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                float radial_1 = RADIAL_1_AS_CALIBRATED * 0.5F * ((imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED)+(imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED));  // TODO is this right ??
+                float radial_2 = RADIAL_2_AS_CALIBRATED * 0.5F * ((imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED)+(imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED));  // TODO is this right ??
 
                 Log.i(logTag, "imageProcessingAndRosCalling() : config FactoryFiducial.squareBinary");
                 ConfigFiducialBinary config = new ConfigFiducialBinary(BOOFCV_TAG_WIDTH);
@@ -1535,9 +1564,10 @@ public class Camera2BasicFragment extends Fragment
                 int binaryThreshold_fixed = 50;
                 ConfigThreshold configThreshold;
                 if (robust) {
-                    configThreshold = ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 6);
+                    configThreshold = ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10); // 6-pixel blocks of local-thresholded
                 } else {
-                    configThreshold = ConfigThreshold.fixed(binaryThreshold_fixed);
+                    configThreshold = ConfigThreshold.fixed(binaryThreshold_fixed);         // image-wide: may be faster but may not cope with illumination variation - TODO - check vs FPS - make part of adaption process
+                        // TODO - adaption process includes trading information through the service between smart cameras
                 }
                 FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(config, configThreshold, GrayU8.class);
 //                FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
@@ -1551,12 +1581,14 @@ public class Camera2BasicFragment extends Fragment
                         skew,
                         focal_midpoint_pixels_x, focal_midpoint_pixels_y,
                         imageWidthInt, imageHeightInt);
+                pinholeModel.fsetRadial(radial_1,radial_2);
+                    // TODO - .setRadial  - see if that compensates the nonlinear with distance - note that LensDistortionPinhole does not use the radial
                 Log.i(logTag, "imageProcessingAndRosCalling() : config LensDistortionNarrowFOV pinholeDistort");
-                LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
+                LensDistortionNarrowFOV pinholeDistort = new LensDistortionRadialTangential(pinholeModel); //= new LensDistortionPinhole(pinholeModel);
+                    // TODO - LensDistortionRadialTangential  - see if that compensates the nonlinear with distance
                 Log.i(logTag, "imageProcessingAndRosCalling() : config detector.setLensDistortion(pinholeDistort)");
                 detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
-                // TODO - timing here  c[camera_num]-f[frameprocessed]
                 long timeNow = Calendar.getInstance().getTimeInMillis();
                 Log.i(logTag, "imageProcessingAndRosCalling() : start detector.detect(grayImage) at " + timeNow);
                 detector.detect(grayImage);
@@ -1568,7 +1600,14 @@ public class Camera2BasicFragment extends Fragment
                     MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
 
 
-                    if (!isTagIdValid.isValid()) {
+                    tag_id = isTagIdValid.getTag_id();
+                    if (!isTagIdValid.isValid()
+                        ||
+                        (
+                            !Hardcoding.isPartOfRobotVisualModel(tag_id) && !Hardcoding.isALandmark(tag_id) && !Hardcoding.isAQuad(tag_id)
+                            &&
+                            !vosTaskSet.isThereAVisionTaskToExecute(tag_id,logTag)
+                        )  ) {
                         //// todo - might want to do this processing and image processing in a background thread but then push the image into a short queue that the UI thread can pull the latest from
                         //// todo (cont) e.g. see https://stackoverflow.com/questions/19216893/android-camera-asynctask-with-preview-callback
                         //// todo (cont) note that BoofCV draws to Swing windows, which is nice because it's cross-platform
@@ -1584,7 +1623,6 @@ public class Camera2BasicFragment extends Fragment
                         ////                          drawMarkerLocationOnDisplay_BoofCV(detector, i, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
                         continue;
                     }
-                    tag_id = isTagIdValid.getTag_id();
                     String logTagTag = logTagIteration+"-t"+tag_id;
 
                     finishedUsingGrayImage(grayImage); grayImage = null;  // finished using the image, return it to the queue : cannot use it after this point
@@ -1601,17 +1639,37 @@ public class Camera2BasicFragment extends Fragment
                     }
 
 
+
                     if( detector.is3D() ) {
-                        Log.i(logTagTag,"start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                        algorithmStepStartTime = Calendar.getInstance().getTimeInMillis();
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() :start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
                         Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
                         detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
-                        Log.i(logTagTag,"after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() :after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
-                        System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-                        System.out.println("3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+                            // testing 2017_08_23
+                            double[] eulerZYZ=new double[]{0,0,0};
+                            ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ,eulerZYZ);
+                            Log.i(logTagTag,"imageProcessingAndRosCalling() : testing 2017_08_23: eulerZYZ = "+eulerZYZ[0]+","+eulerZYZ[1]+","+eulerZYZ[2]);
+
+                            Se3_F64 sensorToTarget_testing = null;
+                            targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
+                            double[] eulerZYZ_fromInvert=new double[]{0,0,0};
+                            ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ,eulerZYZ_fromInvert);
+                            Log.i(logTagTag,"imageProcessingAndRosCalling() : testing 2017_08_23: eulerZYZ_fromInvert = "+eulerZYZ_fromInvert[0]+","+eulerZYZ_fromInvert[1]+","+eulerZYZ_fromInvert[2]);
+
+
+
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() :3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() :3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+                            // take BoofCV coordinate convention for fiducials : X=left Y=up Z=forward
+                            // ROS / ENU : East is X and forward, North is Y and left and Up is Z and Up
+                            // NED       : Notrht is X and
+//                          Vector3D_F64
 
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
                         DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
@@ -1635,17 +1693,17 @@ public class Camera2BasicFragment extends Fragment
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTargetViaTransformRot, sensorToTargetViaTransformQuat);
 
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                        Log.i(logTagTag,"after applying transformations");
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() : after applying transformations");
                         int tag_id_reported = MARKER_OFFSET_INT+tag_id;
 
                         long reportDetectedFeatureStartTime = Calendar.getInstance().getTimeInMillis();
-                        Log.i("TaskHolder","imageProcessingAndRosCalling() : after constructing grayImage in "+timeElapsed(algorithmStepStartTime)+"ms");
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() : after calculating transformation to tag in "+timeElapsed(algorithmStepStartTime)+"ms");
                         rosThingy.reportDetectedFeature(tag_id_reported,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
-                        Log.i(logTagTag, "ROS timing: rosThingy.reportDetectedFeature took "+timeElapsed(reportDetectedFeatureStartTime)+"ms");
-                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-                        System.out.println("3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+                        Log.i(logTagTag, "imageProcessingAndRosCalling() : ROS timing: rosThingy.reportDetectedFeature took "+timeElapsed(reportDetectedFeatureStartTime)+"ms");
+                        System.out.println("imageProcessingAndRosCalling() : 3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                        System.out.println("imageProcessingAndRosCalling() : 3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
 
                         /* Dev: part of robot visual model */
@@ -1657,30 +1715,30 @@ public class Camera2BasicFragment extends Fragment
                             DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
                             robotFeatures.add(detectedTag);
                             used=true;
-                            Log.i(logTagTag,"isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag,"imageProcessingAndRosCalling() :isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                         }
                         if(Hardcoding.isALandmark(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
                             landmarkFeatures.add(detectedTag);
-                            if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                            if(used) {Log.w(logTagTag,"imageProcessingAndRosCalling() :looks like tag_id"+tag_id+" is being used more than once");}
                             used=true;
-                            Log.i(logTagTag, "isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
+                            Log.i(logTagTag, "imageProcessingAndRosCalling() :isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
                         }
                         if(Hardcoding.isAQuad(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id, sensorToTargetViaTransform, locationPixel);
                             quadFeatures.add(detectedTag);
-                            if(used) {Log.w(logTagTag,"looks like tag_id"+tag_id+" is being used more than once");}
+                            if(used) {Log.w(logTagTag,"imageProcessingAndRosCalling() :looks like tag_id"+tag_id+" is being used more than once");}
                             used=true;
-                            Log.i(logTagTag, "isAQuad TAG - tag_id " + tag_id + " quadFeatures.size()=" + quadFeatures.size() + " - 2D Image Location = " + locationPixel);
+                            Log.i(logTagTag, "imageProcessingAndRosCalling() :isAQuad TAG - tag_id " + tag_id + " quadFeatures.size()=" + quadFeatures.size() + " - 2D Image Location = " + locationPixel);
                         }
                         if(!used){ // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag,"imageProcessingAndRosCalling() :IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                             continue;
                         }
                         /* end Dev: part of robot visual model */
 
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                        Log.i(logTagTag,"after detectedFeaturesClient.reportDetectedFeature");
+                        Log.i(logTagTag,"imageProcessingAndRosCalling() :after detectedFeaturesClient.reportDetectedFeature");
                         updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
                         //                            variousUnusedAttemptsAtCoordinateSystemCorrection();
 
@@ -1689,7 +1747,7 @@ public class Camera2BasicFragment extends Fragment
                     }
                 }
                 if(quadFeatures.size() >=4 ) {
-                    Log.i(logTag,"quadFeatures: enough quadFeatures found in image to estimate camera pose: quadFeatures.size()="+quadFeatures.size());
+                    Log.i(logTag,"imageProcessingAndRosCalling() :quadFeatures: enough quadFeatures found in image to estimate camera pose: quadFeatures.size()="+quadFeatures.size());
                     //                        Se3_F64 estimateCameraPoseFrom3D2DPointMatches(CameraPinholeRadial cameraDistortionCoefficients, int numPointsToUse, double[] worldX, double[] worldY, double[] worldZ, double[] pixelsX, double[] pixelsY);
                     CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(
                             focal_length_in_pixels_x, focal_length_in_pixels_y,
@@ -1701,10 +1759,10 @@ public class Camera2BasicFragment extends Fragment
                     Se3_F64 cameraPose = updatePoseEstimate(cameraIntrinsics,quadFeatures);
                     int numElementsInRot = cameraPose.R.getNumElements();
                     Vector3D_F64 translation = cameraPose.T;
-                    Log.i(TAG, "quadFeatures: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
+                    Log.i(TAG, "imageProcessingAndRosCalling() :quadFeatures: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
 
                 } else {
-                    Log.i(logTag,"quadFeatures: not enough quadFeatures found in image: quadFeatures.size()="+quadFeatures.size());
+                    Log.i(logTag,"imageProcessingAndRosCalling() :quadFeatures: not enough quadFeatures found in image: quadFeatures.size()="+quadFeatures.size());
                 }
 
             } catch (IOException e) {
@@ -1934,22 +1992,27 @@ public class Camera2BasicFragment extends Fragment
                     double skew = SKEW_PIXELS_AS_CALIBRATED;
 
                     // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
-                    float focal_length_in_pixels_x = FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-                    float focal_length_in_pixels_y = FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                    float focal_length_in_pixels_x = FX_FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                    float focal_length_in_pixels_y = FY_FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
+                    float cx_focal_centre_in_pixels_x = CX * (imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED);
+                    float cy_focal_centre_in_pixels_y = CY * (imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED);
+                    float radial_1 = RADIAL_1_AS_CALIBRATED * 0.5F * ((imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED)+(imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED));  // TODO is this right ??
+                    float radial_2 = RADIAL_2_AS_CALIBRATED * 0.5F * ((imageWidthFloat / IMAGE_WIDTH_PIXELS_AS_CALIBRATED)+(imageHeightFloat / IMAGE_HEIGHT_PIXELS_AS_CALIBRATED));  // TODO is this right ??
 
 
-                        Log.i(logTag, "invoke() : config FactoryFiducial.squareBinary");
+                            Log.i(logTag, "invoke() : config FactoryFiducial.squareBinary");
                     FiducialDetector<GrayU8> detector = FactoryFiducial.squareBinary(
                             new ConfigFiducialBinary(BOOFCV_TAG_WIDTH),
-                            ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'?
+                            ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10),          // TODO - evaluate parameter - ?'radius'? - size of area adaptive threshold is calculated over
                             GrayU8.class);  // tag size,  type,  ?'radius'?
                     //        detector.setLensDistortion(lensDistortion);
                     Log.i(logTag, "invoke() : config CameraPinhole pinholeModel");
-                    CameraPinhole pinholeModel = new CameraPinhole(
+                    CameraPinholeRadial pinholeModel = new CameraPinholeRadial(
                             focal_length_in_pixels_x, focal_length_in_pixels_y,
                             skew,
-                            focal_midpoint_pixels_x, focal_midpoint_pixels_y,
+                            cx_focal_centre_in_pixels_x, cy_focal_centre_in_pixels_y,
                             imageWidthInt, imageHeightInt);
+                    pinholeModel.fsetRadial(radial_1,radial_2);
                     Log.i(logTag, "invoke() : config LensDistortionNarrowFOV pinholeDistort");
                     LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
                     Log.i(logTag, "invoke() : config detector.setLensDistortion(pinholeDistort)");

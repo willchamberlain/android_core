@@ -21,10 +21,10 @@ apply plugin: 'com.android.application'
 
 import java.text.SimpleDateFormat;
 
-def versionMajor = 1
-def versionMinor = 0
+def versionMajor = 8
+def versionMinor = 23
 def versionMinorBump = versionMinor.toInteger()+1
-def versionPatch = 0
+def versionPatch = 1900
 def versionPatchBump = versionPatch.toInteger()+1
 def hundred = 100
 def tenthou = 10000
@@ -40,19 +40,20 @@ android {
     buildToolsVersion "25.0.2"
 
     defaultConfig {
-        minSdkVersion 18
+        minSdkVersion 16
         applicationId "william.chamberlain.androidvosopencvros"
         targetSdkVersion 25
-        versionCode versionMajor.toInteger()*tenthou.toInteger()+versionMinorBump.toInteger()*hundred.toInteger()+versionPatchBump.toInteger() //(versionMajor.toInteger()*10000)+(versionMinor.toInteger()*100)+(versionPatch.toInteger())
+        //(versionMajor.toInteger()*10000)+(versionMinor.toInteger()*100)+(versionPatch.toInteger())
         versionName "${versionMajor}.${versionMinor}.${versionPatch}.${buildTime()}"
-        externalNativeBuild {
-            cmake {
-                cppFlags "-frtti -fexceptions"
-                abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
-            }
-        }
+//        externalNativeBuild {
+//            cmake {
+//                cppFlags "-frtti -fexceptions"
+//                abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a', 'mips', 'mips64'
+//            }
+//        }
         multiDexEnabled true
-        dexOptions {            // see https://stackoverflow.com/questions/34158995/gradle-build-slow-on-transformclasseswithdexfordebug
+        dexOptions {
+            // see https://stackoverflow.com/questions/34158995/gradle-build-slow-on-transformclasseswithdexfordebug
             preDexLibraries true
             javaMaxHeapSize "1g" // Use gig increments depending on needs
             incremental true
@@ -63,12 +64,12 @@ android {
             jniLibs.srcDirs = ['src/main/jniLibs']      // symlink to OpenCV JNI code
         }
     }
-    externalNativeBuild {
-        cmake {
-            path "CMakeLists.txt"
-//            path "apriltags_kaess/CMakeLists.txt"  // TODO - should work out how to set these up as separate C++ libraries at the same level
-        }
-    }
+//    externalNativeBuild {
+//        cmake {
+//            path "CMakeLists.txt"
+////            path "apriltags_kaess/CMakeLists.txt"  // TODO - should work out how to set these up as separate C++ libraries at the same level
+//        }
+//    }
     productFlavors {
     }
     compileOptions {
@@ -97,7 +98,7 @@ configurations {
 dependencies {
     compile project(':android_15')
     compile project(':vos')
-    compile project(':openCVLibrary310')
+    compile project(':openCVLibrary310')  // taken out 2017_08_23 to try to drop back to Android API 16 for Samsung Galaxy 2 phones - that dropped back to C99, which failed to compile some of the code in Apriltags
     compile('org.ros.rosjava_core:rosjava:0.2.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
@@ -107,19 +108,23 @@ dependencies {
     compile('com.android.support:support-v4:21.0.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
-
     ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
-    compile ('org.ddogleg:ddogleg:0.10') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'}
-    compile ('org.ejml:all:0.30') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
-    compile ('org.georegression:georegression:0.12') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
-    compile ('com.android.support:appcompat-v7:25.1.0') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
-    compile ('com.android.support:support-v4:25.1.0') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
-    compile ('com.android.support:multidex:1.0.1') {
-        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis'  exclude group: 'xpp3'}
-
+    compile('org.ddogleg:ddogleg:0.10') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('org.ejml:all:0.30') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('org.georegression:georegression:0.12') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('com.android.support:appcompat-v7:25.1.0') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('com.android.support:support-v4:25.1.0') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('com.android.support:multidex:1.0.1') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
 }

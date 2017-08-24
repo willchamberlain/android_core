@@ -15,16 +15,16 @@
  */
 
 dependencies {
-  compile('org.ros.rosjava_core:rosjava_geometry:[0.2,0.3)') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
-  }
-  compile('com.android.support:support-v4:21.0.3') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
-  }
-  compile('org.ros.rosjava_messages:visualization_msgs:[1.11,1.12)') {
-    exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
-  }
-  compile project(':android_10')
+    compile('org.ros.rosjava_core:rosjava_geometry:[0.2,0.3)') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('com.android.support:support-v4:21.0.3') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile('org.ros.rosjava_messages:visualization_msgs:[1.11,1.12)') {
+        exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
+    }
+    compile project(':android_10')
 }
 
 apply plugin: 'com.android.library'
@@ -32,14 +32,14 @@ apply plugin: 'com.android.library'
 android {
   compileSdkVersion 25
   defaultConfig {
-    minSdkVersion 18
+    minSdkVersion 16
     targetSdkVersion 25
     versionCode 1
     versionName "1.0"
   }
   buildToolsVersion '25.0.2'
-  productFlavors {
-  }
+    productFlavors {
+    }
   packagingOptions {
     pickFirst 'XmlPullParser.class'
     pickFirst 'XmlPullParser'

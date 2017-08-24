@@ -2,15 +2,24 @@ package william.chamberlain.androidvosopencvros;
 
 public enum ManagementCommand {
         SCREEN_ON("screen on"),
+        SCREEN_ON_PREFERRED("screen preferred"),
+        SCREEN_ON_BRIGHT("screen on bright"),
+        SCREEN_ON_MID("screen on mid"),
+        SCREEN_ON_LOW("screen on low"),
         SCREEN_OFF("screen off"),
         PROCESSING_ON("run"),
         PROCESSING_OFF("stop"),
-        RESOLUTION_HIGH("high res"),
-        RESOLUTION_LOW("low res"),
+        RESOLUTION_VERY_VERY_HIGH("res very very high"),
+        RESOLUTION_VERY_HIGH("res very high"),
+        RESOLUTION_HIGH("res high"),
+        RESOLUTION_LOW("res LOW"),
         RESOLUTION_LIMITS("res limits"),
         RELOCALISE("relocalise"),
         DISPLAY_RGB("rgb"),
         DISPLAY_GREY("grey"),
+//        LOCATION("loc"),
+//        ORIENTATION("orientation"),
+//        POSE("pose"),
         ALLOCATE_TO_ROBOT("task: robot 170 290 250 330"),
         ALLOCATE_TO_TARGET("task: target 210");
 
