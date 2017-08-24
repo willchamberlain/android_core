@@ -1342,14 +1342,12 @@ public class MainActivity
 
     /* Dev: part of robot visual model */
     private boolean isPartOfRobotVisualModel(int tag_id) {
-        return tag_id == 170 || tag_id == 250 || tag_id == 290 || tag_id == 330
-                || tag_id == 1650
-                || tag_id == 557;
+        return Hardcoding.isPartOfRobotVisualModel(tag_id);
     }
 
     /* Dev: part of knowledge about landmarks */
     private boolean isALandmark(int tag_id) {
-        return tag_id == 650 || tag_id == 690 || tag_id == 730 || tag_id == 770 || tag_id == 810 || tag_id == 850 || tag_id == 930 || tag_id == 1090 || tag_id == 1010 || tag_id == 970 || tag_id == 1050 || tag_id == 890 || tag_id == 1250 || tag_id == 1210 || tag_id == 1170;
+        return Hardcoding.isALandmark(tag_id);
     }
 
     private boolean isAnOutlier(DetectedFeature feature_) {
