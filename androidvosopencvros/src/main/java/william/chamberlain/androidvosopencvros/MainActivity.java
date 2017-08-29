@@ -603,7 +603,7 @@ public class MainActivity
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
             /* Dev: part of robot visual model */
             HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
-            RobotId singleDummyRobotId = new RobotId(555); // new RobotId("dummy robot id");
+            RobotId singleDummyRobotId = new RobotId(999999); // new RobotId("dummy robot id");
             List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
             List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
             /* end Dev: part of robot visual model */
@@ -719,12 +719,40 @@ public class MainActivity
 
                             Se3_F64 sensorToTarget_testing = null;
                             sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
+
+                            Quaternion_F64 sensorToTarget_testing_quat;
+                            sensorToTarget_testing_quat = new Quaternion_F64();
+                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
+
+                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
+                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
+                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
+
+                            /** Mirror across YZ plane / mirror along X axis:
+                             * sensor-to-target +x = target-to-sensor +x
+                             * sensor-to-target +y = target-to-sensor -y
+                             * sensor-to-target +z = target-to-sensor -x   */
+                            Se3_F64 targetToSensor_boofcvFrame_testing = new Se3_F64();
+                            detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame_testing);
+                            /** Convert from BoofCV coordinate convention to ROS coordinate convention */
+                            Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
+                            targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
+                                    targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
+                            /** Mirror across the XY plane. */
+                            Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
+                            sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
+                                    targetToSensor_ROSFrame.getX(),-targetToSensor_ROSFrame.getY(),-targetToSensor_ROSFrame.getZ()));
+                            /** Report as e.g. 70170, 70155, etc. */
+                            detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
+                                    sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+                                    0,0,0,1);
+
                             double[] eulerZYZ_fromInvert=new double[]{0,0,0};
                             ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
                             Log.i(logTagTag,"onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = "+eulerZYZ_fromInvert[0]+","+eulerZYZ_fromInvert[1]+","+eulerZYZ_fromInvert[2]);
                             Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
                             Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
-                            Quaternion_F64 sensorToTarget_testing_quat = new Quaternion_F64();
+                            sensorToTarget_testing_quat = new Quaternion_F64();
                             ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
                             Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
 
@@ -1036,7 +1064,7 @@ public class MainActivity
                 ConvertRotation3D_F64.matrixToQuaternion(meanSensorToTargetTransformRot, meanSensorToTargetViaTransformQuat);
                     Log.i(robotId_.idString(), "calcAndReportRobotPose: estimated pose from "+numTagsForRobot+" tag detections");
                     Log.i(robotId_.idString(), "calcAndReportRobotPose: detectedFeaturesClient.reportDetectedFeature");
-                detectedFeaturesClient.reportDetectedFeature(90000+robotId_.idInt(),
+                detectedFeaturesClient.reportDetectedFeature(90000+robotId_.idInt(), //90000+1, 90000+557, 90000+999999, etc: allow for publishing more than one frame per tag, with the tag reported as [frame type]+[tag id]
                     xTranslationMean, yTranslationMean, zTranslationMean,
                     meanSensorToTargetViaTransformQuat.x,meanSensorToTargetViaTransformQuat.y,meanSensorToTargetViaTransformQuat.z,meanSensorToTargetViaTransformQuat.w);
             }
