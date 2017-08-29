@@ -34,6 +34,7 @@ import android.widget.Toast;
 
 import org.ejml.data.DenseMatrix64F;
 import org.ejml.ops.CommonOps;
+import org.ejml.simple.SimpleMatrix;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
@@ -738,14 +739,51 @@ public class MainActivity
                             Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
                             targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
                                     targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
+
+
+                            Quaternion_F64 tToS_Boof_testing_quat = ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame_testing.getRotation(), null);
+                            Quaternion_F64 tToS_ROS_testing_quat = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                                tToS_Boof_testing_quat.w,tToS_Boof_testing_quat.z,tToS_Boof_testing_quat.x,tToS_Boof_testing_quat.y);
+                            Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                                    tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
+                                );
+                            DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3,3);
+                            ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
+
                             /** Mirror across the XY plane. */
                             Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
                             sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
                                     targetToSensor_ROSFrame.getX(),-targetToSensor_ROSFrame.getY(),-targetToSensor_ROSFrame.getZ()));
+
+                            sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
+
+                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180 = new DenseMatrix64F(3,3);
+
+                        DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
+                        ConvertRotation3D_F64.setRotX( PI , rotate_around_X_by_180);
+//                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
+                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot,rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
+                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180 = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180);
+
+
+
+
                             /** Report as e.g. 70170, 70155, etc. */
                             detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
                                     sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
-                                    0,0,0,1);
+                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
+//                                    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.x,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.y,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.z,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.w);
+
+//                            /** Report as e.g. 60170, 60155, etc. */
+//                        sensorToTarget_ROSFrame_mirrored_q.x = sensorToTarget_ROSFrame_mirrored_q.x-PI;
+//                        sensorToTarget_ROSFrame_mirrored_q.normalize();
+                            detectedFeaturesClient.reportDetectedFeature(60000+tag_id,
+                                    sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+    //                                sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
+                                    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.x,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.y,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.z,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.w);
+// nope                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
+
 
                             double[] eulerZYZ_fromInvert=new double[]{0,0,0};
                             ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
