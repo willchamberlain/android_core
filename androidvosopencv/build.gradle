@@ -26,7 +26,7 @@ android {
         minSdkVersion 18
         applicationId "william.chamberlain.androidvosopencv"
         targetSdkVersion 25
-        versionCode 1
+         // versionCode 1 - use the version set in AndroidManifest.xml
         versionName "1.0"
         externalNativeBuild {
             cmake {

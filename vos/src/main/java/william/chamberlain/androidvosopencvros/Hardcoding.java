@@ -1,5 +1,9 @@
 package william.chamberlain.androidvosopencvros;
 
+import geometry_msgs.Point;
+import geometry_msgs.Pose;
+import geometry_msgs.Quaternion;
+
 public class Hardcoding {
 
 
@@ -11,7 +15,7 @@ public class Hardcoding {
         // robot target marker
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "210", 1));
         // robot model markers
-        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "170", 1));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "170", 1,  0.10d, 0.00d, 0.79d ,  0.0d, 0.0d, -0.866043d, 0.499969d));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "250", 1));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "290", 1));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "330", 1));

@@ -69,4 +69,14 @@ class WhereIsAsPubLocal {
         this.descriptor = descriptor;
         this.rate = rate;
     }
+
+    public WhereIsAsPubLocal(String algorithm, String descriptor, int rate, double x, double y, double z, double qx, double qy, double qz, double qw) {
+        this.algorithm = algorithm;
+        this.descriptor = descriptor;
+        this.rate = rate;
+        this.relationToBase =
+                new william.chamberlain.androidvosopencvros.device.Pose(
+                    new william.chamberlain.androidvosopencvros.device.Point(x,y,z),
+                    new william.chamberlain.androidvosopencvros.device.Quaternion(qx,qy,qz,qw) );
+    }
 }

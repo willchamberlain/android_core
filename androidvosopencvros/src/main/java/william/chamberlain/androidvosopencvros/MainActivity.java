@@ -27,6 +27,7 @@ import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.view.SurfaceView;
 import android.view.Window;
@@ -123,6 +124,8 @@ public class MainActivity
 
     //public static final double BOOFCV_TAG_SIZE_M = 0.189;  // 0.20  // 0.14 // 0.13;             ////  TODO - list of tags and sizes, and tag-groups and sizes
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
+    public static final boolean LOCALISING_CAMERA_FROM_OBSERVED_FEATURES = false;
+    public static final boolean TESTING_TRANSFORMATIONS_OF_TRANSFORMS = false;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
@@ -681,19 +684,19 @@ public class MainActivity
                     int tag_id = -1;
                     MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
                     if (!isTagIdValid.isValid()) {
-                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                        drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
                         continue;
                     }
                     tag_id = isTagIdValid.getTag_id();
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
-                    if(vosTaskSet.isThereAVisionTaskToExecute(tag_id, logTagTag)) {  // if(isPartOfRobotVisualModel(tag_id))
+                    if(vosTaskSet.isThereAVisionTaskToExecute(tag_id, logTagTag)) {     // if(isPartOfRobotVisualModel(tag_id))
                             Log.i(logTagTag,"onCameraFrame: checking on tag "+tag_id+": is part of robot visual model");
-                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
-                    } else { // not part of something that we are looking for, so ignore
+                        drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
+                    } else {                                                            // not part of something that we are looking for, so ignore
                             Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
-                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.NON_ROBOT_FEATURE);
+                        drawMarkeLocationOnDisplay_BoofCV_validTagNotInTask(detector, detectionOrder_);
                         continue;
                     }
                         Log.i(logTagTag,"onCameraFrame: finished checking tag_id");
@@ -724,10 +727,10 @@ public class MainActivity
                             Quaternion_F64 sensorToTarget_testing_quat;
                             sensorToTarget_testing_quat = new Quaternion_F64();
                             ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
-
-                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
-                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
-                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
+//
+//                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
+//                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
+//                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
 
                             /** Mirror across YZ plane / mirror along X axis:
                              * sensor-to-target +x = target-to-sensor +x
@@ -762,6 +765,7 @@ public class MainActivity
                         DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
                         ConvertRotation3D_F64.setRotX( PI , rotate_around_X_by_180);
 //                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
+                        /** Note: post-multiply with BoofCV - I think that it is column-major ?? */  // TODO - check BoofCV conventions
                         CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot,rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
                         Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180 = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180);
@@ -769,20 +773,23 @@ public class MainActivity
 
 
 
-                            /** Report as e.g. 70170, 70155, etc. */
-                            detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
-                                    sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
-                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
-//                                    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.x,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.y,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.z,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.w);
+//                            /** Report as e.g. 70170, 70155, etc. */
+//                            detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
+//                                    sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+//                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
 
 //                            /** Report as e.g. 60170, 60155, etc. */
-//                        sensorToTarget_ROSFrame_mirrored_q.x = sensorToTarget_ROSFrame_mirrored_q.x-PI;
-//                        sensorToTarget_ROSFrame_mirrored_q.normalize();
+
+//                USE THIS I_ THINK
                             detectedFeaturesClient.reportDetectedFeature(60000+tag_id,
+                                    // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
                                     sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
     //                                sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
                                     sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.x,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.y,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.z,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.w);
 // nope                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
+
+                            Se3_F64 translation_to_marker       = sensorToTarget_ROSFrame_mirrored;
+                            Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180;
 
 
                             double[] eulerZYZ_fromInvert=new double[]{0,0,0};
@@ -794,7 +801,7 @@ public class MainActivity
                             ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
                             Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
 
-
+/*  TODO - replaced by 60000+ calculations
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
                         DenseMatrix64F transformation_fromBoofCVFiducialTagToSensor_toRobotSensorToTag
                                 = new DenseMatrix64F(new double[][]{
@@ -820,24 +827,30 @@ public class MainActivity
                             Log.i(logTagTag,"onCameraFrame: after applying transformations");
                             Log.i(logTagTag,"onCameraFrame: calcAndReportRobotPose: detectedFeaturesClient.reportDetectedFeature");
                             Log.i(logTagTag,"onCameraFrame: detectedFeaturesClient.reportDetectedFeature");
-                        int tag_id_reported = MARKER_OFFSET_INT+tag_id;
-                        detectedFeaturesClient.reportDetectedFeature(tag_id_reported,
-                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
-                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
+//                        int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+//                        detectedFeaturesClient.reportDetectedFeature(tag_id_reported,
+//                                sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
+//                                sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
                         System.out.println("onCameraFrame: 3D Location: reporting tag_id "+tag_id_reported+" as : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
                         System.out.println("onCameraFrame: 3D Location: reporting tag_id "+tag_id_reported+" as : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
+*/
 
-                        /* Dev: part of robot visual model */
-                        robotsDetected.put(singleDummyRobotId,robotFeatures);
                         Point2D_F64 locationPixel = new Point2D_F64();
                         detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                         if(isPartOfRobotVisualModel(tag_id)) {
-                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
-                            robotFeatures.add(detectedTag);
+                            /* Dev: part of robot visual model */
+                            List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected, singleDummyRobotId);
+//                            Se3_F64 translation_to_marker = sensorToTargetViaTransform;
+//                            Quaternion_F64 quaternion_to_marker = sensorToTargetViaTransformQuat
+//                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,sensorToTargetViaTransformQuat);
+                            DetectedTag detectedTag = new DetectedTag(tag_id,translation_to_marker,quaternion_to_marker);
+                            visionTaskFeaturesDetected.add(detectedTag);
                             Log.i(logTagTag,"onCameraFrame: isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                         } else if(isALandmark(tag_id)) {
-                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
+//                            Se3_F64 translation_to_marker = sensorToTargetViaTransform;
+//                            DetectedTag detectedTag = new DetectedTag(tag_id,sensorToTargetViaTransform,locationPixel);
+                            DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, locationPixel);
                             landmarkFeatures.add(detectedTag);
                             Log.i(logTagTag,"onCameraFrame: isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
                         } else { // not part of something that we are looking for, so ignore
@@ -848,11 +861,15 @@ public class MainActivity
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
-                        updateLocationFromDetectedFeature(tag_id, logTagTag, sensorToTargetViaTransform, sensorToTargetViaTransformQuat);
-                        variousUnusedAttemptsAtCoordinateSystemCorrection();
+                        if(LOCALISING_CAMERA_FROM_OBSERVED_FEATURES) {
+                            updateLocationFromDetectedFeature(tag_id, logTagTag, translation_to_marker, quaternion_to_marker);
+                        }
+                        if(TESTING_TRANSFORMATIONS_OF_TRANSFORMS) {
+                            variousUnusedAttemptsAtCoordinateSystemCorrection();
+                        }
 
                     } else {  // 3D info not available for tag/marker
-                        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+                        drawMarkeLocationOnDisplay_BoofCV_no3dData(detector, detectionOrder_);
                     }
                 }
                 updateTrackingData(robotFeatures);
@@ -899,8 +916,18 @@ public class MainActivity
         }
     }
 
+    @NonNull
+    private List<DetectedTag> visionTaskFeaturesDetected(HashMap<RobotId, List<DetectedTag>> robotsDetected, RobotId singleDummyRobotId) {
+        List<DetectedTag> robotFeatures__ = robotsDetected.get(singleDummyRobotId);
+        if(null == robotFeatures__) {
+            robotFeatures__ = new ArrayList<DetectedTag>();
+            robotsDetected.put(singleDummyRobotId,robotFeatures__);
+        }
+        return robotFeatures__;
+    }
+
     private enum FeatureModel {
-        ROBOT_FEATURE, NON_ROBOT_FEATURE, FEATURE_WITHOUT_3D_LOCATION
+        ROBOT_FEATURE, NON_ROBOT_FEATURE, FEATURE_WITHOUT_3D_LOCATION, INVALID_TAG_ID
     }
 
     private void renderGUI() {
@@ -1108,6 +1135,24 @@ public class MainActivity
             }
         }
         /* end Dev: part of robot visual model */
+    }
+
+
+
+    private void drawMarkeLocationOnDisplay_BoofCV(FiducialDetector<GrayF32> detector, int detectionOrder_) {
+        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
+    }
+
+    private void drawMarkeLocationOnDisplay_BoofCV_validTagNotInTask(FiducialDetector<GrayF32> detector, int detectionOrder_) {
+        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.ROBOT_FEATURE);
+    }
+
+    private void drawMarkeLocationOnDisplay_BoofCV_no3dData(FiducialDetector<GrayF32> detector, int detectionOrder_) {
+        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.FEATURE_WITHOUT_3D_LOCATION);
+    }
+
+    private void drawMarkeLocationOnDisplay_BoofCV_invalidTagId(FiducialDetector<GrayF32> detector, int detectionOrder_) {
+        drawMarkerLocationOnDisplay_BoofCV(detector, detectionOrder_, FeatureModel.INVALID_TAG_ID);
     }
 
     private void drawMarkerLocationOnDisplay_BoofCV(FiducialDetector<GrayF32> detector, int index_of_tag_, FeatureModel fm ) {
@@ -1388,10 +1433,13 @@ public class MainActivity
                 colour = new double[] {0d,255d,0d,255d};
                 break;
             case NON_ROBOT_FEATURE:
-                colour = new double[] {255d,0d,0d,255d};
+                colour = new double[] {125d,125d,255d,255d};
                 break;
             case FEATURE_WITHOUT_3D_LOCATION:
-                colour = new double[] {200d,200d,220d,255d};
+                colour = new double[] {220d,75d,0d,255d};
+                break;
+            case INVALID_TAG_ID:
+                colour = new double[] {255d,0d,0d,255d};
                 break;
             default:
                 colour = new double[] {125d,125d,125d,255d};

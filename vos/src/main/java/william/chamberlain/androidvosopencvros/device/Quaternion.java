@@ -12,6 +12,13 @@ public class Quaternion implements geometry_msgs.Quaternion {
         super();
     }
 
+    public Quaternion(geometry_msgs.Quaternion quaternion_) {
+        this.x = quaternion_.getX();
+        this.y = quaternion_.getY();
+        this.z = quaternion_.getZ();
+        this.w = quaternion_.getW();
+    }
+
     @Override
     public int hashCode() {
         return super.hashCode();

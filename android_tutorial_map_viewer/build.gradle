@@ -27,7 +27,7 @@ android {
     minSdkVersion 18
     applicationId "org.ros.android.android_tutorial_map_viewer"
     targetSdkVersion 25
-    versionCode 1
+     // versionCode 1 - use the version set in AndroidManifest.xml
     versionName "1.0"
   }
 }
