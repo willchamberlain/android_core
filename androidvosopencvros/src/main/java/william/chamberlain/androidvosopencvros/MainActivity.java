@@ -397,7 +397,6 @@ public class MainActivity
             // TODO - could set the Subscribers up on demand - just frame as network config
             // TODO - this.whereIsSubscriber = new WhereIsSubscriber(this);
             // TODO - registerVisionSourceClient.setWhereIsSubscriber(whereIsSubscriber);
-            Hardcoding.hardcodeTargetMarkers(vosTaskSet);
             nodeMainExecutor.execute(this.registerVisionSourceClient, nodeConfiguration8);
         }
 
@@ -442,13 +441,6 @@ public class MainActivity
 
     }
 
-    private void hardcodeTargetMarkers() {
-        // robot target marker
-        // robot model markers
-        // fixed-position markers for PnP
-
-        Hardcoding.hardcodeTargetMarkers(vosTaskSet);
-    }
 
     public URI[] possibleMasterUris() {
         URI[] rosNetworkingOptions  // start with the Master URIs, then work outward to other network options
@@ -602,6 +594,8 @@ public class MainActivity
     List<Point2D_F64> robotFeatureTrackingAverages = new ArrayList<Point2D_F64>();      // TODO - make this a queue or something that won't overrun
     Object robotFeatureTrackingMonitor = new Object();
 
+    ArrayList<String> statusLog = new ArrayList<String>(0);
+
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
             /* Dev: part of robot visual model */
@@ -652,7 +646,22 @@ public class MainActivity
         byte[] current_image_bytes = last_frame_bytes();
         vosTaskSet.removeExpiredVisionTasks();
         CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
-        if(null!=current_image_bytes  && vosTaskSet.isThereAVisionTaskToExecute() ) {
+        boolean current_image_bytes_is_not_null = (null != current_image_bytes);
+        boolean thereIsAVisionTaskToExecute     = vosTaskSet.isThereAVisionTaskToExecute();
+        statusLog.clear();
+        if(!current_image_bytes_is_not_null) {
+            status_current_image_bytes_is_null: {
+                Log.i(logTag, "current_image_bytes is null");
+                statusLog.add("no bytes for current image");
+            }
+        }
+        if(!thereIsAVisionTaskToExecute) {
+            status_no_VisionTaskToExecute: {
+                Log.i(logTag, "no vision task to execute");
+                statusLog.add("no vision task to execute");
+            }
+        }
+        if(current_image_bytes_is_not_null  &&  thereIsAVisionTaskToExecute) {
                 Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
                 Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
@@ -834,7 +843,6 @@ public class MainActivity
                             Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
                             continue;
                         }
-                        /* end Dev: part of robot visual model */
 
                             //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                             Log.i(logTagTag,"onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
