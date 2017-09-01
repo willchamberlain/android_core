@@ -40,6 +40,7 @@ import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
+import org.ros.message.MessageListener;
 import org.ros.message.Time;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMainExecutor;
@@ -64,6 +65,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.ros.node.topic.Subscriber;
 
 import boofcv.abst.fiducial.FiducialDetector;
 import boofcv.alg.distort.LensDistortionNarrowFOV;
@@ -191,6 +193,8 @@ public class MainActivity
     private WhereIsSubscriber          whereIsSubscriber;
     private RegisterVisionSourceClient registerVisionSourceClient;
     private LocaliseFromAFeatureServer localiseFromAFeatureServer;
+    private VosTaskAssignmentSubscriberNode vosTaskAssignmentSubscriberNode;
+
 //    private WhereIs whereIs;
 
     private LocationManager mLocationManager;
@@ -310,7 +314,9 @@ public class MainActivity
     @Override
     protected void init(NodeMainExecutor nodeMainExecutor) // configure nodes: config gets fed to an AsyncTask to start the Nodes in a Bound Service: see https://developer.android.com/reference/android/app/Service.html , https://developer.android.com/guide/components/processes-and-threads.html
     {
+        Log.i("init", "start");
         final String NODE_NAMESPACE = Naming.cameraNamespace(getCamNum());
+        Log.i("init", "NODE_NAMESPACE = "+NODE_NAMESPACE);
 
         vosTaskSet = new VosTaskSet();
 
@@ -335,13 +341,17 @@ public class MainActivity
             return nodeMainExecutorService.getMasterUri();
           }
          */
-        System.out.print("init: masterURI=");System.out.println(masterURI);
+        System.out.print("init: masterURI = ");System.out.println(masterURI);
+        Log.i("init","masterURI = "+masterURI);
         int currentapiVersion = android.os.Build.VERSION.SDK_INT;
+        Log.i("init","android.os.Build.VERSION.SDK_INT = "+android.os.Build.VERSION.SDK_INT);
 
         int sensorDelay = 20000; // 20,000 us == 50 Hz for Android 3.1 and above
 //        if(currentapiVersion <= android.os.Build.VERSION_CODES.HONEYCOMB){
 //            sensorDelay = SensorManager.SENSOR_DELAY_UI; // 16.7Hz for older devices.  They only support enum values, not the microsecond version.
 //        }
+
+        Log.i("init","begin configuring ROS nodes");
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
@@ -363,6 +373,16 @@ public class MainActivity
             setPoseServer.setPosedEntity(this);
             nodeMainExecutor.execute(this.setPoseServer, nodeConfiguration);
         }
+
+//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+//            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration.setMasterUri(masterURI);
+//            nodeConfiguration.setNodeName(NODE_NAMESPACE+"vos_task_requests");
+//            this.whereIsSubscriber = new WhereIsSubscriber(this);
+//            whereIsSubscriber.setNodeNamespace(NODE_NAMESPACE);
+//            whereIsSubscriber.setPosedEntity(this);
+//            nodeMainExecutor.execute(this.whereIsSubscriber, nodeConfiguration);
+//        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
             NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
@@ -420,25 +440,23 @@ public class MainActivity
 ////  TODO  -  IMAGEPUBLISHER
 //        }
 
-//        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-//            nodeConfiguration8.setMasterUri(masterURI);
-//            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceserver_node");
-//            String whereIsTopicToSubscribeTo = "/phone_whereis/"+baseUrl;
-//            Subscriber<WhereIsAsPub> subscriber =
-//                    connectedNode.newSubscriber(whereIsTopicToSubscribeTo, WhereIsAsPub._TYPE);
-//            subscriber.addMessageListener(new MessageListener<WhereIsAsPub>() {
-//                @Override
-//                public void onNewMessage(WhereIsAsPub message) {
-//                    Log.i("Listener<WhereIsAsPub>","onNewMessage(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
-//                    whereIsSubscriber.called(message);
-//                }
-//            });
-//            whereIsSubscriber.setSubscriber(subscriber);
-//
-//        }
-
-
+        /*  subscriber to VOS Server -
+            1) the VOS Server publishes vision tasks on /cam_607/vos_task_assignment_subscriber as WhereIsAsPub messages
+            2) the VosTaskAssignmentSubscriberNode.visionSource_WhereIs is subscribed to  e.g.  cam_607/vos_task_assignment_subscriber
+            3) the VosTaskAssignmentSubscriberNode.visionSource_WhereIs takes care of putting the vision tasks into vosTaskSet, by ...
+            3.1) ... calling  MainActivity.dealWithRequestForInformation(WhereIsAsPub message)
+        */
+        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+            nodeConfiguration8.setMasterUri(masterURI);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"_vos_vision_tasks");
+            this.vosTaskAssignmentSubscriberNode = new VosTaskAssignmentSubscriberNode();
+            this.vosTaskAssignmentSubscriberNode.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
+            this.vosTaskAssignmentSubscriberNode.setVisionSource_WhereIs(this);
+            nodeMainExecutor.execute(this.vosTaskAssignmentSubscriberNode, nodeConfiguration8);
+        }
+        Log.i("init","finish configuring ROS nodes");
+        Log.i("init", "finished");
     }
 
 
