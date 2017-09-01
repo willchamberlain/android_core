@@ -16,18 +16,31 @@ public class VosTaskSet {
     ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
 
     public boolean isThereAVisionTaskToExecute(int tag_id, String logTagTag) {
-        boolean visionTaskToExecute = false;
         synchronized (this) {
         for (VisionTask visionTask : taskQueue) {
 //            Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
             if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
 //                Log.i(logTagTag,"will execute vision task "+visionTask);
-                visionTaskToExecute = true;
+                return true;
             }
         }
         }
-        return visionTaskToExecute;
+        return false;
     }
+
+    public VisionTask visionTaskToExecute(int tag_id) {
+        synchronized (this) {
+            for (VisionTask visionTask : taskQueue) {
+//            Log.i(logTagTag,"visionTask.getDescriptor() = '"+visionTask.getDescriptor()+"', Integer.toString(tag_id) = '"+Integer.toString(tag_id)+"' ");
+                if(visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+//                Log.i(logTagTag,"will execute vision task "+visionTask);
+                    return visionTask;
+                }
+            }
+        }
+        return null;
+    }
+
 
     public boolean isThereAVisionTaskToExecute() {
         synchronized (this) {

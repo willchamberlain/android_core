@@ -15,8 +15,9 @@ public class Hardcoding {
         // robot target marker
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "210", 1));
         // robot model markers
-        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "170", 1,  0.10d, 0.00d, 0.79d ,  0.0d, 0.0d, -0.866043d, 0.499969d));
-        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "250", 1));
+//        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "170", 1,  0.10,  0.00, 0.42,  0,    0,    0,          1 ));
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "170", 1,  -0.05, 0.00, 0.79,  0.0d, 0.0d,  0.382696d, 0.923874d ));  // upper left  - 79 cm up, 45 deg left
+        vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "250", 1,  -0.05, 0.00, 0.79,  0.0d, 0.0d, -0.382696d, 0.923874d ));  // upper right - 79 cm up, 45 deg right
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "290", 1));
         vosTaskSet.addVisionTaskToQueue(new WhereIsAsPubLocal("boofcv", "330", 1));
         // fixed-position markers for PnP

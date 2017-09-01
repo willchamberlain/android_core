@@ -35,7 +35,6 @@ import android.widget.Toast;
 
 import org.ejml.data.DenseMatrix64F;
 import org.ejml.ops.CommonOps;
-import org.ejml.simple.SimpleMatrix;
 import org.opencv.core.CvType;
 import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
@@ -87,12 +86,14 @@ import georegression.struct.EulerType;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
+import georegression.struct.shapes.Quadrilateral_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
+import william.chamberlain.androidvosopencvros.device.Point;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
 import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
 
@@ -102,9 +103,7 @@ import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
 import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
-import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
-import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
@@ -682,23 +681,22 @@ public class MainActivity
                         String logTagIteration = logTag+"-detectionOrder_"+detectionOrder_;
                         Log.i(logTagIteration,"start");
                     int tag_id = -1;
-                    MarkerIdValidator isTagIdValid = new MarkerIdValidator(detector, detectionOrder_, tag_id).invoke();
-                    if (!isTagIdValid.isValid()) {
+                    MarkerIdFormatValidator markerIdFormatValidator = new MarkerIdFormatValidator(detector, detectionOrder_, tag_id);
+                    if(!markerIdFormatValidator.isValid()) {
                         drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
                         continue;
                     }
-                    tag_id = isTagIdValid.getTag_id();
+                    tag_id = markerIdFormatValidator.getTag_id();
+                    tag_id = (int)detector.getId(detectionOrder_);
+                    VisionTask visionTask = vosTaskSet.visionTaskToExecute(tag_id);
+                    if( null == visionTask ){
+                        drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
+                        continue;
+                    }
                         //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
                         String logTagTag = logTagIteration+"-t"+tag_id;
 
-                    if(vosTaskSet.isThereAVisionTaskToExecute(tag_id, logTagTag)) {     // if(isPartOfRobotVisualModel(tag_id))
-                            Log.i(logTagTag,"onCameraFrame: checking on tag "+tag_id+": is part of robot visual model");
-                        drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
-                    } else {                                                            // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id = "+tag_id);
-                        drawMarkeLocationOnDisplay_BoofCV_validTagNotInTask(detector, detectionOrder_);
-                        continue;
-                    }
+                    drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
                         Log.i(logTagTag,"onCameraFrame: finished checking tag_id");
 
                     if( detector.hasMessage() ) { System.out.println("onCameraFrame: Message   = "+detector.getMessage(detectionOrder_)); }
@@ -760,15 +758,15 @@ public class MainActivity
 
                             sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
 
-                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180 = new DenseMatrix64F(3,3);
+                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot = new DenseMatrix64F(3,3);
 
                         DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
                         ConvertRotation3D_F64.setRotX( PI , rotate_around_X_by_180);
-//                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
+//                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
                         /** Note: post-multiply with BoofCV - I think that it is column-major ?? */  // TODO - check BoofCV conventions
-                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot,rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180);
-                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180 = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180);
+                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot,rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot,sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
 
 
 
@@ -785,11 +783,62 @@ public class MainActivity
                                     // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
                                     sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
     //                                sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
-                                    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.x,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.y,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.z,    sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180.w);
+                                    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
 // nope                                    sensorToTarget_ROSFrame_mirrored_q.x,    sensorToTarget_ROSFrame_mirrored_q.y,    sensorToTarget_ROSFrame_mirrored_q.z,    sensorToTarget_ROSFrame_mirrored_q.w);
 
-                            Se3_F64 translation_to_marker       = sensorToTarget_ROSFrame_mirrored;
-                            Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_q_rotate_around_X_by_180;
+
+                        Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
+                        sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setRotation(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                        sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setTranslation(sensorToTarget_ROSFrame_mirrored.getTranslation());
+
+
+                        geometry_msgs.Point position = visionTask.getRelationToBase().getPosition();
+                        Se3_F64 transformOfFeatureInVisualModel = new Se3_F64();                    // transform from robot to marker, e.g. base_link to feature
+                        transformOfFeatureInVisualModel.setTranslation(position.getX(),position.getY(),position.getZ());
+                        Quaternion_F64 rotationOfFeatureInVisualModel_q = convertRosToBoofcvQuaternion(visionTask);
+                        DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3,3);
+                        ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q,rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
+                        transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q,rotationOfFeatureInVisualModel_m));
+                        Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
+                        transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
+
+                        DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3,3);
+
+
+
+                        Se3_F64 sensorToTarget_ROSFrame_toRobotBaseLink = new Se3_F64();
+                                // looks like it does rotation then translation
+//                                sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.concat(      // pose from previous as transform from camera to marker
+//                                transformOfFeatureInVisualModel_inv,                                // transform from marker to robot, from robot visual model
+//                                sensorToTarget_ROSFrame_toRobotBaseLink );                            // output
+                        transformOfFeatureInVisualModel_inv.concat(                                 // pose from previous as transform from camera to marker
+                                sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t,      // transform from marker to robot, from robot visual model
+                                sensorToTarget_ROSFrame_toRobotBaseLink );                          // output
+                        Quaternion_F64 sensorToTarget_ROSFrame_toRobotBaseLink_q = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_toRobotBaseLink.getRotation(), sensorToTarget_ROSFrame_toRobotBaseLink_q);
+
+                        detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
+                                sensorToTarget_ROSFrame_toRobotBaseLink.getX(), sensorToTarget_ROSFrame_toRobotBaseLink.getY(), sensorToTarget_ROSFrame_toRobotBaseLink.getZ(),
+                                sensorToTarget_ROSFrame_toRobotBaseLink_q.x,    sensorToTarget_ROSFrame_toRobotBaseLink_q.y,    sensorToTarget_ROSFrame_toRobotBaseLink_q.z,    sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
+
+
+//                        the same, but piece-wise maybe  -  note: have to apply the camera-to-marker to the translation in marker-to-robot as well as to the rotation in marker-to-robot
+//                        CommonOps.mult(     // right-multiply because BoofCV is column-major (?)
+//                                sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot,    // pose of feature from camera
+//                                transformOfFeatureInVisualModel.getRotation(),                             // apply _inverse_ of pose of feature from visual model
+//                                sensorToTarget_ROSFrame_toRobotBaseLink_rot);                       // output
+//                        sensorToTarget_ROSFrame_toRobotBaseLink.setTranslation(sensorToTarget_ROSFrame_mirrored.getTranslation());
+//                        sensorToTarget_ROSFrame_toRobotBaseLink.setRotation(sensorToTarget_ROSFrame_toRobotBaseLink_rot);
+//                        Quaternion_F64 sensorToTarget_ROSFrame_toRobotBaseLink_q = new Quaternion_F64();
+//                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_toRobotBaseLink, sensorToTarget_ROSFrame_toRobotBaseLink_q),
+//                        detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
+//                                sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+//                                sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
+
+
+
+                        Se3_F64 translation_to_marker       = sensorToTarget_ROSFrame_mirrored;
+                            Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
 
 
                             double[] eulerZYZ_fromInvert=new double[]{0,0,0};
@@ -914,6 +963,15 @@ public class MainActivity
         } else {
             return matGray;
         }
+    }
+
+    @NonNull
+    private Quaternion_F64 convertRosToBoofcvQuaternion(VisionTask visionTask) {
+        return new Quaternion_F64(
+                visionTask.getRelationToBase().getOrientation().getW(),
+                visionTask.getRelationToBase().getOrientation().getX(),
+                visionTask.getRelationToBase().getOrientation().getY(),
+                visionTask.getRelationToBase().getOrientation().getZ());
     }
 
     @NonNull
@@ -2049,17 +2107,27 @@ System.out.println("imuData(Imu imu): relocalising");
         }
     }
 
-    private class MarkerIdValidator {
+    private class MarkerIdFormatValidator {
         private boolean isValid;
         private FiducialDetector<GrayF32> detector;
         private int i;
         private int tag_id;
 
-        public MarkerIdValidator(FiducialDetector<GrayF32> detector, int i, int tag_id) {
+        public MarkerIdFormatValidator(FiducialDetector<GrayF32> detector, int i, int tag_id) {
             this.detector = detector;
             this.i = i;
             this.tag_id = tag_id;
-            this.isValid= false;
+            this.isValid= true;
+            if( detector.hasUniqueID() ) {
+//                System.out.println("Target ID = " + detector.getId(i));
+            long tag_id_long = detector.getId(i);
+//                tag_id = (int)tag_id_long;
+//                if ((long)tag_id != tag_id_long) {
+//                    //throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
+//                    System.out.println(" BoofCV: cannot use tag: tag_id_long '"+tag_id_long+"' cannot be cast to int without changing its value.");
+//                    isValid = false;
+//                }
+            }
         }
 
         boolean isValid() {
@@ -2068,22 +2136,6 @@ System.out.println("imuData(Imu imu): relocalising");
 
         public int getTag_id() {
             return tag_id;
-        }
-
-        public MarkerIdValidator invoke() {
-            if( detector.hasUniqueID() ) {
-                    System.out.println("Target ID = " + detector.getId(i));
-                long tag_id_long = detector.getId(i);
-                tag_id = (int)tag_id_long;
-                if ((long)tag_id != tag_id_long) {
-                    //throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
-                    System.out.println(" BoofCV: cannot use tag: tag_id_long '"+tag_id_long+"' cannot be cast to int without changing its value.");
-                    isValid = false;
-                    return this;
-                }
-            }
-            isValid = true;
-            return this;
         }
     }
 
