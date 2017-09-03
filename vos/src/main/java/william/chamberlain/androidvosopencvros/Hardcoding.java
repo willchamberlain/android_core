@@ -1,5 +1,7 @@
 package william.chamberlain.androidvosopencvros;
 
+import java.util.HashMap;
+
 import geometry_msgs.Point;
 import geometry_msgs.Pose;
 import geometry_msgs.Quaternion;
@@ -78,5 +80,21 @@ public class Hardcoding {
 
     public static boolean isAQuad(final int tag_id) {
         return tag_id == 970 || tag_id == 1210 || tag_id == 1250 || tag_id == 1170;
+    }
+
+
+    private static HashMap<Integer, double[][]> fixedCameraPoses = new HashMap<Integer, double[][]>(1);
+
+    private static void initialiseFixedCameraPoses() {
+        fixedCameraPoses.put(607, new double[][]{                   // double[] poseXyz, double[] orientationQuaternionXyzw_
+                {19.6833705902d, -3.55735754967d,  1.2d     },
+                {0d,  0d,  0.906324d,   0.422583d}});
+    }
+
+    public static void fixedCameraPose(int camNum_, PosedEntity posedEntity) {
+        double[][] pose = fixedCameraPoses.get(camNum_);
+        if(null != pose) {
+            posedEntity.setPose(pose[0],pose[1]);                   // double[] poseXyz, double[] orientationQuaternionXyzw_
+        }
     }
 }

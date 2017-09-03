@@ -1,8 +1,6 @@
 package william.chamberlain.androidvosopencvros;
 
-import org.ros.exception.RosRuntimeException;
 import org.ros.exception.ServiceException;
-import org.ros.exception.ServiceNotFoundException;
 import org.ros.namespace.GraphName;
 import org.ros.node.AbstractNodeMain;
 import org.ros.node.ConnectedNode;
@@ -65,8 +63,8 @@ public class LocaliseFromAFeatureServer extends AbstractNodeMain {
                             Transform from_this_camera_to_tag = new Transform(detectedFeature.translation_to_tag_in_robot_convention,detectedFeature.quaternion_rotation_to_tag);
 
                             // from-world-to-thiscamera
-                            double[] world_to_thiscamera_translation = posedEntity.getPosition();
-                            double[] world_to_thiscamera_quaternion  = posedEntity.getOrientation();
+                            double[] world_to_thiscamera_translation = posedEntity.getPositionXyz();
+                            double[] world_to_thiscamera_quaternion  = posedEntity.getOrientationQuaternionXyzw();
                             org.ros.rosjava_geometry.Vector3 camera_translation_from_world_to_thiscamera
                                     = new org.ros.rosjava_geometry.Vector3(world_to_thiscamera_translation[0],world_to_thiscamera_translation[1],world_to_thiscamera_translation[2]);
                             org.ros.rosjava_geometry.Quaternion camera_quaternion_from_world_to_thiscamera

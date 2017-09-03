@@ -993,9 +993,9 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
     }
 
     @Override
-    public void setPose(double[] poseXyz, double[] orientationQuaternion_) {
+    public void setPose(double[] poseXyz, double[] orientationQuaternionXyzw_) {
         this.position = poseXyz;
-        this.orientation = orientationQuaternion_;
+        this.orientation = orientationQuaternionXyzw_;
         this.poseKnown = true;
     }
 
@@ -1005,11 +1005,11 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
                 new double[]{pose_.getOrientation().getX(),pose_.getOrientation().getY(),pose_.getOrientation().getZ(),pose_.getOrientation().getW()});
     }
 
-    public double[] getPosition() {
+    public double[] getPositionXyz() {
         return position;
     }
 
-    public double[] getOrientation() {
+    public double[] getOrientationQuaternionXyzw() {
         return orientation;
     }
 

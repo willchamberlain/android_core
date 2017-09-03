@@ -456,6 +456,11 @@ public class MainActivity
             nodeMainExecutor.execute(this.vosTaskAssignmentSubscriberNode, nodeConfiguration8);
         }
         Log.i("init","finish configuring ROS nodes");
+
+        Log.i("init","start configuring fixed camera poses");
+        Hardcoding.fixedCameraPose(getCamNum(),this);
+        Log.i("init","finish configuring fixed camera poses");
+
         Log.i("init", "finished");
     }
 
@@ -833,6 +838,43 @@ public class MainActivity
                         detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
                                 sensorToTarget_ROSFrame_toRobotBaseLink.getX(), sensorToTarget_ROSFrame_toRobotBaseLink.getY(), sensorToTarget_ROSFrame_toRobotBaseLink.getZ(),
                                 sensorToTarget_ROSFrame_toRobotBaseLink_q.x,    sensorToTarget_ROSFrame_toRobotBaseLink_q.y,    sensorToTarget_ROSFrame_toRobotBaseLink_q.z,    sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
+
+                        //  Report the detected feature pose in the world coordinate frame/system,
+                        // applying the camera's current pose to the detected feature's pose,
+                        // before reporting to the VOS Server.
+
+                        if(poseKnown()) {
+                            Log.i(logTagTag,"poseKnown()");
+                            Log.i(logTagTag,"poseKnown(): translation: "+this.position[0]+","+this.position[1]+","+this.position[2]);
+                            Log.i(logTagTag,"poseKnown(): rotation quaternion: "+this.orientation[0]+","+this.orientation[1]+","+this.orientation[2]+","+this.orientation[3]);
+                            Se3_F64 worldToCamera = new Se3_F64();
+                            worldToCamera.setTranslation(this.position[0],this.position[1],this.position[2]);
+                            Quaternion_F64 worldToCamera_rot_q = new Quaternion_F64(this.orientation[3],this.orientation[0],this.orientation[1],this.orientation[2]);
+                            DenseMatrix64F worldToCamera_rot_m = new DenseMatrix64F(3,3);
+                            worldToCamera.setRotation(
+                                ConvertRotation3D_F64.quaternionToMatrix(
+                                        worldToCamera_rot_q,  //  (double w, double x, double y, double z)
+                                        worldToCamera_rot_m) );
+
+                            detectedFeaturesClient.reportDetectedFeature(40000+tag_id,
+                                    worldToCamera.getX(),   worldToCamera.getY(),   worldToCamera.getZ(),
+                                    worldToCamera_rot_q.x,  worldToCamera_rot_q.y,  worldToCamera_rot_q.z,    worldToCamera_rot_q.w);
+
+                            Se3_F64 worldToRobotBaseLink = new Se3_F64();
+                            sensorToTarget_ROSFrame_toRobotBaseLink.concat(
+                                    worldToCamera,
+                                    worldToRobotBaseLink
+                            );
+                            Quaternion_F64 worldToRobotBaseLink_q = new Quaternion_F64();
+                            ConvertRotation3D_F64.matrixToQuaternion(worldToRobotBaseLink.getRotation(), worldToRobotBaseLink_q);
+
+                            detectedFeaturesClient.reportDetectedFeature(50000+tag_id,
+                                    worldToRobotBaseLink.getX(), worldToRobotBaseLink.getY(), worldToRobotBaseLink.getZ(),
+                                    worldToRobotBaseLink_q.x,    worldToRobotBaseLink_q.y,    worldToRobotBaseLink_q.z,    worldToRobotBaseLink_q.w);
+                        } else {
+                            Log.i(logTagTag,"! poseKnown()");
+                        }
+
 
                         Se3_F64 translation_to_marker       = sensorToTarget_ROSFrame_mirrored;
                             Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
@@ -1603,9 +1645,9 @@ public class MainActivity
 
 
     @Override
-    public void setPose(double[] poseXyz, double[] orientationQuaternion_) {
+    public void setPose(double[] poseXyz, double[] orientationQuaternionXyzw_) {
         this.position = poseXyz;
-        this.orientation = orientationQuaternion_;
+        this.orientation = orientationQuaternionXyzw_;
         this.poseKnown = true;
     }
 
@@ -1615,11 +1657,11 @@ public class MainActivity
                 new double[]{pose_.getOrientation().getX(),pose_.getOrientation().getY(),pose_.getOrientation().getZ(),pose_.getOrientation().getW()});
     }
 
-    public double[] getPosition() {
+    public double[] getPositionXyz() {
         return position;
     }
 
-    public double[] getOrientation() {
+    public double[] getOrientationQuaternionXyzw() {
         return orientation;
     }
 

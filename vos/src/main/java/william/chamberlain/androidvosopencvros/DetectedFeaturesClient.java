@@ -23,8 +23,6 @@ import vos_aa1.DetectedFeaturesRequest;
 import vos_aa1.DetectedFeaturesResponse;
 import vos_aa1.VisualFeatureObservation;
 
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
-
 /**
  * Created by will on 16/02/17.
  */
@@ -79,7 +77,8 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         System.out.println("DetectedFeaturesClient: onStart: success");
     }
 
-    /**
+    /** Reports the detected feature pose in the camera coordinate frame/system, and the camera's current pose to the VOS Server.
+     *
      * @param x translation from camera centre frame to the feature - per Kaess AprilTag library.
      * @param y translation from camera centre frame to the feature - per Kaess AprilTag library.
      * @param z translation from camera centre frame to the feature - per Kaess AprilTag library.
@@ -91,13 +90,46 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     public void reportDetectedFeature(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
-        applyCurrentPoseAsCameraPoseForDetectedFeature(serviceRequest);
+        applyCurrentPoseAsCameraPoseForDetectedFeature(serviceRequest);                             // sets DetectedFeatureRequest.cameraPose from PosedEntity pose.
 
-        applyDetectionPoseAndIdForDetectedFeature(tagId, x, y, z, qx, qy, qz, qw, serviceRequest);
+        applyDetectionPoseAndIdForDetectedFeature(tagId, x, y, z, qx, qy, qz, qw, serviceRequest);  // sets DetectedFeatureRequest.visualFeature pose of the marker.
 
         featureServiceClient.call(serviceRequest,featureResponseListener);
     }
 
+    /** Reports the detected feature pose in the world coordinate frame/system, applying the camera's current pose to the detected feature's pose, before reporting to the VOS Server.
+     *
+     * @param x translation from camera centre frame to the feature - per Kaess AprilTag library.
+     * @param y translation from camera centre frame to the feature - per Kaess AprilTag library.
+     * @param z translation from camera centre frame to the feature - per Kaess AprilTag library.
+     * @param qx orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
+     * @param qy orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
+     * @param qz orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
+     * @param qw orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
+     */
+    public void reportDetectedFeatureInWorldFrame(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
+        System.out.println("reportDetectedFeatureInWorldFrame: tagId="+tagId+" cameraFrameId="+cameraFrameId);
+        DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
+
+        applyCurrentPoseAsCameraPoseForDetectedFeature(serviceRequest);                             // sets DetectedFeatureRequest.cameraPose from PosedEntity pose.
+
+        applyDetectionPoseAndIdForDetectedFeature(tagId, x, y, z, qx, qy, qz, qw, serviceRequest);  // sets DetectedFeatureRequest.visualFeature pose of the marker.
+
+        featureServiceClient.call(serviceRequest,featureResponseListener);
+    }
+
+    /** Sets the marker id and pose of the detected feature in the DetectedFeatureRequest.
+     *
+     * @param tagId marker id.
+     * @param x DetectedFeatureRequest.visualFeature.pose position x.
+     * @param y DetectedFeatureRequest.visualFeature.pose position y.
+     * @param z DetectedFeatureRequest.visualFeature.pose position z.
+     * @param qx DetectedFeatureRequest.visualFeature.pose orientation quaternion x.
+     * @param qy DetectedFeatureRequest.visualFeature.pose orientation quaternion y.
+     * @param qz DetectedFeatureRequest.visualFeature.pose orientation quaternion z.
+     * @param qw DetectedFeatureRequest.visualFeature.pose orientation quaternion w.
+     * @param serviceRequest the DetectedFeatureRequest updated.
+     */
     private void applyDetectionPoseAndIdForDetectedFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw, DetectedFeatureRequest serviceRequest) {
         VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
 
@@ -112,13 +144,16 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         serviceRequest.setVisualFeature(visualFeature);
     }
 
-    private void applyCurrentPoseAsCameraPoseForDetectedFeature(DetectedFeatureRequest serviceRequest) {
+    /** Sets the DetectedFeatureRequest's camera pose to the pose of the  posedEntity.
+     * @param serviceRequest the DetectedFeatureRequest to set the camera pose in : serviceRequest.setCameraPose is updated.
+     */
+    private void applyCurrentPoseAsCameraPoseForDetectedFeature(DetectedFeatureRequest serviceRequest) {  // TODO ?
         PoseStamped cameraPose = serviceRequest.getCameraPose();
         cameraPose.getHeader().setFrameId(cameraFrameId);
         Quaternion cameraOrientationInWorld = cameraPose.getPose().getOrientation();
-        Geometry.applyQuaternionParams(posedEntity.getOrientation(), cameraOrientationInWorld);
+        Geometry.applyQuaternionParams(posedEntity.getOrientationQuaternionXyzw(), cameraOrientationInWorld);  // TODO ?
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
-        Geometry.applyTranslationParams(posedEntity.getPosition(), cameraPositionInWorld);
+        Geometry.applyTranslationParams(posedEntity.getPositionXyz(), cameraPositionInWorld);
         serviceRequest.setCameraPose(cameraPose);
     }
 
@@ -190,6 +225,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     }
 
 
+    /** No response expected, just an acknowledgement: takes no actions, simply logs the return text; does not make any recovery from service failure. */
     class ReportDetectedFeatureResponseListener implements ServiceResponseListener<DetectedFeatureResponse> {
         ConnectedNode connectedNode;
 

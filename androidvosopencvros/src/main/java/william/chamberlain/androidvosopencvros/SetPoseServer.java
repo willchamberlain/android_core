@@ -13,7 +13,7 @@ import vos_aa1.SetPoseRequest;
 import vos_aa1.SetPoseResponse;
 
 /**
- * Runs on the smart camera/robot: accepts a pose for the smart camera/robot, which is propogated to the camera coordinate frame used for e.g. DetectedFeaturesClient through the robot model.
+ * Runs on the smart camera/robot: accepts a pose for the smart camera/robot, which is propagated to the camera coordinate frame used for e.g. DetectedFeaturesClient through the robot model.
  *
  * Example command line call:
  * rosservice call /cam_1/set_pose "{control_point_name: bob, pose_in_map: {position: {x: 0.0, y: 0.0, z: 0.5}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}"

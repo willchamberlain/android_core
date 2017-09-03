@@ -116,10 +116,10 @@ public class ImuSensorListenerForCallback implements SensorEventListener, ImuSen
 //        } else if (event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
 //            float[] quaternion = new float[4];
 //            SensorManager.getQuaternionFromVector(quaternion, event.values);
-//            this.imu.getOrientation().setW(quaternion[0]);
-//            this.imu.getOrientation().setX(quaternion[1]);
-//            this.imu.getOrientation().setY(quaternion[2]);
-//            this.imu.getOrientation().setZ(quaternion[3]);
+//            this.imu.getOrientationQuaternionXyzw().setW(quaternion[0]);
+//            this.imu.getOrientationQuaternionXyzw().setX(quaternion[1]);
+//            this.imu.getOrientationQuaternionXyzw().setY(quaternion[2]);
+//            this.imu.getOrientationQuaternionXyzw().setZ(quaternion[3]);
 //            double[] tmpCov = {0, 0, 0, 0, 0, 0, 0, 0, 0};// TODO Make Parameter
 //            this.imu.setOrientationCovariance(tmpCov);
 //            this.quatTime = event.timestamp;

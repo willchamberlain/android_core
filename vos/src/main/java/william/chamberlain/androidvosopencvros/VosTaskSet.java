@@ -88,9 +88,9 @@ public class VosTaskSet {
                 }
                 task.executed();
             }
-            // TODO - not removing - for quicker test setup
-            // TODO     taskQueue.removeAll(toRemove);
-            // TODO - not removing - for quicker test setup
+            // comment out so that not removing - for quicker test setup
+            taskQueue.removeAll(toRemove);
+            // comment out so that not removing - for quicker test setup
         }
     }
 }
