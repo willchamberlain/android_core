@@ -1350,17 +1350,17 @@ System.out.println("imuData(Imu imu): relocalising");
 //        synchronized ( lockConvert ) {
             if( imageType.getFamily() == GRAY ) {
                 ConvertNV21.nv21ToGray(bytes, image.width, image.height, (ImageGray) image,(Class) image.getClass());
-//            } else if( imageType.getFamily() == ImageType.Family.PLANAR ) {
-//                if (imageType.getDataType() == ImageDataType.U8)
+//            } else if( imageTypeGray.getFamily() == ImageType.Family.PLANAR ) {
+//                if (imageTypeGray.getDataType() == ImageDataType.U8)
 //                    ConvertNV21.nv21ToMsRgb_U8(bytes, image.width, image.height, (Planar) image);
-//                else if (imageType.getDataType() == ImageDataType.F32)
+//                else if (imageTypeGray.getDataType() == ImageDataType.F32)
 //                    ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, (Planar) image);
 //                else
 //                    throw new RuntimeException("Oh Crap");
-//            } else if( imageType.getFamily() == ImageType.Family.INTERLEAVED ) {
-//                if( imageType.getDataType() == ImageDataType.U8)
+//            } else if( imageTypeGray.getFamily() == ImageType.Family.INTERLEAVED ) {
+//                if( imageTypeGray.getDataType() == ImageDataType.U8)
 //                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedU8) image);
-//                else if( imageType.getDataType() == ImageDataType.F32)
+//                else if( imageTypeGray.getDataType() == ImageDataType.F32)
 //                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedF32) image);
 //                else
 //                    throw new RuntimeException("Oh Crap");

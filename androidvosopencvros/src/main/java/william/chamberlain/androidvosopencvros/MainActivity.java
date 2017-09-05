@@ -40,7 +40,6 @@ import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
 import org.ros.address.InetAddressFactory;
 import org.ros.android.RosActivity;
-import org.ros.message.MessageListener;
 import org.ros.message.Time;
 import org.ros.node.NodeConfiguration;
 import org.ros.node.NodeMainExecutor;
@@ -65,11 +64,14 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
-import org.ros.node.topic.Subscriber;
 
 import boofcv.abst.fiducial.FiducialDetector;
+import boofcv.alg.color.ColorHsv;
+import boofcv.alg.descriptor.UtilFeature;
 import boofcv.alg.distort.LensDistortionNarrowFOV;
 import boofcv.alg.distort.pinhole.LensDistortionPinhole;
+import boofcv.alg.feature.color.GHistogramFeatureOps;
+import boofcv.alg.feature.color.Histogram_F64;
 import boofcv.alg.misc.GImageMiscOps;
 import boofcv.android.gui.VideoProcessing;
 import boofcv.core.encoding.ConvertNV21;
@@ -82,20 +84,20 @@ import boofcv.struct.calib.CameraPinholeRadial;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
+import boofcv.struct.image.Planar;
 import geometry_msgs.Pose;
 import georegression.geometry.ConvertRotation3D_F64;
+import georegression.metric.UtilAngle;
 import georegression.struct.EulerType;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
-import georegression.struct.shapes.Quadrilateral_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
-import william.chamberlain.androidvosopencvros.device.Point;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
 import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
 
@@ -939,6 +941,100 @@ public class MainActivity
 
         // end BoofCV
         calcAndReportRobotPose(robotsDetected);
+        Log.i(TAG, "onCameraFrame: after reported robot pose ");
+
+
+
+        Log.i(TAG, "onCameraFrame: start HSV segment ");
+        if(current_image_bytes_is_not_null) {
+            Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
+
+            Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewHsv");
+            convertPreviewHsv(last_frame_bytes(), camera);
+            Log.i(TAG, "onCameraFrame: HSV segment: after convertPreviewHsv");
+
+
+//            Planar<GrayF32> hs = imageHsv.partialSpectrum(0,1);
+//            // The number of bins is an important parameter.  Try adjusting it
+//            Histogram_F64 histogram = new Histogram_F64(25,25);
+//            histogram.setRange(0, 0.0, 1.0); // range of hue is from 0 to 2PI
+//            histogram.setRange(1, 0.0, 1.0); // range of saturation is from 0 to 1
+//
+//            // Compute the histogram
+//            GHistogramFeatureOps.histogram(hs,histogram);
+//
+//            UtilFeature.normalizeL2(histogram); // normalize so that image size doesn't matter
+
+
+            // Extract hue and saturation bands which are independent of intensity
+            GrayF32 H = imageHsv.getBand(0);
+            GrayF32 S = imageHsv.getBand(1);
+            Log.i(TAG, "onCameraFrame: HSV segment: saturation band height = "+S.getHeight()+", saturation band width = "+S.getWidth()+" ");
+
+//            // Adjust the relative importance of Hue and Saturation.
+//            // Hue has a range of 0 to 2*PI and Saturation from 0 to 1.
+            float adjustUnits = (float)(Math.PI/2.0);
+            // Euclidean distance squared threshold for deciding which pixels are members of the selected set
+            float maxDist2   = 0.4f*0.4f;
+            float hue        = 0.12f;
+            float saturation = 0.15f;
+            double[] red = new double[] {255d,0d,0d,255d};
+            double[] green = new double[] {0d,255d,0d,255d};
+            double[] greenBlue = new double[] {0d,0d,255d,255d};
+            int i_=0;
+            for( int y = 0; y < imageHsv.height; y++ ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for( int x = 0; x < imageHsv.width; x++ ) {
+                    i_++;
+//                    if(0== i_ % 100) {
+//                        Log.i(TAG, "onCameraFrame: HSV segment: "+i_+"th iteration: x="+x+", y="+y);
+//                    }
+                    // Hue is an angle in radians, so simple subtraction doesn't work
+                    float h_pixel = H.unsafe_get(x,y);                      // range of 0.0 to 2.0*PI
+                    float s_pixel = S.unsafe_get(x,y);                      // range of 0.0 to 1.0
+//                    float dh      = UtilAngle.dist(h_pixel,hue);            // range of 0.0 to 2.0*PI
+//                    float ds      = (s_pixel-saturation)*adjustUnits;       // range of 0.0 to 2.0*PI
+//
+                    // this distance measure is a bit naive, but good enough for to demonstrate the concept
+//                    float dist2 = dh*dh + ds*ds;
+//                    if( dist2 <= maxDist2 ) {
+                    if (  // varies a lot with the white balance
+                            ( h_pixel >= 2.0f    // 2.26893f
+                              &&
+                              h_pixel <= 4.6f )  // 4.39823f   )
+                            &
+                            s_pixel <= 0.35f
+                            ) {
+//                        output.setRGB(x,y,image.getRGB(x,y));
+                        hsvMatch[x][y] = 1;                     //  hsvMatch = new boolean[image.width][image.height]
+                        matRgb.put(y, x, green);
+                    } else {
+                        hsvMatch[x][y] = 0;                     //  hsvMatch = new boolean[image.width][image.height]
+                        matRgb.put(y, x, red);
+                    }
+                }
+            }
+            for(int y = 0+3; y < imageHsv.height-3; y=y+7 ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0+3; x < imageHsv.width-3; x=x+7) {
+
+                    int sum_=0;
+                    for(int y2 = y-3; y2 <= y+3; y2++ ) {
+                        for(int x2 = x-3; x2 <= x+3; x2++) {
+                            sum_+=hsvMatch[x2][y2];
+                        }
+                    }
+                    if(sum_ > 25) { // over 50% good
+                        for(int y2 = y-3; y2 <= y+3; y2++ ) {
+                            for(int x2 = x-3; x2 <= x+3; x2++) {
+                                matRgb.put(y2, x2, greenBlue);
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+        Log.i(TAG, "onCameraFrame: after HSV segment ");
+
 
 
         Log.i(TAG, "onCameraFrame: starting OpenCV segment ");
@@ -1897,15 +1993,30 @@ System.out.println("imuData(Imu imu): relocalising");
 
 /* start - copy from boofcv.android.gui.VideoRenderProcessing */ // TODO - use it properly
     // Type of BoofCV image
-    ImageType<boofcv.struct.image.GrayF32> imageType = new ImageType<GrayF32>(GRAY,F32,1);       // TODO - hardcoded
-    boofcv.struct.image.GrayF32 image = new boofcv.struct.image.GrayF32();  // TODO - hardcoded
+    ImageType<boofcv.struct.image.GrayF32> imageTypeGray = new ImageType<GrayF32>(GRAY,F32,1);
+    boofcv.struct.image.Planar<GrayF32> imageRgb         = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,1,1,3);
+    boofcv.struct.image.Planar<GrayF32> imageHsv         = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,1,1,3);
+    int[][] hsvMatch                                     = new int[1][1];
+    boofcv.struct.image.GrayF32 image                    = new boofcv.struct.image.GrayF32();  // TODO - hardcoded
     int previewRotation = 0;                                // TODO - hardcoded
     boolean flipHorizontal = false;                         // TODO - hardcoded
 
     byte[] current_image_bytes;
 
+    enum typeOfImage {
+        GRAY, HSV
+    }
+
 //    @Override
     public void convertPreview(byte[] bytes, Camera camera) {
+        convertPreview(bytes, camera, typeOfImage.GRAY);
+    }
+
+    public void convertPreviewHsv(byte[] bytes, Camera camera) {
+        convertPreview(bytes, camera, typeOfImage.HSV);
+    }
+
+    public void convertPreview(byte[] bytes, Camera camera, typeOfImage imageType_) {
         current_image_bytes = bytes;
 //        if( thread == null )
 //            return;
@@ -1916,25 +2027,43 @@ System.out.println("imuData(Imu imu): relocalising");
         int height_ = (int)Math.ceil(matGray.size().height);
         image = image.createNew(width_,height_);
 
+        if( typeOfImage.GRAY == imageType_) {
+            ConvertNV21.nv21ToGray(bytes, image.width, image.height, (ImageGray) image, (Class) image.getClass());
 //        synchronized ( lockConvert ) {
-            if( imageType.getFamily() == GRAY ) {
-                ConvertNV21.nv21ToGray(bytes, image.width, image.height, (ImageGray) image,(Class) image.getClass());
-//            } else if( imageType.getFamily() == ImageType.Family.PLANAR ) {
-//                if (imageType.getDataType() == ImageDataType.U8)
+//            if( imageType_.getFamily() == GRAY ) {
+//                ConvertNV21.nv21ToGray(bytes, image.width, image.height, (ImageGray) image,(Class) image.getClass());
+//            } else if( imageTypeGray.getFamily() == ImageType.Family.PLANAR ) {
+//                if (imageTypeGray.getDataType() == ImageDataType.U8)
 //                    ConvertNV21.nv21ToMsRgb_U8(bytes, image.width, image.height, (Planar) image);
-//                else if (imageType.getDataType() == ImageDataType.F32)
+//                else if (imageTypeGray.getDataType() == ImageDataType.F32)
 //                    ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, (Planar) image);
 //                else
 //                    throw new RuntimeException("Oh Crap");
-//            } else if( imageType.getFamily() == ImageType.Family.INTERLEAVED ) {
-//                if( imageType.getDataType() == ImageDataType.U8)
+//            } else if( imageTypeGray.getFamily() == ImageType.Family.INTERLEAVED ) {
+//                if( imageTypeGray.getDataType() == ImageDataType.U8)
 //                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedU8) image);
-//                else if( imageType.getDataType() == ImageDataType.F32)
+//                else if( imageTypeGray.getDataType() == ImageDataType.F32)
 //                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedF32) image);
 //                else
 //                    throw new RuntimeException("Oh Crap");
+            } else if(typeOfImage.HSV == imageType_) {
+                Log.i("convertPreview","HSV: image.width="+image.width+", image.height="+image.height);
+                if(null == imageRgb || imageRgb.width!=image.width || imageRgb.height!=image.height) {
+                    imageRgb = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
+                }
+                if(null == imageHsv || imageHsv.width!=image.width || imageHsv.height!=image.height) {
+                    imageHsv = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
+                }
+                if(null == hsvMatch) {
+                    hsvMatch = new int[image.width][image.height];
+                } else if( hsvMatch.length!=image.width || hsvMatch[0].length!=image.height) {
+                    hsvMatch = new int[image.width][image.height];
+                }
+                ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
+                ColorHsv.rgbToHsv_F32(imageRgb, imageHsv);
+            Log.i("convertPreview","HSV: image.width="+image.width+", image.height="+image.height);
             } else {
-                throw new RuntimeException("Unexpected image type: "+imageType);
+                throw new RuntimeException("Unexpected image type: "+ imageTypeGray);
             }
 
             if( previewRotation == 180 ) {
