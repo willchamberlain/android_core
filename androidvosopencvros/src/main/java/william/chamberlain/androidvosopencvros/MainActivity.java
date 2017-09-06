@@ -67,11 +67,8 @@ import org.opencv.core.Mat;
 
 import boofcv.abst.fiducial.FiducialDetector;
 import boofcv.alg.color.ColorHsv;
-import boofcv.alg.descriptor.UtilFeature;
 import boofcv.alg.distort.LensDistortionNarrowFOV;
 import boofcv.alg.distort.pinhole.LensDistortionPinhole;
-import boofcv.alg.feature.color.GHistogramFeatureOps;
-import boofcv.alg.feature.color.Histogram_F64;
 import boofcv.alg.misc.GImageMiscOps;
 import boofcv.android.gui.VideoProcessing;
 import boofcv.core.encoding.ConvertNV21;
@@ -84,10 +81,8 @@ import boofcv.struct.calib.CameraPinholeRadial;
 import boofcv.struct.image.GrayF32;
 import boofcv.struct.image.ImageGray;
 import boofcv.struct.image.ImageType;
-import boofcv.struct.image.Planar;
 import geometry_msgs.Pose;
 import georegression.geometry.ConvertRotation3D_F64;
-import georegression.metric.UtilAngle;
 import georegression.struct.EulerType;
 import georegression.struct.point.Point2D_F64;
 import georegression.struct.point.Vector3D_F64;
@@ -135,6 +130,7 @@ public class MainActivity
 
     public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_BACK;
     private static final boolean running_native = false;
+    private static boolean determiningFreeFloorspace = false;
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -946,7 +942,7 @@ public class MainActivity
 
 
         Log.i(TAG, "onCameraFrame: start HSV segment ");
-        if(current_image_bytes_is_not_null) {
+        if(current_image_bytes_is_not_null  && determiningFreeFloorspace) {
             Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
 
             Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewHsv");
