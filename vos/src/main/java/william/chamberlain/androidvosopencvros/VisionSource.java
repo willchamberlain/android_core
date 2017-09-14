@@ -11,6 +11,9 @@ public interface VisionSource {
     void publishCurrentFrame();
     void allocateTo(String targetKey);
 
+    void startObstacleDetection();
+    void stopObstacleDetection();
+
     public static final String ROBOT_ALLOCATION_KEY = "ROBOT";
     public static final String TARGET_ALLOCATION_KEY = "TARGET";
 }

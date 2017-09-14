@@ -122,6 +122,14 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             dimmableScreen.screenOff();
                             visionSource.stop();
                             break;
+                        case OBSTACLE_DETECTION_ON:
+                            dimmableScreen.screenOn();
+                            visionSource.startObstacleDetection();
+                            break;
+                        case OBSTACLE_DETECTION_OFF:
+                            dimmableScreen.screenOff();
+                            visionSource.stopObstacleDetection();
+                            break;
                         case RESOLUTION_VERY_VERY_HIGH:
                             variableResolution.resolutionMinMax(650,490,960,720); // --> 960x720
                             break;

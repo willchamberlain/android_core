@@ -1483,6 +1483,13 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
     }
 
 
+    @Override
+    public void startObstacleDetection(){}
+
+    @Override
+    public void stopObstacleDetection(){}
+
+
     public void allocateTo(String targetKey) {
         allocatedTargets.put(ROBOT_ALLOCATION_KEY,true);
     }

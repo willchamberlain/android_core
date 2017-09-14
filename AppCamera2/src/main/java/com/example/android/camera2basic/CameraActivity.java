@@ -108,6 +108,13 @@ public class CameraActivity
     @Override
     public void stop() {}
 
+
+    @Override
+    public void startObstacleDetection(){}
+
+    @Override
+    public void stopObstacleDetection(){}
+
     @Override
     public void relocalise() {}
 

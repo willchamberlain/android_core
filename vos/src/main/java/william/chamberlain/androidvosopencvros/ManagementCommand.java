@@ -9,6 +9,8 @@ public enum ManagementCommand {
         SCREEN_OFF("screen off"),
         PROCESSING_ON("run"),
         PROCESSING_OFF("stop"),
+        OBSTACLE_DETECTION_ON("run_obstacle"),
+        OBSTACLE_DETECTION_OFF("stop_obstacle"),
         RESOLUTION_VERY_VERY_HIGH("res very very high"),
         RESOLUTION_VERY_HIGH("res very high"),
         RESOLUTION_HIGH("res high"),

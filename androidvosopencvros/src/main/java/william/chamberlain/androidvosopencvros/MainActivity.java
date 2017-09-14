@@ -1830,6 +1830,28 @@ public class MainActivity
         _cameraBridgeViewBase.enableView();
     }
 
+    @Override
+    public void startObstacleDetection() {
+        checkPermissions();
+
+        determiningFreeFloorspace = true;
+        if(!runImageProcessing) {
+            _cameraBridgeViewBase.enableView();
+        }
+    }
+
+    @Override
+    public void stopObstacleDetection() {
+
+        checkPermissions();
+        determiningFreeFloorspace = false;
+        if(!runImageProcessing) {
+            _cameraBridgeViewBase.disableView();
+        }
+    }
+
+
+
     private void checkPermissions() {
         PermissionsChecker permissionsChecker = new PermissionsChecker(this);
         permissionsChecker.havePermissionAndRequest(Manifest.permission.ACCESS_WIFI_STATE, "This application requires access to wifi: please enable via Settings -> Apps (or similar) -> Your app -> Permissions");
