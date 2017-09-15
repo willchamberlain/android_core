@@ -137,7 +137,7 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             variableResolution.resolutionMinMax(490,370,650,490); // --> 640x480
                             break;
                         case RESOLUTION_HIGH:
-                            variableResolution.resolutionMinMax(320,240,490,370); // --> 480X
+                            variableResolution.resolutionMinMax(320,240,490,370); // --> 480X360
                             break;
                         case RESOLUTION_LOW:
                             variableResolution.resolutionMinMax(100,100,400,300); // --> 320x240

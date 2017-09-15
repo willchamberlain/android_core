@@ -108,7 +108,7 @@ dependencies {
     compile('com.android.support:support-v4:21.0.0') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
-    ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
+    ['feature', 'geo', 'ip', 'recognition', 'sfm', 'android', 'core', 'feature'].each { String a -> compile group: 'org.boofcv', name: a, version: '0.26' }
     compile('org.ddogleg:ddogleg:0.10') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }

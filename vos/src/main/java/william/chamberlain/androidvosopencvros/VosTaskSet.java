@@ -41,6 +41,18 @@ public class VosTaskSet {
         return null;
     }
 
+    public ArrayList<VisionTask> visionTasksToExecuteFilter(String algorithm_) {
+        synchronized (this) {
+            ArrayList<VisionTask> tasks = new ArrayList<VisionTask>();
+            for (VisionTask visionTask : taskQueue) {
+                if(visionTask.getAlgorithm().contains(algorithm_)) {
+                    tasks.add(visionTask);
+                }
+            }
+            return tasks;
+        }
+    }
+
 
     public boolean isThereAVisionTaskToExecute() {
         synchronized (this) {
