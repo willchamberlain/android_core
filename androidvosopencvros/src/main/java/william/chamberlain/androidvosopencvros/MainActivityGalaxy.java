@@ -668,9 +668,9 @@ Log.i(logTag,"finished registering as a vision source");
         byte[] current_image_bytes = last_frame_bytes();
         removeExpiredVisionTasks();
         if(null!=current_image_bytes  && !taskQueue.isEmpty()) {
-Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
+Log.i(logTag,"start convertPreviewForBoofCV(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
-Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
+Log.i(logTag,"finished convertPreviewForBoofCV(last_frame_bytes(), camera);");
             try {
                 FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                         new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -1485,10 +1485,13 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
 
     @Override
     public void startObstacleDetection(){}
+    @Override
+    public void startObstacleDetectionHSV(){}
+    @Override
+    public void startObstacleDetectionTexture(){}
 
     @Override
     public void stopObstacleDetection(){}
-
 
     public void allocateTo(String targetKey) {
         allocatedTargets.put(ROBOT_ALLOCATION_KEY,true);
@@ -1619,7 +1622,7 @@ System.out.println("imuData(Imu imu): relocalising");
     public void last_frame_bytes(byte[] last_frame_bytes){
 //        Log.i(TAG, "----------------------------- last_frame_bytes -----------------------------");
 //        if( processing != null ) {
-//            processing.convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());
+//            processing.convertPreviewForBoofCV(last_frame_bytes,_cameraBridgeViewBase.camera());
 //        }
 
         convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());  // updates the 'image' variable
@@ -1872,7 +1875,7 @@ System.out.println("imuData(Imu imu): relocalising");
 //                } catch (InterruptedException e) {}
 //            }
 //
-//            // swap gray buffers so that convertPreview is modifying the copy which is not in use
+//            // swap gray buffers so that convertPreviewForBoofCV is modifying the copy which is not in use
 //            synchronized ( lockConvert ) {
 //                T tmp = image;
 //                image = image2;

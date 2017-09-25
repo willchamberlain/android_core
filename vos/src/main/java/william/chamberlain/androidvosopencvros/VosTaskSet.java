@@ -102,6 +102,10 @@ public class VosTaskSet {
 
     //----------------------------------------------------------------------------------------------
 
+    public ArrayList<VisionTask> visionTasksToExecuteFilter(Algorithm algorithm_) {
+        return visionTasksToExecuteFilter(algorithm_.canonicalName());
+    }
+
     public ArrayList<VisionTask> visionTasksToExecuteFilter(String algorithm_) {
         synchronized (this) {
             ArrayList<VisionTask> tasks = new ArrayList<VisionTask>();

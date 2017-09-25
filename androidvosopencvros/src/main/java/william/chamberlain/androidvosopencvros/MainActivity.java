@@ -139,7 +139,7 @@ public class MainActivity
 
     public static final int CAMERA_FRONT_OR_BACK_INIT = CAMERA_ID_BACK;
     private static final boolean running_native = false;
-    private static boolean determiningFreeFloorspace = false;
+    private static String determiningFreeFloorspace = null;
 
 
     private static final String TAG = "vos_aa1::MainActivity";
@@ -692,11 +692,9 @@ public class MainActivity
             }
         }
         if(current_image_bytes_is_not_null  &&  thereIsAVisionTaskToExecute) {
-            Log.i(logTag, "start convertPreview(last_frame_bytes(), camera);");
-            convertPreview(last_frame_bytes(), camera);
-            Log.i(logTag, "finished convertPreview(last_frame_bytes(), camera);");
-            ArrayList<VisionTask> visionTasks_boofCVFiducial = vosTaskSet.visionTasksToExecuteFilter("boofcv");
-            ArrayList<VisionTask> visionTasks_SURF = vosTaskSet.visionTasksToExecuteFilter("SURF");
+            Log.i(logTag, "start convertPreviewForBoofCV(last_frame_bytes(), camera);");
+            convertPreviewForBoofCV(last_frame_bytes(), camera);                                 // NOTE: inside-out: this is a BoofCV conversion because we know that we're using a BoofCV algorithm
+            Log.i(logTag, "finished convertPreviewForBoofCV(last_frame_bytes(), camera);");
             VosTaskSet thingsIShouldBeLookingFor = vosTaskSet;
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
             try {
@@ -948,58 +946,63 @@ public class MainActivity
             }
         }
             //--------------------------------------------------------------------------------------
-            if(null!=visionTasks_SURF && visionTasks_SURF.size() > 0) {
-                Log.i(TAG,"onCameraFrame: before SURF feature processing.");
-                try {
-                    String[] surfFeatureDescriptors = Hardcoding.testSurfFeatureDescriptors();
-                    String[] imageBfeatureString = surfFeatureDescriptors;
-                    Class imageTypeGrayF32 = GrayF32.class;   //  Class imageType = GrayF32.class;
-                    Class imageRgbType = Planar.class;
-                    AssociatePoints app = setupAssociatePointsVariables(imageTypeGrayF32, imageRgbType);
-                    AssociatePoints.ReturnValue associations = app.associateSurfAndString( image, imageBfeatureString);    // -- SURF !!!
 
-                    FastQueue< AssociatedIndex > matches = associations.associate_getMatches;
-                    Log.i(TAG,"onCameraFrame: SURF feature: matches.size="+matches.size());
-                    List<Point2D_F64> leftPts  = associations.pointsA;
-                    List<Point2D_F64> rightPts = associations.pointsB;
+            if (thingsIShouldBeLookingFor.includes(Algorithm.SURF)) {
+                ArrayList<VisionTask> visionTasks_SURF = vosTaskSet.visionTasksToExecuteFilter(Algorithm.SURF);
+                if (null != visionTasks_SURF && visionTasks_SURF.size() > 0) {
+                    Log.i(TAG, "onCameraFrame: before SURF feature processing.");
+                    try {
+                        String[] surfFeatureDescriptors = Hardcoding.testSurfFeatureDescriptors();
+                        String[] imageBfeatureString = surfFeatureDescriptors;
+                        Class imageTypeGrayF32 = GrayF32.class;   //  Class imageType = GrayF32.class;
+                        Class imageRgbType = Planar.class;
+                        AssociatePoints app = setupAssociatePointsVariables(imageTypeGrayF32, imageRgbType);
+                        AssociatePoints.ReturnValue associations = app.associateSurfAndString(image, imageBfeatureString);    // -- SURF !!!
+
+                        FastQueue<AssociatedIndex> matches = associations.associate_getMatches;
+                        Log.i(TAG, "onCameraFrame: SURF feature: matches.size=" + matches.size());
+                        List<Point2D_F64> leftPts = associations.pointsA;
+                        List<Point2D_F64> rightPts = associations.pointsB;
 //                // from AssociationPanel
 //                public void drawPoints( List<Point2D_F64> leftPts , List<Point2D_F64> rightPts,
 //                        FastQueue< AssociatedIndex > matches ) {
-                    int assocLeft[],assocRight[];    // which features are associated with each other
-                    List<Point2D_F64> allLeft = new ArrayList<>();
-                    List<Point2D_F64> allRight = new ArrayList<>();
-                    assocLeft =new int[matches.size()];
-                    assocRight =new int[matches.size()];
-                    for( int i = 0; i<matches.size();i++)
-                    {
-                        Log.i(TAG,"onCameraFrame: SURF feature: matches["+i+"]");
-                        AssociatedIndex a = matches.get(i);
-                        allLeft.add(leftPts.get(a.src));
-                        allRight.add(rightPts.get(a.dst));
-                        assocLeft[i] = i;
-                        assocRight[i] = i;
-                    }
-                    for( int i = 0; i < assocLeft.length; i++ ) {
-                        if( assocLeft[i] == -1 ) {
-                            continue;
+                        int assocLeft[], assocRight[];    // which features are associated with each other
+                        List<Point2D_F64> allLeft = new ArrayList<>();
+                        List<Point2D_F64> allRight = new ArrayList<>();
+                        assocLeft = new int[matches.size()];
+                        assocRight = new int[matches.size()];
+                        for (int i = 0; i < matches.size(); i++) {
+                            Log.i(TAG, "onCameraFrame: SURF feature: matches[" + i + "]");
+                            AssociatedIndex a = matches.get(i);
+                            allLeft.add(leftPts.get(a.src));
+                            allRight.add(rightPts.get(a.dst));
+                            assocLeft[i] = i;
+                            assocRight[i] = i;
                         }
-                        Log.i(TAG,"onCameraFrame: SURF feature: ");
-                        Point2D_F64 l = leftPts.get(i);
-                        Point2D_F64 r = rightPts.get(assocLeft[i]);
-                        //            Color color = colors[i];
-                        //            drawAssociation(g2, scaleLeft,scaleRight,rightX, l, r, color);
+                        for (int i = 0; i < assocLeft.length; i++) {
+                            if (assocLeft[i] == -1) {
+                                continue;
+                            }
+                            Log.i(TAG, "onCameraFrame: SURF feature: ");
+                            Point2D_F64 l = leftPts.get(i);
+                            Point2D_F64 r = rightPts.get(assocLeft[i]);
+                            //            Color color = colors[i];
+                            //            drawAssociation(g2, scaleLeft,scaleRight,rightX, l, r, color);
 //                        drawSurfFeatureLocus(l.getX(),l.getY())
 //                        displayTagCentre_OpenCV((int)locationPixel.x, (int)locationPixel.y, fm);
-                        displaySurf_OpenCV((int)l.getX(), (int)l.getY());
-                    }
+                            displaySurf_OpenCV((int) l.getX(), (int) l.getY());
+                        }
 //                }
 
-                } catch (Exception e) {
-                    Log.e(TAG, "onCameraFrame: exception running SURF features: ", e);
-                    e.printStackTrace();
+                    } catch (Exception e) {
+                        Log.e(TAG, "onCameraFrame: exception running SURF features: ", e);
+                        e.printStackTrace();
+                    }
+                    Log.i(TAG, "onCameraFrame: after SURF feature processing.");
+                } else {
+                    Log.i(TAG, "onCameraFrame: NOT SURF feature processing.");
                 }
-                Log.i(TAG,"onCameraFrame: after SURF feature processing.");
-            } else {Log.i(TAG,"onCameraFrame: NOT SURF feature processing.");}
+            }
 
 
         }
@@ -1012,12 +1015,12 @@ public class MainActivity
 
 
         Log.i(TAG, "onCameraFrame: start HSV segment ");
-        if(current_image_bytes_is_not_null  && determiningFreeFloorspace) {
+        if(current_image_bytes_is_not_null  && null != determiningFreeFloorspace) {
             Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
 
-            Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewHsv");
-            convertPreviewHsv(last_frame_bytes(), camera);
-            Log.i(TAG, "onCameraFrame: HSV segment: after convertPreviewHsv");
+            Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewBoofCVHsv");
+            convertPreviewBoofCVHsv(last_frame_bytes(), camera);
+            Log.i(TAG, "onCameraFrame: HSV segment: after convertPreviewBoofCVHsv");
 
 
 //            Planar<GrayF32> hs = imageHsv.partialSpectrum(0,1);
@@ -1035,140 +1038,173 @@ public class MainActivity
             // Extract hue and saturation bands which are independent of intensity
             GrayF32 H = imageHsv.getBand(0);
             GrayF32 S = imageHsv.getBand(1);
-            Log.i(TAG, "onCameraFrame: HSV segment: saturation band height = "+S.getHeight()+", saturation band width = "+S.getWidth()+" ");
+            Log.i(TAG, "onCameraFrame: HSV segment: saturation band height = " + S.getHeight() + ", saturation band width = " + S.getWidth() + " ");
 
 //            // Adjust the relative importance of Hue and Saturation.
 //            // Hue has a range of 0 to 2*PI and Saturation from 0 to 1.
-            float adjustUnits = (float)(Math.PI/2.0);
+            float adjustUnits = (float) (Math.PI / 2.0);
             // Euclidean distance squared threshold for deciding which pixels are members of the selected set
-            float maxDist2   = 0.4f*0.4f;
-            float hue        = 0.12f;
+            float maxDist2 = 0.4f * 0.4f;
+            float hue = 0.12f;
             float saturation = 0.15f;
-            double[] red = new double[] {255d,0d,0d,255d};
-            double[] green = new double[] {0d,255d,0d,255d};
-            double[] greenBlue = new double[] {0d,0d,255d,255d};
-            int i_=0;
-            for( int y = 0; y < imageHsv.height; y++ ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                for( int x = 0; x < imageHsv.width; x++ ) {
-                    i_++;
+            double[] red = new double[]{255d, 0d, 0d, 255d};
+            double[] green = new double[]{0d, 255d, 0d, 255d};
+            double[] greenBlue = new double[]{0d, 0d, 255d, 255d};
+            double[] free_space_white = new double[]{255d, 255d, 255d, 125d};
+            int i_ = 0;
+            int numberOfFilters = 0;
+            if (determiningFreeFloorspace.contains("HSV")) {
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with colour/HS(V).");
+                numberOfFilters++;
+                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0; x < imageHsv.width; x++) {
+                        i_++;
 //                    if(0== i_ % 100) {
 //                        Log.i(TAG, "onCameraFrame: HSV segment: "+i_+"th iteration: x="+x+", y="+y);
 //                    }
-                    // Hue is an angle in radians, so simple subtraction doesn't work
-                    float h_pixel = H.unsafe_get(x,y);                      // range of 0.0 to 2.0*PI
-                    float s_pixel = S.unsafe_get(x,y);                      // range of 0.0 to 1.0
+                        // Hue is an angle in radians, so simple subtraction doesn't work
+                        float h_pixel = H.unsafe_get(x, y);                      // range of 0.0 to 2.0*PI
+                        float s_pixel = S.unsafe_get(x, y);                      // range of 0.0 to 1.0
 //                    float dh      = UtilAngle.dist(h_pixel,hue);            // range of 0.0 to 2.0*PI
 //                    float ds      = (s_pixel-saturation)*adjustUnits;       // range of 0.0 to 2.0*PI
 //
-                    // this distance measure is a bit naive, but good enough for to demonstrate the concept
+                        // this distance measure is a bit naive, but good enough for to demonstrate the concept
 //                    float dist2 = dh*dh + ds*ds;
 //                    if( dist2 <= maxDist2 ) {
-                    if (  // varies a lot with the white balance
-                            ( h_pixel >= 2.0f    // 2.26893f
-                              &&
-                              h_pixel <= 4.6f )  // 4.39823f   )
-                            &
-                            s_pixel <= 0.35f
-                            ) {
+                        if (  // varies a lot with the white balance
+                                (h_pixel >= 2.0f    // 2.26893f
+                                        &&
+                                        h_pixel <= 4.6f)  // 4.39823f   )
+                                        &
+                                        s_pixel <= 0.35f
+                                ) {
 //                        output.setRGB(x,y,image.getRGB(x,y));
-                        hsvMatch[x][y] = 1;                     //  hsvMatch = new boolean[image.width][image.height]
-                        matRgb.put(y, x, green);
-                    } else {
-                        hsvMatch[x][y] = 0;                     //  hsvMatch = new boolean[image.width][image.height]
-                        matRgb.put(y, x, red);
+                            hsvMatch[x][y] = 1;                     //  hsvMatch = new boolean[image.width][image.height]
+                            matRgb.put(y, x, green);
+                        } else {
+                            hsvMatch[x][y] = 0;                     //  hsvMatch = new boolean[image.width][image.height]
+                            matRgb.put(y, x, red);
+                        }
                     }
                 }
+                for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
+
+                        int sum_ = 0;
+                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                sum_ += hsvMatch[x2][y2];
+                            }
+                        }
+                        if (sum_ > 25) { // over 50% good
+                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                    matRgb.put(y2, x2, greenBlue);                  // TODO - boolean output for the block
+                                    combinedOutput[x2][y2]++;
+                                }
+                            }
+                        }
+
+                    }
+                }
+
+                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with colour/HS(V).");
             }
-            for(int y = 0+3; y < imageHsv.height-3; y=y+7 ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                for (int x = 0+3; x < imageHsv.width-3; x=x+7) {
 
-                    int sum_=0;
-                    for(int y2 = y-3; y2 <= y+3; y2++ ) {
-                        for(int x2 = x-3; x2 <= x+3; x2++) {
-                            sum_+=hsvMatch[x2][y2];
+            if (determiningFreeFloorspace.contains("Texture")) {
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with texture.");
+                numberOfFilters++;
+                //--- gray level run-length ------------------------------------------------------------
+                GrayF32 V = imageHsv.getBand(2);
+                GrayF32 gradient_img = V.createNew(imageHsv.width, imageHsv.height);
+                GrayF32 run_count_img = V.createNew(imageHsv.width, imageHsv.height);
+                int run_count_bins[] = new int[imageHsv.width]; // could have a run all the same intensity, e.g. facing a blank wall, or camera covered.
+
+                float max_intensity = 254.0f;
+                float intensity_left = 0.0f;
+                float intensity_previous = 0.0f;
+                float intensity_right;
+                float intensity = 0.0f;
+                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0; x < imageHsv.width; x++) {
+                        intensity_previous = intensity;
+                        if (x > 0) {
+                            intensity_left = intensity_previous;
+                            intensity = V.unsafe_get(x, y);
+                            if (intensity_left - intensity > (max_intensity / 20.0f)) {
+                                gradient_img.set(x, y, max_intensity);
+                            }  // simplified from TextureFilter
                         }
+                        //if(x < imageHsv.width-1) { intensity_right = V.unsafe_get(x+1,y);}
                     }
-                    if(sum_ > 25) { // over 50% good
-                        for(int y2 = y-3; y2 <= y+3; y2++ ) {
-                            for(int x2 = x-3; x2 <= x+3; x2++) {
-                                matRgb.put(y2, x2, greenBlue);
+                    // run back over the row, counting runs of the same(ish) gradient
+
+                    int run_count = 0;
+                    float last_gradient = 0.0f;
+                    float param_run_count_tolerance = 0.1f;
+                    boolean param_allow_for_slow_gradient = false;
+                    for (int x = 0; x < imageHsv.width; x++) {
+
+                        if (last_gradient - param_run_count_tolerance < gradient_img.unsafe_get(x, y) && gradient_img.unsafe_get(x, y) < last_gradient + param_run_count_tolerance) {
+                            run_count++;
+                        } else {
+                            int run_count_was = run_count;
+                            run_count_bins[run_count]++;                        // increment the bin               up to the current pixel
+                            run_count = 0;                                        // reset run_count                 at the current pixel
+                            last_gradient = gradient_img.unsafe_get(x, y);     // reset the gradient to the value at the current pixel
+
+                            int indexScaled_backward = x;
+                            for (int x_neg = x - 1; x_neg > 0 && x_neg >= ((x - 1) - run_count_was); x_neg--) {
+                                int param_run_count_upper_cutoff = 20;                                                //  TODO - by hand fiddling !
+                                if (run_count_was >= param_run_count_upper_cutoff) {                                  //  TODO - by hand fiddling !
+                                    run_count_img.set(x_neg, y, 254.0f);
+                                    runlengthMatch[x_neg][y] = 1;
+                                } else {
+                                    ;
+                                    run_count_img.set(x_neg, y, ((float) run_count_was / (float) param_run_count_upper_cutoff) * 254.0f);  // approximate: will break if any run is over 254 long, but OK for now
+                                    runlengthMatch[x_neg][y] = 0;
+                                }
                             }
                         }
                     }
+                } // end of row for runlengthMatch
+                for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
 
+                        int sum_ = 0;
+                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                sum_ += runlengthMatch[x2][y2];
+                            }
+                        }
+                        if (sum_ < 25) { // under XYZ                                               // TODO - PARAMETER
+                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                    matRgb.put(y2, x2, greenBlue);                                  // TODO - boolean output for the block
+                                    combinedOutput[x2][y2]++;
+                                }
+                            }
+                        }
+
+                    }
                 }
+                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with texture.");
             }
 
-
-            //--- gray level run-length ------------------------------------------------------------
-            GrayF32 V = imageHsv.getBand(2);
-            GrayF32 gradient_img  = V.createNew(imageHsv.width,imageHsv.height);
-            GrayF32 run_count_img = V.createNew(imageHsv.width,imageHsv.height);
-            int run_count_bins[] = new int[imageHsv.width]; // could have a run all the same intensity, e.g. facing a blank wall, or camera covered.
-
-            float max_intensity = 254.0f;
-            float intensity_left = 0.0f;
-            float intensity_previous = 0.0f;
-            float intensity_right;
-            float intensity = 0.0f;
-            for( int y = 0; y < imageHsv.height; y++ ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                for( int x = 0; x < imageHsv.width; x++ ) {
-                    intensity_previous = intensity;
-                    if(x > 0) {
-                        intensity_left = intensity_previous;
-                        intensity = V.unsafe_get(x,y);
-                        if(intensity_left - intensity  > (max_intensity/20.0f)) { gradient_img.set(x,y,max_intensity); }  // simplified from TextureFilter
-                    }
-                    //if(x < imageHsv.width-1) { intensity_right = V.unsafe_get(x+1,y);}
-                }
-                // run back over the row, counting runs of the same(ish) gradient
-
-                int run_count=0;
-                float last_gradient=0.0f;
-                float param_run_count_tolerance = 0.1f;
-                boolean param_allow_for_slow_gradient = false;
-                for( int x = 0; x < imageHsv.width; x++ ) {
-
-                    if( last_gradient-param_run_count_tolerance < gradient_img.unsafe_get(x,y) && gradient_img.unsafe_get(x,y) < last_gradient+param_run_count_tolerance ) {
-                        run_count++;
-                    } else {
-                        int run_count_was = run_count;
-                        run_count_bins[run_count]++;                        // increment the bin               up to the current pixel
-                        run_count=0;                                        // reset run_count                 at the current pixel
-                        last_gradient = gradient_img.unsafe_get(x,y);     // reset the gradient to the value at the current pixel
-
-                        int indexScaled_backward = x;
-                        for (int x_neg = x-1 ;  x_neg > 0 && x_neg >= ((x-1)-run_count_was) ; x_neg-- ) {
-                            int param_run_count_upper_cutoff = 20;                                                //  TODO - by hand fiddling !
-                            if (run_count_was >= param_run_count_upper_cutoff) {                                  //  TODO - by hand fiddling !
-                                run_count_img.set(x_neg,y,254.0f);
-                                runlengthMatch[x_neg][y] = 1;
-                            } else {;
-                                run_count_img.set(x_neg,y,  ((float)run_count_was / (float)param_run_count_upper_cutoff)*254.0f);  // approximate: will break if any run is over 254 long, but OK for now
-                                runlengthMatch[x_neg][y] = 0;
-                            }
+            // combine boolean outputs for the block: GOOD && GOOD == GOOD == FREE
+            if (numberOfFilters > 0) {
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace checking combined filter outputs.");
+                // TODO - do this blockwise and use a hashmark pattern ?
+                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0; x < imageHsv.width; x++) {
+                        if (combinedOutput[x][y] >= numberOfFilters) {
+                            matRgb.put(y, x, free_space_white);                                  // TODO - boolean output for the block
                         }
                     }
                 }
-            } // end of row for runlengthMatch
-            for(int y = 0+3; y < imageHsv.height-3; y=y+7 ) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                for (int x = 0+3; x < imageHsv.width-3; x=x+7) {
-
-                    int sum_=0;
-                    for(int y2 = y-3; y2 <= y+3; y2++ ) {
-                        for(int x2 = x-3; x2 <= x+3; x2++) {
-                            sum_+=runlengthMatch[x2][y2];
-                        }
-                    }
-                    if(sum_ > 25) { // over 50% good  // PARAMETER
-                        for(int y2 = y-3; y2 <= y+3; y2++ ) {
-                            for(int x2 = x-3; x2 <= x+3; x2++) {
-                                matRgb.put(y2, x2, greenBlue);
-                            }
-                        }
-                    }
-
-                }
+                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace checking combined filter outputs.");
+            } else {
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace NOT checking combined filter outputs : numberOfFilters="+numberOfFilters);
             }
 
         }
@@ -2010,7 +2046,27 @@ public class MainActivity
     public void startObstacleDetection() {
         checkPermissions();
 
-        determiningFreeFloorspace = true;
+        determiningFreeFloorspace = "HSV && Texture";
+        if(!runImageProcessing) {
+            _cameraBridgeViewBase.enableView();
+        }
+    }
+
+    @Override
+    public void startObstacleDetectionHSV() {
+        checkPermissions();
+
+        determiningFreeFloorspace = "HSV";
+        if(!runImageProcessing) {
+            _cameraBridgeViewBase.enableView();
+        }
+    }
+
+    @Override
+    public void startObstacleDetectionTexture() {
+        checkPermissions();
+
+        determiningFreeFloorspace = "Texture";
         if(!runImageProcessing) {
             _cameraBridgeViewBase.enableView();
         }
@@ -2020,7 +2076,7 @@ public class MainActivity
     public void stopObstacleDetection() {
 
         checkPermissions();
-        determiningFreeFloorspace = false;
+        determiningFreeFloorspace = null;
         if(!runImageProcessing) {
             _cameraBridgeViewBase.disableView();
         }
@@ -2174,7 +2230,7 @@ System.out.println("imuData(Imu imu): relocalising");
     protected VideoProcessing processing;
 
     public void last_frame_bytes(byte[] last_frame_bytes){
-        convertPreview(last_frame_bytes,_cameraBridgeViewBase.camera());  // updates the 'image' variable
+        convertPreviewForBoofCV(last_frame_bytes,_cameraBridgeViewBase.camera());  // updates the 'image' variable
     }
 
     /**
@@ -2192,6 +2248,7 @@ System.out.println("imuData(Imu imu): relocalising");
     boofcv.struct.image.Planar<GrayF32> imageHsv         = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,1,1,3);
     int[][] hsvMatch                                     = new int[1][1];
     int[][] runlengthMatch                               = new int[1][1];
+    int[][] combinedOutput                               = new int[1][1];
     boofcv.struct.image.GrayF32 image                    = new boofcv.struct.image.GrayF32();  // TODO - hardcoded
     int previewRotation = 0;                                // TODO - hardcoded
     boolean flipHorizontal = false;                         // TODO - hardcoded
@@ -2203,15 +2260,15 @@ System.out.println("imuData(Imu imu): relocalising");
     }
 
 //    @Override
-    public void convertPreview(byte[] bytes, Camera camera) {
-        convertPreview(bytes, camera, typeOfImage.GRAY);
+    public void convertPreviewForBoofCV(byte[] bytes, Camera camera) {
+        convertPreviewForBoofCV(bytes, camera, typeOfImage.GRAY);
     }
 
-    public void convertPreviewHsv(byte[] bytes, Camera camera) {
-        convertPreview(bytes, camera, typeOfImage.HSV);
+    public void convertPreviewBoofCVHsv(byte[] bytes, Camera camera) {
+        convertPreviewForBoofCV(bytes, camera, typeOfImage.HSV);
     }
 
-    public void convertPreview(byte[] bytes, Camera camera, typeOfImage imageType_) {
+    public void convertPreviewForBoofCV(byte[] bytes, Camera camera, typeOfImage imageType_) {
         current_image_bytes = bytes;
 //        if( thread == null )
 //            return;
@@ -2242,26 +2299,29 @@ System.out.println("imuData(Imu imu): relocalising");
 //                else
 //                    throw new RuntimeException("Oh Crap");
             } else if(typeOfImage.HSV == imageType_) {
-                Log.i("convertPreview","HSV: image.width="+image.width+", image.height="+image.height);
+                Log.i("convertPreviewForBoofCV","HSV: image.width="+image.width+", image.height="+image.height);
                 if(null == imageRgb || imageRgb.width!=image.width || imageRgb.height!=image.height) {
                     imageRgb = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
                 }
                 if(null == imageHsv || imageHsv.width!=image.width || imageHsv.height!=image.height) {
                     imageHsv = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
                 }
-                if(null == hsvMatch) {
-                    hsvMatch = new int[image.width][image.height];
-                } else if( hsvMatch.length!=image.width || hsvMatch[0].length!=image.height) {
-                    hsvMatch = new int[image.width][image.height];
-                }
-                if(null == runlengthMatch) {
-                    runlengthMatch = new int[image.width][image.height];
-                } else if( runlengthMatch.length!=image.width || runlengthMatch[0].length!=image.height) {
-                    runlengthMatch = new int[image.width][image.height];
-                }
-                ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
+            hsvMatch = resize(hsvMatch);
+//                if(null == hsvMatch) {
+//                    hsvMatch = new int[image.width][image.height];
+//                } else if( hsvMatch.length!=image.width || hsvMatch[0].length!=image.height) {
+//                    hsvMatch = new int[image.width][image.height];
+//                }
+            runlengthMatch = resize(runlengthMatch);
+//                if(null == runlengthMatch) {
+//                    runlengthMatch = new int[image.width][image.height];
+//                } else if( runlengthMatch.length!=image.width || runlengthMatch[0].length!=image.height) {
+//                    runlengthMatch = new int[image.width][image.height];
+//                }
+            combinedOutput = reset(combinedOutput);
+            ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
                 ColorHsv.rgbToHsv_F32(imageRgb, imageHsv);
-            Log.i("convertPreview","HSV: image.width="+image.width+", image.height="+image.height);
+            Log.i("convertPreviewForBoofCV","HSV: image.width="+image.width+", image.height="+image.height);
             } else {
                 throw new RuntimeException("Unexpected image type: "+ imageTypeGray);
             }
@@ -2278,6 +2338,20 @@ System.out.println("imuData(Imu imu): relocalising");
 //        }
 //        // wake up the thread and tell it to do some processing
 //        thread.interrupt();
+    }
+
+    private int[][] resize(int[][] arrayToResize_) {
+        if(null == arrayToResize_) {
+            arrayToResize_ = new int[image.width][image.height];
+        } else if( arrayToResize_.length!=image.width || arrayToResize_[0].length!=image.height) {
+            arrayToResize_ = new int[image.width][image.height];
+        }
+        return arrayToResize_;
+    }
+
+    private int[][] reset(int[][] arrayToReset_) {
+        arrayToReset_ = new int[image.width][image.height];
+        return arrayToReset_;
     }
 
     private class MedianFilter {
@@ -2476,7 +2550,7 @@ System.out.println("imuData(Imu imu): relocalising");
 //                } catch (InterruptedException e) {}
 //            }
 //
-//            // swap gray buffers so that convertPreview is modifying the copy which is not in use
+//            // swap gray buffers so that convertPreviewForBoofCV is modifying the copy which is not in use
 //            synchronized ( lockConvert ) {
 //                T tmp = image;
 //                image = image2;

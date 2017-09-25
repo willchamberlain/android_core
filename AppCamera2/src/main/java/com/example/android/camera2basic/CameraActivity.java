@@ -102,6 +102,10 @@ public class CameraActivity
 
     @Override
     public void startObstacleDetection(){}
+    @Override
+    public void startObstacleDetectionHSV(){}
+    @Override
+    public void startObstacleDetectionTexture(){}
 
     @Override
     public void stopObstacleDetection(){}

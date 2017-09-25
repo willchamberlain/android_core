@@ -5,8 +5,12 @@ package william.chamberlain.androidvosopencvros;
  */
 
 public enum Algorithm {
+    SIFT("SIFT"),
+    SURF("SURF"),
     APRIL_TAGS_KAESS_36_H_11("AprilTags_Kaess_36h11"),
-    BOOFCV_SQUARE_FIDUCIAL("boofcv square fiducial");
+    BOOFCV_SQUARE_FIDUCIAL("boofcv square fiducial"),
+    FREE_SPACE("free space"),
+    OBSTACLES("obstacles");
 
     private final String canonicalName;
 
