@@ -950,10 +950,7 @@ public class MainActivity
                     String[] imageBfeatureString = surfFeatureDescriptors;
                     Class imageTypeGrayF32 = GrayF32.class;   //  Class imageType = GrayF32.class;
                     Class imageRgbType = Planar.class;
-                    DetectDescribePoint detDesc = FactoryDetectDescribe.surfStable(new ConfigFastHessian(1, 2, 300, 1, 9, 4, 4), null,null, imageTypeGrayF32);
-                    ScoreAssociation scorer = FactoryAssociation.defaultScore(detDesc.getDescriptionType());
-                    AssociateDescription associate = FactoryAssociation.greedy(scorer, Double.MAX_VALUE, true);
-                    AssociatePoints app = new AssociatePoints(detDesc,associate,imageTypeGrayF32, imageRgbType);
+                    AssociatePoints app = setupAssociatePointsVariables(imageTypeGrayF32, imageRgbType);
                     AssociatePoints.ReturnValue associations = app.associateSurfAndString( image, imageBfeatureString);    // -- SURF !!!
 
                     FastQueue< AssociatedIndex > matches = associations.associate_getMatches;
@@ -1192,6 +1189,21 @@ public class MainActivity
         } else {
             return matGray;
         }
+    }
+
+    DetectDescribePoint detDesc;
+    ScoreAssociation scorer;
+    AssociateDescription associate;
+    AssociatePoints associatePoints;
+    @NonNull
+    private AssociatePoints setupAssociatePointsVariables(Class imageTypeGrayF32, Class imageRgbType) {
+        if(null==detDesc) {
+            detDesc = FactoryDetectDescribe.surfStable(new ConfigFastHessian(1, 2, 300, 1, 9, 4, 4), null, null, imageTypeGrayF32);
+            scorer = FactoryAssociation.defaultScore(detDesc.getDescriptionType());
+            associate = FactoryAssociation.greedy(scorer, Double.MAX_VALUE, true);
+            associatePoints = new AssociatePoints(detDesc, associate, imageTypeGrayF32, imageRgbType);
+        }
+        return associatePoints;
     }
 
     @NonNull

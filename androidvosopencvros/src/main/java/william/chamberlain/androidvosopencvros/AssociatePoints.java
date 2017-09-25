@@ -162,6 +162,7 @@ public class AssociatePoints<T extends ImageGray<T>, TD extends TupleDesc> {
 //        associateString( inputA, featureString, imageA);
 //    }
 
+    boolean verbose = false;
     /**
      * Detects features inside the two images and computes descriptions at those points.
      */
@@ -173,14 +174,18 @@ public class AssociatePoints<T extends ImageGray<T>, TD extends TupleDesc> {
             points.add( detDesc.getLocation(i).copy() );
             descs.grow().setTo(detDesc.getDescription(i));
 
-            System.out.println("Point:"+detDesc.getLocation(i));
+            System.out.println("describeImage: Point: "+detDesc.getLocation(i));
 
-            String concatenated_descriptor="";
-            for( int subregion_ = 0; subregion_ < 64; subregion_++) {
-                if(subregion_>0) {concatenated_descriptor=concatenated_descriptor+"|";}
-                concatenated_descriptor = concatenated_descriptor + ((boofcv.struct.feature.BrightFeature)detDesc.getDescription(i)).value[subregion_];
+            if(verbose) {
+                String concatenated_descriptor = "";
+                for (int subregion_ = 0; subregion_ < 64; subregion_++) {
+                    if (subregion_ > 0) {
+                        concatenated_descriptor = concatenated_descriptor + "|";
+                    }
+                    concatenated_descriptor = concatenated_descriptor + ((boofcv.struct.feature.BrightFeature) detDesc.getDescription(i)).value[subregion_];
+                }
+                System.out.println("Feature " + i + ": descriptor=" + concatenated_descriptor);
             }
-            System.out.println("Feature "+i+": descriptor="+concatenated_descriptor);
         }
     }
 
