@@ -16,7 +16,7 @@ import vos_aa1.LocaliseFromAFeatureRequest;
 import vos_aa1.LocaliseFromAFeatureResponse;
 import vos_aa1.VisualFeatureObservation;
 
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+import static william.chamberlain.androidvosopencvros.Algorithm.APRIL_TAGS_KAESS_36_H_11;
 
 /**
  * Created by will on 7/03/17.
@@ -73,7 +73,7 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
         Geometry.applyTranslationParams(x, y, z, translationToFeature);
 
-        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11);
+        visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11.canonicalName());
         visualFeature.setId(tagId);
 
         visualFeature.getPose().getHeader().setFrameId(cameraFrameId);

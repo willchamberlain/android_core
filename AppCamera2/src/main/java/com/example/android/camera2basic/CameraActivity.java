@@ -17,7 +17,6 @@
 package com.example.android.camera2basic;
 
 import android.Manifest;
-import android.app.Activity;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,13 +29,8 @@ import org.ros.node.NodeMainExecutor;
 import java.net.URI;
 import java.util.ArrayList;
 
-import geometry_msgs.Point;
 import geometry_msgs.Pose;
-import geometry_msgs.Quaternion;
-import vos_aa1.LocaliseFromAFeatureRequest;
-import vos_aa1.VisualFeatureObservation;
 import william.chamberlain.androidvosopencvros.DetectedFeaturesClient;
-import william.chamberlain.androidvosopencvros.Geometry;
 import william.chamberlain.androidvosopencvros.Hardcoding;
 import william.chamberlain.androidvosopencvros.LocaliseFromAFeatureClient;
 import william.chamberlain.androidvosopencvros.Naming;
@@ -48,9 +42,6 @@ import william.chamberlain.androidvosopencvros.VisionSource;
 import william.chamberlain.androidvosopencvros.VisionSourceManagementListener;
 import william.chamberlain.androidvosopencvros.VosTaskSet;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
-
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
-import static william.chamberlain.androidvosopencvros.Hardcoding.MARKER_OFFSET_INT;
 
 public class CameraActivity
         extends RosActivity

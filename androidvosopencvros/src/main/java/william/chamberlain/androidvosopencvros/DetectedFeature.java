@@ -15,6 +15,13 @@ public class DetectedFeature {
     org.ros.rosjava_geometry.Vector3 translation_to_tag_in_robot_convention;
     org.ros.rosjava_geometry.Quaternion quaternion_rotation_to_tag;
 
+    public DetectedFeature(Algorithm algorithm, String descriptor, Vector3 translation_to_tag_in_robot_convention, Quaternion quaternion_rotation_to_tag) {
+        this.algorithm = algorithm.canonicalName();
+        this.descriptor = descriptor;
+        this.translation_to_tag_in_robot_convention = translation_to_tag_in_robot_convention;
+        this.quaternion_rotation_to_tag = quaternion_rotation_to_tag;
+    }
+
     public DetectedFeature(String algorithm, String descriptor, Vector3 translation_to_tag_in_robot_convention, Quaternion quaternion_rotation_to_tag) {
         this.algorithm = algorithm;
         this.descriptor = descriptor;

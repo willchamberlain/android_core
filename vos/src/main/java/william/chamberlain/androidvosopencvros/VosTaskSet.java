@@ -15,6 +15,64 @@ public class VosTaskSet {
 
     ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
 
+
+    //----------------------------------------------------------------------------------------------
+
+
+    /**
+     * VosTaskSet thingsIShouldBeLookingFor = ...
+     * if(thingsIShouldBeLookingFor.includes("boofcv square fiducial")) ...
+     *
+     * @param algorithm_  currently arbitrary.
+     * @return
+     */
+    public boolean includes(Algorithm algorithm_) {
+        return isThereAVisionTaskToExecuteForAlgorithm(algorithm_);
+    }
+
+
+    private boolean isThereAVisionTaskToExecuteForAlgorithm(Algorithm algorithm_) {
+        synchronized (this) {
+            for (VisionTask visionTask : taskQueue) {
+                if(visionTask.getAlgorithm().equals(algorithm_.canonicalName())) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    //----------------------------------------------------------------------------------------------
+
+    public boolean includes(Algorithm algorithm_, int tag_id) {
+        return isThereAVisionTaskToExecute(algorithm_, tag_id);
+    }
+
+    public boolean isThereAVisionTaskToExecute(Algorithm algorithm_, int tag_id) {
+        synchronized (this) {
+            for (VisionTask visionTask : taskQueue) {
+                if(visionTask.getAlgorithm().equals(algorithm_.canonicalName()) && visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public VisionTask visionTaskToExecute(Algorithm algorithm_, int tag_id) {
+        synchronized (this) {
+            for (VisionTask visionTask : taskQueue) {
+                if(visionTask.getAlgorithm().equals(algorithm_.canonicalName()) && visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+                    return visionTask;
+                }
+            }
+        }
+        return null;
+    }
+
+
+    //----------------------------------------------------------------------------------------------
+
     public boolean isThereAVisionTaskToExecute(int tag_id, String logTagTag) {
         synchronized (this) {
         for (VisionTask visionTask : taskQueue) {
@@ -41,6 +99,9 @@ public class VosTaskSet {
         return null;
     }
 
+
+    //----------------------------------------------------------------------------------------------
+
     public ArrayList<VisionTask> visionTasksToExecuteFilter(String algorithm_) {
         synchronized (this) {
             ArrayList<VisionTask> tasks = new ArrayList<VisionTask>();
@@ -54,15 +115,17 @@ public class VosTaskSet {
     }
 
 
+    //----------------------------------------------------------------------------------------------
+
+
     public boolean isThereAVisionTaskToExecute() {
         synchronized (this) {
             return !taskQueue.isEmpty();
         }
     }
 
-    ArrayList<VisionTask> taskQueue() {
-        return this.taskQueue;
-    }
+
+    //----------------------------------------------------------------------------------------------
 
     public void addVisionTaskToQueue(WhereIsAsPub message) {
         synchronized (this) {
@@ -87,6 +150,9 @@ public class VosTaskSet {
                     .executionIterations(message.getRate()));
         }
     }
+
+
+    //----------------------------------------------------------------------------------------------
 
 
     public void removeExpiredVisionTasks() {

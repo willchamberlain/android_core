@@ -133,7 +133,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
     private void applyDetectionPoseAndIdForDetectedFeature(int tagId, double x, double y, double z, double qx, double qy, double qz, double qw, DetectedFeatureRequest serviceRequest) {
         VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
 
-        visualFeature.setAlgorithm(Constants.APRIL_TAGS_KAESS_36_H_11);
+        visualFeature.setAlgorithm(Algorithm.APRIL_TAGS_KAESS_36_H_11.canonicalName());
         visualFeature.setId(tagId);
 
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;

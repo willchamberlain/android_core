@@ -17,22 +17,11 @@ package william.chamberlain.androidvosopencvros;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.ActivityNotFoundException;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
-import android.hardware.SensorManager;
-import android.location.LocationManager;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
@@ -48,13 +37,8 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfDouble;
 import org.opencv.core.Scalar;
-import org.ros.address.InetAddressFactory;
-import org.ros.android.RosActivity;
 import org.ros.message.Time;
-import org.ros.node.NodeConfiguration;
-import org.ros.node.NodeMainExecutor;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -87,16 +71,12 @@ import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
-import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
-import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
 
 import static boofcv.struct.image.ImageDataType.F32;
 import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
-import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 
 /**

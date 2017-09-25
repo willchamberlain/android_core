@@ -94,7 +94,7 @@ import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+import static william.chamberlain.androidvosopencvros.Algorithm.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.Constants.tagSize_metres;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 

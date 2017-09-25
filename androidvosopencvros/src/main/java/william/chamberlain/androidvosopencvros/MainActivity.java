@@ -110,7 +110,7 @@ import static boofcv.struct.image.ImageType.Family.GRAY;
 import static java.lang.Math.PI;
 import static java.lang.Math.tan;
 import static org.opencv.android.CameraBridgeViewBase.CAMERA_ID_BACK;
-import static william.chamberlain.androidvosopencvros.Constants.APRIL_TAGS_KAESS_36_H_11;
+import static william.chamberlain.androidvosopencvros.Algorithm.APRIL_TAGS_KAESS_36_H_11;
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 
 /**
@@ -692,11 +692,13 @@ public class MainActivity
             }
         }
         if(current_image_bytes_is_not_null  &&  thereIsAVisionTaskToExecute) {
-                Log.i(logTag,"start convertPreview(last_frame_bytes(), camera);");
+            Log.i(logTag, "start convertPreview(last_frame_bytes(), camera);");
             convertPreview(last_frame_bytes(), camera);
-                Log.i(logTag,"finished convertPreview(last_frame_bytes(), camera);");
+            Log.i(logTag, "finished convertPreview(last_frame_bytes(), camera);");
             ArrayList<VisionTask> visionTasks_boofCVFiducial = vosTaskSet.visionTasksToExecuteFilter("boofcv");
             ArrayList<VisionTask> visionTasks_SURF = vosTaskSet.visionTasksToExecuteFilter("SURF");
+            VosTaskSet thingsIShouldBeLookingFor = vosTaskSet;
+            if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
             try {
                 FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                         new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -708,45 +710,47 @@ public class MainActivity
                 LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
                 detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
-                    //// TODO - timing here  c[camera_num]-f[frameprocessed]
-                    Log.i(logTag,"start detector.detect(image);");
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]
+                Log.i(logTag, "start detector.detect(image);");
                 detector.detect(image);
-                    Log.i(TAG, "onCameraFrame: found "+detector.totalFound()+" tags via BoofCV");
-                    //// TODO - timing here  c[camera_num]-f[frameprocessed]
-                    Log.i(logTag,"finished detector.detect(image);");
+                Log.i(TAG, "onCameraFrame: found " + detector.totalFound() + " tags via BoofCV");
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]
+                Log.i(logTag, "finished detector.detect(image);");
 
 
                 // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
                 for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
-                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
-                        String logTagIteration = logTag+"-detectionOrder_"+detectionOrder_;
-                        Log.i(logTagIteration,"start");
+                    //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
+                    String logTagIteration = logTag + "-detectionOrder_" + detectionOrder_;
+                    Log.i(logTagIteration, "start");
                     int tag_id = -1;
                     MarkerIdFormatValidator markerIdFormatValidator = new MarkerIdFormatValidator(detector, detectionOrder_, tag_id);
-                    if(!markerIdFormatValidator.isValid()) {
+                    if (!markerIdFormatValidator.isValid()) {
                         drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
                         continue;
                     }
                     tag_id = markerIdFormatValidator.getTag_id();
-                    tag_id = (int)detector.getId(detectionOrder_);
-                    VisionTask visionTask = vosTaskSet.visionTaskToExecute(tag_id);
-                    if( null == visionTask ){
+                    tag_id = (int) detector.getId(detectionOrder_);
+                    VisionTask visionTask = vosTaskSet.visionTaskToExecute(Algorithm.BOOFCV_SQUARE_FIDUCIAL,tag_id);     // NOTE: BoofCV square fiducial is an open-ended algorithm which we then narrow down to the descriptors in question, whereas e.g. Kaess includes/excludes within the algorithm.
+                    if (null == visionTask) {
                         drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
                         continue;
                     }
-                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                        String logTagTag = logTagIteration+"-t"+tag_id;
+                    //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                    String logTagTag = logTagIteration + "-t" + tag_id;
 
                     drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
-                        Log.i(logTagTag,"onCameraFrame: finished checking tag_id");
+                    Log.i(logTagTag, "onCameraFrame: finished checking tag_id");
 
-                    if( detector.hasMessage() ) { System.out.println("onCameraFrame: Message   = "+detector.getMessage(detectionOrder_)); }
+                    if (detector.hasMessage()) {
+                        System.out.println("onCameraFrame: Message   = " + detector.getMessage(detectionOrder_));
+                    }
 
-                    if( detector.is3D() ) {
-                            Log.i(logTagTag,"onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                    if (detector.is3D()) {
+                        Log.i(logTagTag, "onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
                         Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
                         detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
-                            Log.i(logTagTag,"onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                        Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
@@ -756,65 +760,65 @@ public class MainActivity
 
 
                         // testing 2017_08_23
-                            double[] eulerZYZ=new double[]{0,0,0};
-                            ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ,eulerZYZ);
-                            Log.i(logTagTag,"onCameraFrame : testing 2017_08_23: eulerZYZ = "+eulerZYZ[0]+","+eulerZYZ[1]+","+eulerZYZ[2]);
+                        double[] eulerZYZ = new double[]{0, 0, 0};
+                        ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ, eulerZYZ);
+                        Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ = " + eulerZYZ[0] + "," + eulerZYZ[1] + "," + eulerZYZ[2]);
 
-                            Se3_F64 sensorToTarget_testing = null;
-                            sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
+                        Se3_F64 sensorToTarget_testing = null;
+                        sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
 
-                            Quaternion_F64 sensorToTarget_testing_quat;
-                            sensorToTarget_testing_quat = new Quaternion_F64();
-                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
+                        Quaternion_F64 sensorToTarget_testing_quat;
+                        sensorToTarget_testing_quat = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
 //
 //                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
 //                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
 //                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
 
-                            /** Mirror across YZ plane / mirror along X axis:
-                             * sensor-to-target +x = target-to-sensor +x
-                             * sensor-to-target +y = target-to-sensor -y
-                             * sensor-to-target +z = target-to-sensor -x   */
-                            Se3_F64 targetToSensor_boofcvFrame_testing = new Se3_F64();
-                            detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame_testing);
-                            /** Convert from BoofCV coordinate convention to ROS coordinate convention */
-                            Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
-                            targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
-                                    targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
+                        /** Mirror across YZ plane / mirror along X axis:
+                         * sensor-to-target +x = target-to-sensor +x
+                         * sensor-to-target +y = target-to-sensor -y
+                         * sensor-to-target +z = target-to-sensor -x   */
+                        Se3_F64 targetToSensor_boofcvFrame_testing = new Se3_F64();
+                        detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame_testing);
+                        /** Convert from BoofCV coordinate convention to ROS coordinate convention */
+                        Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
+                        targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
+                                targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
 
 
-                            Quaternion_F64 tToS_Boof_testing_quat = ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame_testing.getRotation(), null);
-                            Quaternion_F64 tToS_ROS_testing_quat = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
-                                tToS_Boof_testing_quat.w,tToS_Boof_testing_quat.z,tToS_Boof_testing_quat.x,tToS_Boof_testing_quat.y);
-                            Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
-                                    tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
-                                );
-                            DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3,3);
-                            ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
+                        Quaternion_F64 tToS_Boof_testing_quat = ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame_testing.getRotation(), null);
+                        Quaternion_F64 tToS_ROS_testing_quat = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                                tToS_Boof_testing_quat.w, tToS_Boof_testing_quat.z, tToS_Boof_testing_quat.x, tToS_Boof_testing_quat.y);
+                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                                tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
+                        );
+                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3, 3);
+                        ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
 
-                            /** Mirror across the XY plane. */
-                            Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
-                            sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
-                                    targetToSensor_ROSFrame.getX(),-targetToSensor_ROSFrame.getY(),-targetToSensor_ROSFrame.getZ()));
+                        /** Mirror across the XY plane. */
+                        Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
+                        sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
+                                targetToSensor_ROSFrame.getX(), -targetToSensor_ROSFrame.getY(), -targetToSensor_ROSFrame.getZ()));
 
-                            sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
+                        sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
 
-                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot = new DenseMatrix64F(3,3);
+                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot = new DenseMatrix64F(3, 3);
 
                         DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
-                        ConvertRotation3D_F64.setRotX( PI , rotate_around_X_by_180);
+                        ConvertRotation3D_F64.setRotX(PI, rotate_around_X_by_180);
 //                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
                         /** Note: post-multiply with BoofCV - I think that it is column-major ?? */  // TODO - check BoofCV conventions
-                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot,rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot, rotate_around_X_by_180, sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
                         Quaternion_F64 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot,sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
 
 //                      This is the camera-to-marker transform - keep this code, but publish the camera-to-robot-base transform instead
 //                      /** Report as e.g. 60170, 60155, etc. */
-                            detectedFeaturesClient.reportDetectedFeature(60000+tag_id,
-                                    // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
-                                    sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
-                                    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z,    sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
+                        detectedFeaturesClient.reportDetectedFeature(60000 + tag_id,
+                                // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+                                sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+                                sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
 
 
                         Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
@@ -824,15 +828,15 @@ public class MainActivity
 
                         geometry_msgs.Point position = visionTask.getRelationToBase().getPosition();
                         Se3_F64 transformOfFeatureInVisualModel = new Se3_F64();                    // transform from robot to marker, e.g. base_link to feature
-                        transformOfFeatureInVisualModel.setTranslation(position.getX(),position.getY(),position.getZ());
+                        transformOfFeatureInVisualModel.setTranslation(position.getX(), position.getY(), position.getZ());
                         Quaternion_F64 rotationOfFeatureInVisualModel_q = convertRosToBoofcvQuaternion(visionTask);
-                        DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3,3);
-                        ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q,rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
-                        transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q,rotationOfFeatureInVisualModel_m));
+                        DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3, 3);
+                        ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
+                        transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m));
                         Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
                         transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
 
-                        DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3,3);
+                        DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
 
                         Se3_F64 sensorToTarget_ROSFrame_toRobotBaseLink = new Se3_F64();
 
@@ -840,34 +844,34 @@ public class MainActivity
 //                      /** Report as e.g. 60170, 60155, etc. */
                         transformOfFeatureInVisualModel_inv.concat(                                 // pose from previous as transform from camera to marker
                                 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t,      // transform from marker to robot, from robot visual model
-                                sensorToTarget_ROSFrame_toRobotBaseLink );                          // output
+                                sensorToTarget_ROSFrame_toRobotBaseLink);                          // output
                         Quaternion_F64 sensorToTarget_ROSFrame_toRobotBaseLink_q = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_toRobotBaseLink.getRotation(), sensorToTarget_ROSFrame_toRobotBaseLink_q);
 
-                        detectedFeaturesClient.reportDetectedFeature(70000+tag_id,
+                        detectedFeaturesClient.reportDetectedFeature(70000 + tag_id,
                                 sensorToTarget_ROSFrame_toRobotBaseLink.getX(), sensorToTarget_ROSFrame_toRobotBaseLink.getY(), sensorToTarget_ROSFrame_toRobotBaseLink.getZ(),
-                                sensorToTarget_ROSFrame_toRobotBaseLink_q.x,    sensorToTarget_ROSFrame_toRobotBaseLink_q.y,    sensorToTarget_ROSFrame_toRobotBaseLink_q.z,    sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
+                                sensorToTarget_ROSFrame_toRobotBaseLink_q.x, sensorToTarget_ROSFrame_toRobotBaseLink_q.y, sensorToTarget_ROSFrame_toRobotBaseLink_q.z, sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
 
                         //  Report the detected feature pose in the world coordinate frame/system,
                         // applying the camera's current pose to the detected feature's pose,
                         // before reporting to the VOS Server.
 
-                        if(poseKnown()) {
-                            Log.i(logTagTag,"poseKnown()");
-                            Log.i(logTagTag,"poseKnown(): translation: "+this.position[0]+","+this.position[1]+","+this.position[2]);
-                            Log.i(logTagTag,"poseKnown(): rotation quaternion: "+this.orientation[0]+","+this.orientation[1]+","+this.orientation[2]+","+this.orientation[3]);
+                        if (poseKnown()) {
+                            Log.i(logTagTag, "poseKnown()");
+                            Log.i(logTagTag, "poseKnown(): translation: " + this.position[0] + "," + this.position[1] + "," + this.position[2]);
+                            Log.i(logTagTag, "poseKnown(): rotation quaternion: " + this.orientation[0] + "," + this.orientation[1] + "," + this.orientation[2] + "," + this.orientation[3]);
                             Se3_F64 worldToCamera = new Se3_F64();
-                            worldToCamera.setTranslation(this.position[0],this.position[1],this.position[2]);
-                            Quaternion_F64 worldToCamera_rot_q = new Quaternion_F64(this.orientation[3],this.orientation[0],this.orientation[1],this.orientation[2]);
-                            DenseMatrix64F worldToCamera_rot_m = new DenseMatrix64F(3,3);
+                            worldToCamera.setTranslation(this.position[0], this.position[1], this.position[2]);
+                            Quaternion_F64 worldToCamera_rot_q = new Quaternion_F64(this.orientation[3], this.orientation[0], this.orientation[1], this.orientation[2]);
+                            DenseMatrix64F worldToCamera_rot_m = new DenseMatrix64F(3, 3);
                             worldToCamera.setRotation(
-                                ConvertRotation3D_F64.quaternionToMatrix(
-                                        worldToCamera_rot_q,  //  (double w, double x, double y, double z)
-                                        worldToCamera_rot_m) );
+                                    ConvertRotation3D_F64.quaternionToMatrix(
+                                            worldToCamera_rot_q,  //  (double w, double x, double y, double z)
+                                            worldToCamera_rot_m));
 
-                            detectedFeaturesClient.reportDetectedFeature(40000+tag_id,
-                                    worldToCamera.getX(),   worldToCamera.getY(),   worldToCamera.getZ(),
-                                    worldToCamera_rot_q.x,  worldToCamera_rot_q.y,  worldToCamera_rot_q.z,    worldToCamera_rot_q.w);
+                            detectedFeaturesClient.reportDetectedFeature(40000 + tag_id,
+                                    worldToCamera.getX(), worldToCamera.getY(), worldToCamera.getZ(),
+                                    worldToCamera_rot_q.x, worldToCamera_rot_q.y, worldToCamera_rot_q.z, worldToCamera_rot_q.w);
 
                             Se3_F64 worldToRobotBaseLink = new Se3_F64();
                             sensorToTarget_ROSFrame_toRobotBaseLink.concat(
@@ -877,48 +881,48 @@ public class MainActivity
                             Quaternion_F64 worldToRobotBaseLink_q = new Quaternion_F64();
                             ConvertRotation3D_F64.matrixToQuaternion(worldToRobotBaseLink.getRotation(), worldToRobotBaseLink_q);
 
-                            detectedFeaturesClient.reportDetectedFeature(50000+tag_id,
+                            detectedFeaturesClient.reportDetectedFeature(50000 + tag_id,
                                     worldToRobotBaseLink.getX(), worldToRobotBaseLink.getY(), worldToRobotBaseLink.getZ(),
-                                    worldToRobotBaseLink_q.x,    worldToRobotBaseLink_q.y,    worldToRobotBaseLink_q.z,    worldToRobotBaseLink_q.w);
+                                    worldToRobotBaseLink_q.x, worldToRobotBaseLink_q.y, worldToRobotBaseLink_q.z, worldToRobotBaseLink_q.w);
                         } else {
-                            Log.i(logTagTag,"! poseKnown()");
+                            Log.i(logTagTag, "! poseKnown()");
                         }
 
 
-                        Se3_F64 translation_to_marker       = sensorToTarget_ROSFrame_mirrored;
-                            Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
+                        Se3_F64 translation_to_marker = sensorToTarget_ROSFrame_mirrored;
+                        Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
 
-                            double[] eulerZYZ_fromInvert=new double[]{0,0,0};
-                            ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
-                            Log.i(logTagTag,"onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = "+eulerZYZ_fromInvert[0]+","+eulerZYZ_fromInvert[1]+","+eulerZYZ_fromInvert[2]);
-                            Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
-                            Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
-                            sensorToTarget_testing_quat = new Quaternion_F64();
-                            ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
-                            Log.i(logTagTag,"onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
+                        double[] eulerZYZ_fromInvert = new double[]{0, 0, 0};
+                        ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
+                        Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = " + eulerZYZ_fromInvert[0] + "," + eulerZYZ_fromInvert[1] + "," + eulerZYZ_fromInvert[2]);
+                        Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
+                        Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
+                        sensorToTarget_testing_quat = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
+                        Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
 
                         Point2D_F64 locationPixel = new Point2D_F64();
                         detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
-                        if(isPartOfRobotVisualModel(tag_id)) {
+                        if (isPartOfRobotVisualModel(tag_id)) {
                             List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected, singleDummyRobotId);
-                            DetectedTag detectedTag = new DetectedTag(tag_id,translation_to_marker,quaternion_to_marker);
+                            DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, quaternion_to_marker);
                             visionTaskFeaturesDetected.add(detectedTag);
-                            Log.i(logTagTag,"onCameraFrame: isPartOfRobotVisualModel TAG - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
-                        } else if(isALandmark(tag_id)) {
+                            Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
+                        } else if (isALandmark(tag_id)) {
                             DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, locationPixel);
                             landmarkFeatures.add(detectedTag);
-                            Log.i(logTagTag,"onCameraFrame: isALandmark TAG - tag_id "+tag_id+" landmarkFeatures.size()="+landmarkFeatures.size()+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag, "onCameraFrame: isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
                         } else { // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag,"onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id "+tag_id+" - 2D Image Location = "+locationPixel);
+                            Log.i(logTagTag, "onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
                             continue;
                         }
 
-                            //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                            Log.i(logTagTag,"onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
-                        if(LOCALISING_CAMERA_FROM_OBSERVED_FEATURES) {
+                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                        Log.i(logTagTag, "onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
+                        if (LOCALISING_CAMERA_FROM_OBSERVED_FEATURES) {
                             updateLocationFromDetectedFeature(tag_id, logTagTag, translation_to_marker, quaternion_to_marker);
                         }
-                        if(TESTING_TRANSFORMATIONS_OF_TRANSFORMS) {
+                        if (TESTING_TRANSFORMATIONS_OF_TRANSFORMS) {
                             variousUnusedAttemptsAtCoordinateSystemCorrection();
                         }
 
@@ -927,7 +931,7 @@ public class MainActivity
                     }
                 }
                 updateTrackingData(robotFeatures);
-                if(FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
+                if (FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
                     Se3_F64 cameraPose = updatePoseEstimate(landmarkFeatures);
                     int numElementsInRot = cameraPose.R.getNumElements();
                     Vector3D_F64 translation = cameraPose.T;
@@ -936,14 +940,15 @@ public class MainActivity
                     Log.i(TAG, "onCameraFrame: cameraPose: not enough landmarks detected to estimate camera pose.");
                 }
 
-                Log.i(TAG, "onCameraFrame: after processing for "+detector.totalFound()+" tags found via BoofCV");
+                Log.i(TAG, "onCameraFrame: after processing for " + detector.totalFound() + " tags found via BoofCV");
 
             } catch (Exception e) {
                 Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
                 e.printStackTrace();
             }
+        }
             //--------------------------------------------------------------------------------------
-//            if(null!=visionTasks_SURF && visionTasks_SURF.size() > 0) {
+            if(null!=visionTasks_SURF && visionTasks_SURF.size() > 0) {
                 Log.i(TAG,"onCameraFrame: before SURF feature processing.");
                 try {
                     String[] surfFeatureDescriptors = Hardcoding.testSurfFeatureDescriptors();
@@ -994,7 +999,7 @@ public class MainActivity
                     e.printStackTrace();
                 }
                 Log.i(TAG,"onCameraFrame: after SURF feature processing.");
-//            } else {Log.i(TAG,"onCameraFrame: NOT SURF feature processing.");}
+            } else {Log.i(TAG,"onCameraFrame: NOT SURF feature processing.");}
 
 
         }
