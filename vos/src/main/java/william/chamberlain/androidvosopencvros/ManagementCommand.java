@@ -12,6 +12,7 @@ public enum ManagementCommand {
         OBSTACLE_DETECTION_ON("run obstacle"),
         OBSTACLE_DETECTION_ON_HSV("run obstacle HSV"),
         OBSTACLE_DETECTION_ON_TEXTURE("run obstacle texture"),
+        OBSTACLE_DETECTION_ON_PROJECT("run obstacle project"),
         OBSTACLE_DETECTION_OFF("stop obstacle"),
         RESOLUTION_VERY_VERY_HIGH("res very very high"),
         RESOLUTION_VERY_HIGH("res very high"),

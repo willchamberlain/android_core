@@ -14,6 +14,7 @@ public interface VisionSource {
     void startObstacleDetection();
     void startObstacleDetectionHSV();
     void startObstacleDetectionTexture();
+    void startObstacleDetectionAndProject();
     void stopObstacleDetection();
 
     public static final String ROBOT_ALLOCATION_KEY = "ROBOT";
