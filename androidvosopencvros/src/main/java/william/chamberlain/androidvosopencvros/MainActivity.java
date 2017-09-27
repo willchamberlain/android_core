@@ -675,7 +675,7 @@ public class MainActivity
         // start BoofCV
         byte[] current_image_bytes = last_frame_bytes();
         vosTaskSet.removeExpiredVisionTasks();
-        CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
+        CalcImageDimensions calcImgDim = new CalcImageDimensions();
         boolean current_image_bytes_is_not_null = (null != current_image_bytes);
         boolean thereIsAVisionTaskToExecute     = vosTaskSet.isThereAVisionTaskToExecute();
         statusLog.clear();
@@ -1209,12 +1209,12 @@ public class MainActivity
                 if (determiningFreeFloorspace.contains("display_projected")){
                     Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
                     // Display a projection onto an arbitrary 10x10 world, plan view, with -5<=y<=5 and 0<=x<=10, with camera at y=0 x=0, and camera x = world x, and camera y = world y, and camera z = world z + camera pose z.
-                    for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                        for (int x = 0; x < imageHsv.width; x++) {
-                            matRgb.put(y, x, black);                                  // TODO - boolean output for the block
-                        }
-                    }
-                    for (int y = 0; y < imageHsv.height/2; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
+//                    for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+//                        for (int x = 0; x < imageHsv.width; x++) {
+//                            matRgb.put(y, x, black);                                  // TODO - boolean output for the block
+//                        }
+//                    }
+                    for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
                         for (int x = 0; x < imageHsv.width; x++) {
                             if (combinedOutput[x][y] >= numberOfFilters) {
                                 projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb);  // TODO - paint onto the image, clipping at the image edges
@@ -1734,7 +1734,7 @@ public class MainActivity
         }
         PoseFrom3D2DPointMatches estimator = new LocalisePnP_BoofCV();
         FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator();
-        CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
+        CalcImageDimensions calcImgDim = new CalcImageDimensions();
         //CameraPinhole(double fx, double fy, double skew, double cx, double cy, int width, int height)
         CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(focalLengthCalculator.focal_length_in_pixels_x, focalLengthCalculator.focal_length_in_pixels_y, 0, calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), (int)matGray.size().width, (int)matGray.size().height);
 
@@ -2512,12 +2512,11 @@ System.out.println("imuData(Imu imu): relocalising");
             return height;
         }
 
-        public CalcImageDimensions invoke() {
+        public CalcImageDimensions() {
             width = new Double(matGray.size().width).intValue();
             height = new Double(matGray.size().height).intValue();
             px_pixels = (float) (matGray.size().width / 2.0);
             py_pixels = (float) (matGray.size().height / 2.0);
-            return this;
         }
         
         private float px_pixels;
@@ -2601,7 +2600,7 @@ System.out.println("imuData(Imu imu): relocalising");
     private void projectOntoWorldFreeSpace(final int x_pixels, final int y_pixels, final int max_width, final int max_height, final double pose_z, Mat matRgb) {
         //  CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
         FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator();
-        CalcImageDimensions calcImgDim = new CalcImageDimensions().invoke();
+        CalcImageDimensions calcImgDim = new CalcImageDimensions();
         float  fx   = focalLengthCalculator.getFocal_length_in_pixels_x();
         float  fy   = focalLengthCalculator.getFocal_length_in_pixels_y();
         float  u0   = calcImgDim.getPx_pixels();
@@ -2611,22 +2610,28 @@ System.out.println("imuData(Imu imu): relocalising");
         int    img_height_px = calcImgDim.getHeight();
 
         double[] free_space_white = new double[]{255d, 255d, 255d, 125d};
+        double[] free_space_orange = new double[]{255d, 125d, 0d, 255d};
+        double[] free_space_gold = new double[]{255d, 215d, 0d, 255d};
+        double[] free_space_yellow = new double[]{125d, 125d, 0d, 255d};
+        double[] free_space_sienna = new double[]{160d, 82d, 45d, 255d};
+        double[] free_space_projected_purple = new double[]{0d, 125d, 125d, 255d};
 
-        int y_pixel_to_paint=0;
-        int x_pixel_to_paint=0;
         PinholeCamera camera = new PinholeCamera();
-        int[] pixel_to_paint = camera.project_pixel_to_world(x_pixels, y_pixels, max_width, pose_z, fx, fy, u0, v0);
-        y_pixel_to_paint = pixel_to_paint[0];
-        x_pixel_to_paint = pixel_to_paint[1];
-
+        double[] pixel_to_paint = camera.project_pixel_to_world(x_pixels, y_pixels, max_width, max_height, pose_z, fx, fy, u0, v0);
+        int    y_pixel_to_paint = (int)pixel_to_paint[0];  // image height
+        int    x_pixel_to_paint = (int)pixel_to_paint[1];  // image width
+        double projected_distance =    pixel_to_paint[2];  // real-world distance along optical axis: using robotics x-forward y-left -z-up coordinate system
+        double projected_y      =      pixel_to_paint[3];  // real-world distance along horizontal axis orthogonal to optical axis: left is +ve : using robotics x-forward y-left -z-up coordinate system
 
         if(x_pixel_to_paint < 0.0d || x_pixel_to_paint > max_width || y_pixel_to_paint < 0.0d || y_pixel_to_paint > max_height) {
-            Log.i("projectOntoWorld","out of bounds for projection: y_pixel="+y_pixel_to_paint+",x_pixel="+x_pixel_to_paint);
+            Log.i("projectOntoWorld","out of bounds for projection: x_pixels="+x_pixels+",y_pixels="+y_pixels+" : y_pixel="+y_pixel_to_paint+",x_pixel="+x_pixel_to_paint+", projected_distance="+projected_distance+", projected_y="+projected_y);
+            matRgb.put(y_pixels, x_pixels, free_space_sienna);
             return;
         } else {
-            Log.i("projectOntoWorld","projection: x_pixels="+x_pixels+",y_pixels="+y_pixels+" : y_pixel="+y_pixel_to_paint+",x_pixel="+x_pixel_to_paint);
-        }
-        matRgb.put(y_pixel_to_paint, x_pixel_to_paint, free_space_white);                                  // TODO - boolean output for the block
+            Log.i("projectOntoWorld","projection: x_pixels="+x_pixels+",y_pixels="+y_pixels+" : y_pixel="+y_pixel_to_paint+",x_pixel="+x_pixel_to_paint+", projected_distance="+projected_distance+", projected_y="+projected_y);
+            matRgb.put(y_pixels, x_pixels, free_space_gold);                                // repaint from white to gold
+            matRgb.put(y_pixel_to_paint, x_pixel_to_paint, free_space_projected_purple);    // project in purple on top
+        }                                // TODO - boolean output for the block
     }
 
 
