@@ -1491,6 +1491,8 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
     public void startObstacleDetectionTexture(){}
     @Override
     public void startObstacleDetectionAndProject() {}
+    @Override
+    public void startObstacleDetectionAndProjectHistory() {}
 
     @Override
     public void stopObstacleDetection(){}

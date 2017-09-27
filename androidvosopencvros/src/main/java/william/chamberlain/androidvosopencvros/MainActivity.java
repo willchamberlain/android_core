@@ -1102,10 +1102,21 @@ public class MainActivity
                                 for (int x2 = x - 3; x2 <= x + 3; x2++) {
                                     matRgb.put(y2, x2, greenBlue);                  // TODO - boolean output for the block
                                     combinedOutput[x2][y2]++;
+                                    if(free_hist[x2][y2] < free_hist_window_length) {
+                                        free_hist[x2][y2]++;
+                                    }
+                                }
+                            }
+                        } else {
+                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                    // TODO - output for the block
+                                    if(free_hist[x2][y2]>0) {
+                                        free_hist[x2][y2]--;
+                                    }
                                 }
                             }
                         }
-
                     }
                 }
 
@@ -1217,12 +1228,29 @@ public class MainActivity
                     for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
                         for (int x = 0; x < imageHsv.width; x++) {
                             if (combinedOutput[x][y] >= numberOfFilters) {
-                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb);  // TODO - paint onto the image, clipping at the image edges
+                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_gold, free_space_projected_purple);  // TODO - paint onto the image, clipping at the image edges
                             }
                         }
                     }
                 }
                 Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected.");
+
+
+                if (determiningFreeFloorspace.contains("display_hist_projected")){
+                    Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
+                    for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
+                        for (int x = 0; x < imageHsv.width; x++) {
+                            if (free_hist[x][y] >= free_hist_window_average) {
+                                free_space_frozen[x][y] = 1;
+                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_darkGreen, free_space_projected_aqua);  // TODO - paint onto the image, clipping at the image edges
+                            }
+                            if(free_space_frozen[x][y] > 0) {
+                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_paleGreen, free_space_projected_darkCyan);
+                            }
+                        }
+                    }
+                }
+                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected_hist.");
 
 
             } else {
@@ -2105,6 +2133,16 @@ public class MainActivity
     }
 
     @Override
+    public void startObstacleDetectionAndProjectHistory() {
+        checkPermissions();
+
+        determiningFreeFloorspace = "HSV && Texture && display_projected && display_hist_projected";
+        if(!runImageProcessing) {
+            _cameraBridgeViewBase.enableView();
+        }
+    }
+
+    @Override
     public void stopObstacleDetection() {
 
         checkPermissions();
@@ -2281,6 +2319,10 @@ System.out.println("imuData(Imu imu): relocalising");
     int[][] hsvMatch                                     = new int[1][1];
     int[][] runlengthMatch                               = new int[1][1];
     int[][] combinedOutput                               = new int[1][1];
+    int[][] free_hist                                    = new int[1][1];
+    int free_hist_window_length                          = 5;
+    int free_hist_window_average                         = 3;
+    int[][] free_space_frozen                            = new int[1][1];
     boofcv.struct.image.GrayF32 image                    = new boofcv.struct.image.GrayF32();  // TODO - hardcoded
     int previewRotation = 0;                                // TODO - hardcoded
     boolean flipHorizontal = false;                         // TODO - hardcoded
@@ -2351,6 +2393,8 @@ System.out.println("imuData(Imu imu): relocalising");
 //                    runlengthMatch = new int[image.width][image.height];
 //                }
             combinedOutput = reset(combinedOutput);
+            free_hist = resize(free_hist);
+            free_space_frozen = resize(free_space_frozen);
             ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
                 ColorHsv.rgbToHsv_F32(imageRgb, imageHsv);
             Log.i("convertPreviewForBoofCV","HSV: image.width="+image.width+", image.height="+image.height);
@@ -2595,9 +2639,21 @@ System.out.println("imuData(Imu imu): relocalising");
 /* end - copy from boofcv.android.gui.VideoRenderProcessing */
 
 
+
+    static double[] free_space_white              = new double[]{ 255d, 255d, 255d, 125d};
+    static double[] free_space_orange             = new double[]{ 255d, 125d,   0d, 255d};
+    static double[] free_space_gold               = new double[]{ 255d, 215d,   0d, 255d};
+    static double[] free_space_darkGreen          = new double[]{   0d, 100d,   0d, 255d};
+    static double[] free_space_paleGreen          = new double[]{ 152d, 251d, 152d, 255d};
+    static double[] free_space_projected_darkCyan = new double[]{   0d, 139d, 139d, 255d};
+    static double[] free_space_yellow             = new double[]{ 125d, 125d,   0d, 255d};
+    static double[] free_space_sienna             = new double[]{ 160d,  82d,  45d, 255d};
+    static double[] free_space_projected_purple   = new double[]{   0d, 125d, 125d, 255d};
+    static double[] free_space_projected_aqua     = new double[]{ 127d, 255d, 212d, 255d};
+
     /**
      * */
-    private void projectOntoWorldFreeSpace(final int x_pixels, final int y_pixels, final int max_width, final int max_height, final double pose_z, Mat matRgb) {
+    private void projectOntoWorldFreeSpace(final int x_pixels, final int y_pixels, final int max_width, final int max_height, final double pose_z, Mat matRgb, double[] gold_, double[] purple_) {
         //  CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
         FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator();
         CalcImageDimensions calcImgDim = new CalcImageDimensions();
@@ -2608,13 +2664,6 @@ System.out.println("imuData(Imu imu): relocalising");
         double skew = calcImgDim.getSkew();
         int    img_width_px  = calcImgDim.getWidth();
         int    img_height_px = calcImgDim.getHeight();
-
-        double[] free_space_white = new double[]{255d, 255d, 255d, 125d};
-        double[] free_space_orange = new double[]{255d, 125d, 0d, 255d};
-        double[] free_space_gold = new double[]{255d, 215d, 0d, 255d};
-        double[] free_space_yellow = new double[]{125d, 125d, 0d, 255d};
-        double[] free_space_sienna = new double[]{160d, 82d, 45d, 255d};
-        double[] free_space_projected_purple = new double[]{0d, 125d, 125d, 255d};
 
         PinholeCamera camera = new PinholeCamera();
         double[] pixel_to_paint = camera.project_pixel_to_world(x_pixels, y_pixels, max_width, max_height, pose_z, fx, fy, u0, v0);
@@ -2629,8 +2678,8 @@ System.out.println("imuData(Imu imu): relocalising");
             return;
         } else {
             Log.i("projectOntoWorld","projection: x_pixels="+x_pixels+",y_pixels="+y_pixels+" : y_pixel="+y_pixel_to_paint+",x_pixel="+x_pixel_to_paint+", projected_distance="+projected_distance+", projected_y="+projected_y);
-            matRgb.put(y_pixels, x_pixels, free_space_gold);                                // repaint from white to gold
-            matRgb.put(y_pixel_to_paint, x_pixel_to_paint, free_space_projected_purple);    // project in purple on top
+            matRgb.put(y_pixels, x_pixels, gold_);                                // repaint from white to gold
+            matRgb.put(y_pixel_to_paint, x_pixel_to_paint, purple_);    // project in purple on top
         }                                // TODO - boolean output for the block
     }
 

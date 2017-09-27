@@ -134,9 +134,13 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             dimmableScreen.screenOn();
                             visionSource.startObstacleDetectionTexture();
                             break;
-                        case OBSTACLE_DETECTION_ON_PROJECT:
+                        case OBSTACLE_DETECTION_PROJECT:
                             dimmableScreen.screenOn();
                             visionSource.startObstacleDetectionAndProject();
+                            break;
+                        case OBSTACLE_DETECTION_PROJECT_HIST:
+                            dimmableScreen.screenOn();
+                            visionSource.startObstacleDetectionAndProjectHistory();
                             break;
                         case OBSTACLE_DETECTION_OFF:
                             dimmableScreen.screenOff();

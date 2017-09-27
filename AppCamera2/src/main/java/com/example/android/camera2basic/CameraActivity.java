@@ -108,6 +108,8 @@ public class CameraActivity
     public void startObstacleDetectionTexture(){}
     @Override
     public void startObstacleDetectionAndProject() {}
+    @Override
+    public void startObstacleDetectionAndProjectHistory() {}
 
     @Override
     public void stopObstacleDetection(){}
