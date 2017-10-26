@@ -571,6 +571,7 @@ public class Camera2BasicFragment extends Fragment
      */
     private static Size chooseOptimalSizeForImage(Size[] choices, int textureViewWidth,
                                                   int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+        Log.i(TAG,"chooseOptimalSizeForImage(Size["+choices.length+"] choices, textureViewWidth="+textureViewWidth+",textureViewHeight="+textureViewHeight+", maxWidth="+maxWidth+", maxHeight="+maxHeight+", aspectRatio[w,h]=["+aspectRatio.getWidth()+","+aspectRatio.getHeight()+"])");
 
         // Collect the supported resolutions that are at least as big as the preview Surface
         List<Size> bigEnough = new ArrayList<>();
@@ -590,14 +591,19 @@ public class Camera2BasicFragment extends Fragment
             }
         }
 
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
+        // Pick the smallest of those big enough.
+        // If there is not one big enough, pick the largest of those not big enough.
         if (bigEnough.size() > 0) {
+            Log.i(TAG,"chooseOptimalSizeForImage returning the smallest of those big enough");
+            Log.i(TAG,"chooseOptimalSizeForImage returning Collections.min(bigEnough, new CompareSizesByArea())= "+Collections.min(bigEnough, new CompareSizesByArea()));
             return Collections.min(bigEnough, new CompareSizesByArea());
         } else if (notBigEnough.size() > 0) {
+            Log.i(TAG,"chooseOptimalSizeForImage there is not one big enough, returning the largest of those not big enough");
+            Log.i(TAG,"chooseOptimalSizeForImage returning Collections.max(notBigEnough, new CompareSizesByArea())= "+Collections.max(notBigEnough, new CompareSizesByArea()));
             return Collections.max(notBigEnough, new CompareSizesByArea());
         } else {
-            Log.e(TAG, "Couldn't find any suitable preview size");
+            Log.e(TAG,"chooseOptimalSizeForImage Couldn't find any suitable preview size");
+            Log.i(TAG,"chooseOptimalSizeForImage returning choices[0]= "+choices[0]);
             return choices[0];
         }
     }
@@ -723,6 +729,7 @@ public class Camera2BasicFragment extends Fragment
 
                 Point displaySize = new Point();
                 activity.getWindowManager().getDefaultDisplay().getSize(displaySize);
+                Log.i(TAG, "setUpCameraOutputs(width="+width+", height="+height+"): displaySize[x,y]=["+displaySize.x+","+displaySize.y+"]");
                 int rotatedPreviewWidth = width;         int rotatedPreviewHeight = height;
                 int maxPreviewWidth     = displaySize.x; int maxPreviewHeight     = displaySize.y;
                 boolean swappedDimensions = false;
@@ -736,12 +743,15 @@ public class Camera2BasicFragment extends Fragment
                     default:
                         Log.e(TAG, "Display rotation is invalid: " + displayRotation);
                 }
+                Log.i(TAG, "setUpCameraOutputs(width="+width+", height="+height+"): dims_1: rotatedPreviewWidth="+rotatedPreviewWidth+", rotatedPreviewHeight="+rotatedPreviewHeight+", maxPreviewWidth="+maxPreviewWidth+", maxPreviewHeight="+maxPreviewHeight);
                 if (swappedDimensions) {
                     rotatedPreviewWidth = height;         rotatedPreviewHeight = width;
                     maxPreviewWidth     = displaySize.y;  maxPreviewHeight     = displaySize.x;
                 }
+                Log.i(TAG, "setUpCameraOutputs(width="+width+", height="+height+"): dims_2: rotatedPreviewWidth="+rotatedPreviewWidth+", rotatedPreviewHeight="+rotatedPreviewHeight+", maxPreviewWidth="+maxPreviewWidth+", maxPreviewHeight="+maxPreviewHeight);
                 if (maxPreviewWidth > MAX_PREVIEW_WIDTH) { maxPreviewWidth = MAX_PREVIEW_WIDTH; }
                 if (maxPreviewHeight > MAX_PREVIEW_HEIGHT) { maxPreviewHeight = MAX_PREVIEW_HEIGHT; }
+                Log.i(TAG, "setUpCameraOutputs(width="+width+", height="+height+"): dims_3: rotatedPreviewWidth="+rotatedPreviewWidth+", rotatedPreviewHeight="+rotatedPreviewHeight+", maxPreviewWidth="+maxPreviewWidth+", maxPreviewHeight="+maxPreviewHeight);
 
                 // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
                 // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
@@ -753,10 +763,14 @@ public class Camera2BasicFragment extends Fragment
                     /* TODO - "the ImageReader class allows direct application access to image data rendered into a {@link android.view.Surface"*/
                 if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
                     mTextureView.setAspectRatio(imageSize.getWidth(), imageSize.getHeight());           // Fit the aspect ratio of TextureView to the size of preview.
+                    Log.i(TAG, "setUpCameraOutputs(int "+width+", int "+height+"): mTextureView.setAspectRatio("+imageSize.getWidth()+", "+imageSize.getHeight()+")");
                     mImageReader = ImageReader.newInstance( imageSize.getWidth(), imageSize.getHeight(), ImageFormat.YUV_420_888, 2 /*maxImages*/ ); // TODO see https://stackoverflow.com/a/43564630/1200764 - this scaling is arbitrary; reduces the max width from 4160 to 240, so always get 320x240
+                    Log.i(TAG, "setUpCameraOutputs(int "+width+", int "+height+"): ImageReader.newInstance("+imageSize.getWidth()+", "+imageSize.getHeight()+", ... ");
                 } else {
                     mTextureView.setAspectRatio(imageSize.getHeight(), imageSize.getWidth());
+                    Log.i(TAG, "setUpCameraOutputs(int "+width+", int "+height+"): mTextureView.setAspectRatio("+imageSize.getHeight()+", "+imageSize.getWidth()+")");
                     mImageReader = ImageReader.newInstance( imageSize.getHeight(), imageSize.getWidth(), ImageFormat.YUV_420_888, 2 /*maxImages*/ ); // TODO see https://stackoverflow.com/a/43564630/1200764 - this scaling is arbitrary; reduces the max width from 4160 to 240, so always get 320x240
+                    Log.i(TAG, "setUpCameraOutputs(int "+width+", int "+height+"): ImageReader.newInstance("+imageSize.getHeight()+", "+imageSize.getWidth()+", ... ");
                 }
 
                 /* TODO - this configures the image processing as a callback that is called whenever a frame is available
@@ -1650,17 +1664,6 @@ public class Camera2BasicFragment extends Fragment
                         Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                         Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
                         ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
-
-                            // testing 2017_08_23
-                            double[] eulerZYZ=new double[]{0,0,0};
-                            ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ,eulerZYZ);
-                            Log.i(logTagTag,"imageProcessingAndRosCalling() : testing 2017_08_23: eulerZYZ = "+eulerZYZ[0]+","+eulerZYZ[1]+","+eulerZYZ[2]);
-
-                            Se3_F64 sensorToTarget_testing = null;
-                            targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
-                            double[] eulerZYZ_fromInvert=new double[]{0,0,0};
-                            ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ,eulerZYZ_fromInvert);
-                            Log.i(logTagTag,"imageProcessingAndRosCalling() : testing 2017_08_23: eulerZYZ_fromInvert = "+eulerZYZ_fromInvert[0]+","+eulerZYZ_fromInvert[1]+","+eulerZYZ_fromInvert[2]);
 
 
 
