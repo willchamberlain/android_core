@@ -1245,7 +1245,11 @@ public class MainActivity
                                 projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_darkGreen, free_space_projected_aqua);  // TODO - paint onto the image, clipping at the image edges
                             }
                             if(free_space_frozen[x][y] > 0) {
-                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_paleGreen, free_space_projected_darkCyan);
+                                if(combinedOutput[x][y] >= numberOfFilters) {
+                                    projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_paleGreen, free_space_projected_darkCyan);
+                                } else {
+                                    projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_magenta, free_space_projected_mediumOrchid);
+                                }
                             }
                         }
                     }
@@ -2645,7 +2649,9 @@ System.out.println("imuData(Imu imu): relocalising");
     static double[] free_space_gold               = new double[]{ 255d, 215d,   0d, 255d};
     static double[] free_space_darkGreen          = new double[]{   0d, 100d,   0d, 255d};
     static double[] free_space_paleGreen          = new double[]{ 152d, 251d, 152d, 255d};
+    static double[] free_space_magenta            = new double[]{ 255d,   0d, 255d, 255d};
     static double[] free_space_projected_darkCyan = new double[]{   0d, 139d, 139d, 255d};
+    static double[] free_space_projected_mediumOrchid = new double[]{ 153d,  50d, 204d, 255d};
     static double[] free_space_yellow             = new double[]{ 125d, 125d,   0d, 255d};
     static double[] free_space_sienna             = new double[]{ 160d,  82d,  45d, 255d};
     static double[] free_space_projected_purple   = new double[]{   0d, 125d, 125d, 255d};
