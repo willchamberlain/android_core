@@ -628,12 +628,6 @@ public class MainActivity
 
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-            /* Dev: part of robot visual model */
-            HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
-            RobotId singleDummyRobotId = new RobotId(999999); // new RobotId("dummy robot id");
-            List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
-            List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
-            /* end Dev: part of robot visual model */
         frameNumber++;
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
@@ -692,576 +686,49 @@ public class MainActivity
             }
         }
         if(current_image_bytes_is_not_null  &&  thereIsAVisionTaskToExecute) {
+            /* partial implementation: part of robot visual model */
+            HashMap<RobotId, List<DetectedTag>> robotsDetected = new HashMap<RobotId,List<DetectedTag>>();
+            RobotId singleDummyRobotId = new RobotId(999999); // new RobotId("dummy robot id");
+            List<DetectedTag> robotFeatures = new ArrayList<DetectedTag>();
+            List<DetectedTag> landmarkFeatures = new ArrayList<DetectedTag>();
+            /* end partial implementation: part of robot visual model */
+
             Log.i(logTag, "start convertPreviewForBoofCV(last_frame_bytes(), camera);");
             convertPreviewForBoofCV(last_frame_bytes(), camera);                                 // NOTE: inside-out: this is a BoofCV conversion because we know that we're using a BoofCV algorithm
             Log.i(logTag, "finished convertPreviewForBoofCV(last_frame_bytes(), camera);");
             VosTaskSet thingsIShouldBeLookingFor = vosTaskSet;
+
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
-            try {
-                FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
-                        new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
-
-                //        detector.setLensDistortion(lensDistortion);
-
-
-                CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
-                LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
-                detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
-
-                //// TODO - timing here  c[camera_num]-f[frameprocessed]
-                Log.i(logTag, "start detector.detect(image);");
-                detector.detect(image);
-                Log.i(TAG, "onCameraFrame: found " + detector.totalFound() + " tags via BoofCV");
-                //// TODO - timing here  c[camera_num]-f[frameprocessed]
-                Log.i(logTag, "finished detector.detect(image);");
-
-
-                // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
-                for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
-                    //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
-                    String logTagIteration = logTag + "-detectionOrder_" + detectionOrder_;
-                    Log.i(logTagIteration, "start");
-                    int tag_id = -1;
-                    MarkerIdFormatValidator markerIdFormatValidator = new MarkerIdFormatValidator(detector, detectionOrder_, tag_id);
-                    if (!markerIdFormatValidator.isValid()) {
-                        drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
-                        continue;
-                    }
-                    tag_id = markerIdFormatValidator.getTag_id();
-                    tag_id = (int) detector.getId(detectionOrder_);
-                    VisionTask visionTask = vosTaskSet.visionTaskToExecute(Algorithm.BOOFCV_SQUARE_FIDUCIAL,tag_id);     // NOTE: BoofCV square fiducial is an open-ended algorithm which we then narrow down to the descriptors in question, whereas e.g. Kaess includes/excludes within the algorithm.
-                    if (null == visionTask) {
-                        drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
-                        continue;
-                    }
-                    //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                    String logTagTag = logTagIteration + "-t" + tag_id;
-
-                    drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
-                    Log.i(logTagTag, "onCameraFrame: finished checking tag_id");
-
-                    if (detector.hasMessage()) {
-                        System.out.println("onCameraFrame: Message   = " + detector.getMessage(detectionOrder_));
-                    }
-
-                    if (detector.is3D()) {
-                        Log.i(logTagTag, "onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
-                        Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
-                        detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
-                        Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
-
-                        Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
-                        Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
-                        System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-                        System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
-
-
-                        // testing 2017_08_23
-                        double[] eulerZYZ = new double[]{0, 0, 0};
-                        ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ, eulerZYZ);
-                        Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ = " + eulerZYZ[0] + "," + eulerZYZ[1] + "," + eulerZYZ[2]);
-
-                        Se3_F64 sensorToTarget_testing = null;
-                        sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
-
-                        Quaternion_F64 sensorToTarget_testing_quat;
-                        sensorToTarget_testing_quat = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
-//
-//                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
-//                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
-//                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
-
-                        /** Mirror across YZ plane / mirror along X axis:
-                         * sensor-to-target +x = target-to-sensor +x
-                         * sensor-to-target +y = target-to-sensor -y
-                         * sensor-to-target +z = target-to-sensor -x   */
-                        Se3_F64 targetToSensor_boofcvFrame_testing = new Se3_F64();
-                        detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame_testing);
-                        /** Convert from BoofCV coordinate convention to ROS coordinate convention */
-                        Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
-                        targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
-                                targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
-
-
-                        Quaternion_F64 tToS_Boof_testing_quat = ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame_testing.getRotation(), null);
-                        Quaternion_F64 tToS_ROS_testing_quat = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
-                                tToS_Boof_testing_quat.w, tToS_Boof_testing_quat.z, tToS_Boof_testing_quat.x, tToS_Boof_testing_quat.y);
-                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
-                                tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
-                        );
-                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3, 3);
-                        ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
-
-                        /** Mirror across the XY plane. */
-                        Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
-                        sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
-                                targetToSensor_ROSFrame.getX(), -targetToSensor_ROSFrame.getY(), -targetToSensor_ROSFrame.getZ()));
-
-                        sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
-
-                        DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot = new DenseMatrix64F(3, 3);
-
-                        DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
-                        ConvertRotation3D_F64.setRotX(PI, rotate_around_X_by_180);
-//                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
-                        /** Note: post-multiply with BoofCV - I think that it is column-major ?? */  // TODO - check BoofCV conventions
-                        CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot, rotate_around_X_by_180, sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
-                        Quaternion_F64 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
-
-//                      This is the camera-to-marker transform - keep this code, but publish the camera-to-robot-base transform instead
-//                      /** Report as e.g. 60170, 60155, etc. */
-                        detectedFeaturesClient.reportDetectedFeature(60000 + tag_id,
-                                // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
-                                sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
-                                sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
-
-
-                        Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
-                        sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setRotation(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
-                        sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setTranslation(sensorToTarget_ROSFrame_mirrored.getTranslation());
-
-
-                        geometry_msgs.Point position = visionTask.getRelationToBase().getPosition();
-                        Se3_F64 transformOfFeatureInVisualModel = new Se3_F64();                    // transform from robot to marker, e.g. base_link to feature
-                        transformOfFeatureInVisualModel.setTranslation(position.getX(), position.getY(), position.getZ());
-                        Quaternion_F64 rotationOfFeatureInVisualModel_q = convertRosToBoofcvQuaternion(visionTask);
-                        DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3, 3);
-                        ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
-                        transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m));
-                        Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
-                        transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
-
-                        DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
-
-                        Se3_F64 sensorToTarget_ROSFrame_toRobotBaseLink = new Se3_F64();
-
-//                      this is the camera-to-robot-base transform
-//                      /** Report as e.g. 60170, 60155, etc. */
-                        transformOfFeatureInVisualModel_inv.concat(                                 // pose from previous as transform from camera to marker
-                                sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t,      // transform from marker to robot, from robot visual model
-                                sensorToTarget_ROSFrame_toRobotBaseLink);                          // output
-                        Quaternion_F64 sensorToTarget_ROSFrame_toRobotBaseLink_q = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_toRobotBaseLink.getRotation(), sensorToTarget_ROSFrame_toRobotBaseLink_q);
-
-                        detectedFeaturesClient.reportDetectedFeature(70000 + tag_id,
-                                sensorToTarget_ROSFrame_toRobotBaseLink.getX(), sensorToTarget_ROSFrame_toRobotBaseLink.getY(), sensorToTarget_ROSFrame_toRobotBaseLink.getZ(),
-                                sensorToTarget_ROSFrame_toRobotBaseLink_q.x, sensorToTarget_ROSFrame_toRobotBaseLink_q.y, sensorToTarget_ROSFrame_toRobotBaseLink_q.z, sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
-
-                        //  Report the detected feature pose in the world coordinate frame/system,
-                        // applying the camera's current pose to the detected feature's pose,
-                        // before reporting to the VOS Server.
-
-                        if (poseKnown()) {
-                            Log.i(logTagTag, "poseKnown()");
-                            Log.i(logTagTag, "poseKnown(): translation: " + this.position[0] + "," + this.position[1] + "," + this.position[2]);
-                            Log.i(logTagTag, "poseKnown(): rotation quaternion: " + this.orientation[0] + "," + this.orientation[1] + "," + this.orientation[2] + "," + this.orientation[3]);
-                            Se3_F64 worldToCamera = new Se3_F64();
-                            worldToCamera.setTranslation(this.position[0], this.position[1], this.position[2]);
-                            Quaternion_F64 worldToCamera_rot_q = new Quaternion_F64(this.orientation[3], this.orientation[0], this.orientation[1], this.orientation[2]);
-                            DenseMatrix64F worldToCamera_rot_m = new DenseMatrix64F(3, 3);
-                            worldToCamera.setRotation(
-                                    ConvertRotation3D_F64.quaternionToMatrix(
-                                            worldToCamera_rot_q,  //  (double w, double x, double y, double z)
-                                            worldToCamera_rot_m));
-
-                            detectedFeaturesClient.reportDetectedFeature(40000 + tag_id,
-                                    worldToCamera.getX(), worldToCamera.getY(), worldToCamera.getZ(),
-                                    worldToCamera_rot_q.x, worldToCamera_rot_q.y, worldToCamera_rot_q.z, worldToCamera_rot_q.w);
-
-                            Se3_F64 worldToRobotBaseLink = new Se3_F64();
-                            sensorToTarget_ROSFrame_toRobotBaseLink.concat(
-                                    worldToCamera,
-                                    worldToRobotBaseLink
-                            );
-                            Quaternion_F64 worldToRobotBaseLink_q = new Quaternion_F64();
-                            ConvertRotation3D_F64.matrixToQuaternion(worldToRobotBaseLink.getRotation(), worldToRobotBaseLink_q);
-
-                            detectedFeaturesClient.reportDetectedFeature(50000 + tag_id,
-                                    worldToRobotBaseLink.getX(), worldToRobotBaseLink.getY(), worldToRobotBaseLink.getZ(),
-                                    worldToRobotBaseLink_q.x, worldToRobotBaseLink_q.y, worldToRobotBaseLink_q.z, worldToRobotBaseLink_q.w);
-                        } else {
-                            Log.i(logTagTag, "! poseKnown()");
-                        }
-
-
-                        Se3_F64 translation_to_marker = sensorToTarget_ROSFrame_mirrored;
-                        Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
-
-                        double[] eulerZYZ_fromInvert = new double[]{0, 0, 0};
-                        ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
-                        Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = " + eulerZYZ_fromInvert[0] + "," + eulerZYZ_fromInvert[1] + "," + eulerZYZ_fromInvert[2]);
-                        Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
-                        Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
-                        sensorToTarget_testing_quat = new Quaternion_F64();
-                        ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
-                        Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
-
-                        Point2D_F64 locationPixel = new Point2D_F64();
-                        detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
-                        if (isPartOfRobotVisualModel(tag_id)) {
-                            List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected, singleDummyRobotId);
-                            DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, quaternion_to_marker);
-                            visionTaskFeaturesDetected.add(detectedTag);
-                            Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
-                        } else if (isALandmark(tag_id)) {
-                            DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, locationPixel);
-                            landmarkFeatures.add(detectedTag);
-                            Log.i(logTagTag, "onCameraFrame: isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
-                        } else { // not part of something that we are looking for, so ignore
-                            Log.i(logTagTag, "onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
-                            continue;
-                        }
-
-                        //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
-                        Log.i(logTagTag, "onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
-                        if (LOCALISING_CAMERA_FROM_OBSERVED_FEATURES) {
-                            updateLocationFromDetectedFeature(tag_id, logTagTag, translation_to_marker, quaternion_to_marker);
-                        }
-                        if (TESTING_TRANSFORMATIONS_OF_TRANSFORMS) {
-                            variousUnusedAttemptsAtCoordinateSystemCorrection();
-                        }
-
-                    } else {  // 3D info not available for tag/marker
-                        drawMarkeLocationOnDisplay_BoofCV_no3dData(detector, detectionOrder_);
-                    }
-                }
-                updateTrackingData(robotFeatures);
-                if (FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
-                    Se3_F64 cameraPose = updatePoseEstimate(landmarkFeatures);
-                    int numElementsInRot = cameraPose.R.getNumElements();
-                    Vector3D_F64 translation = cameraPose.T;
-                    Log.i(TAG, "onCameraFrame: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
-                } else {
-                    Log.i(TAG, "onCameraFrame: cameraPose: not enough landmarks detected to estimate camera pose.");
-                }
-
-                Log.i(TAG, "onCameraFrame: after processing for " + detector.totalFound() + " tags found via BoofCV");
-
-            } catch (Exception e) {
-                Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
-                e.printStackTrace();
+                Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
+                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim);
+                Log.i(TAG, "onCameraFrame: after BoofCV Square Fiducial feature processing.");
+            } else {
+                Log.i(TAG, "onCameraFrame: NOT BoofCV Square Fiducial feature processing.");
             }
-        }
+
             //--------------------------------------------------------------------------------------
 
             if (thingsIShouldBeLookingFor.includes(Algorithm.SURF)) {
                 ArrayList<VisionTask> visionTasks_SURF = vosTaskSet.visionTasksToExecuteFilter(Algorithm.SURF);
                 if (null != visionTasks_SURF && visionTasks_SURF.size() > 0) {
                     Log.i(TAG, "onCameraFrame: before SURF feature processing.");
-                    try {
-                        String[] surfFeatureDescriptors = Hardcoding.testSurfFeatureDescriptors();
-                        String[] imageBfeatureString = surfFeatureDescriptors;
-                        Class imageTypeGrayF32 = GrayF32.class;   //  Class imageType = GrayF32.class;
-                        Class imageRgbType = Planar.class;
-                        AssociatePoints app = setupAssociatePointsVariables(imageTypeGrayF32, imageRgbType);
-                        AssociatePoints.ReturnValue associations = app.associateSurfAndString(image, imageBfeatureString);    // -- SURF !!!
-
-                        FastQueue<AssociatedIndex> matches = associations.associate_getMatches;
-                        Log.i(TAG, "onCameraFrame: SURF feature: matches.size=" + matches.size());
-                        List<Point2D_F64> leftPts = associations.pointsA;
-                        List<Point2D_F64> rightPts = associations.pointsB;
-//                // from AssociationPanel
-//                public void drawPoints( List<Point2D_F64> leftPts , List<Point2D_F64> rightPts,
-//                        FastQueue< AssociatedIndex > matches ) {
-                        int assocLeft[], assocRight[];    // which features are associated with each other
-                        List<Point2D_F64> allLeft = new ArrayList<>();
-                        List<Point2D_F64> allRight = new ArrayList<>();
-                        assocLeft = new int[matches.size()];
-                        assocRight = new int[matches.size()];
-                        for (int i = 0; i < matches.size(); i++) {
-                            Log.i(TAG, "onCameraFrame: SURF feature: matches[" + i + "]");
-                            AssociatedIndex a = matches.get(i);
-                            allLeft.add(leftPts.get(a.src));
-                            allRight.add(rightPts.get(a.dst));
-                            assocLeft[i] = i;
-                            assocRight[i] = i;
-                        }
-                        for (int i = 0; i < assocLeft.length; i++) {
-                            if (assocLeft[i] == -1) {
-                                continue;
-                            }
-                            Log.i(TAG, "onCameraFrame: SURF feature: ");
-                            Point2D_F64 l = leftPts.get(i);
-                            Point2D_F64 r = rightPts.get(assocLeft[i]);
-                            //            Color color = colors[i];
-                            //            drawAssociation(g2, scaleLeft,scaleRight,rightX, l, r, color);
-//                        drawSurfFeatureLocus(l.getX(),l.getY())
-//                        displayTagCentre_OpenCV((int)locationPixel.x, (int)locationPixel.y, fm);
-                            displaySurf_OpenCV((int) l.getX(), (int) l.getY());
-                        }
-//                }
-
-                    } catch (Exception e) {
-                        Log.e(TAG, "onCameraFrame: exception running SURF features: ", e);
-                        e.printStackTrace();
-                    }
+                    detectAndEstimate_SURF();
                     Log.i(TAG, "onCameraFrame: after SURF feature processing.");
                 } else {
                     Log.i(TAG, "onCameraFrame: NOT SURF feature processing.");
                 }
             }
 
+            calcAndReportRobotPose(robotsDetected);
+            Log.i(TAG, "onCameraFrame: after reported robot pose ");
 
+        } else {
+            Log.i(logTag, "not doing image processing: current_image_bytes_is_not_null="+current_image_bytes_is_not_null+"  &&  thereIsAVisionTaskToExecute="+thereIsAVisionTaskToExecute);
         }
-        Log.i(TAG, "onCameraFrame: after BoofCV segment ");
-
-        // end BoofCV
-        calcAndReportRobotPose(robotsDetected);
-        Log.i(TAG, "onCameraFrame: after reported robot pose ");
-
-
 
         Log.i(TAG, "onCameraFrame: start HSV segment ");
         if(current_image_bytes_is_not_null  && null != determiningFreeFloorspace) {
-            Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
-
-            Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewBoofCVHsv");
-            convertPreviewBoofCVHsv(last_frame_bytes(), camera);
-            Log.i(TAG, "onCameraFrame: HSV segment: after convertPreviewBoofCVHsv");
-
-
-//            Planar<GrayF32> hs = imageHsv.partialSpectrum(0,1);
-//            // The number of bins is an important parameter.  Try adjusting it
-//            Histogram_F64 histogram = new Histogram_F64(25,25);
-//            histogram.setRange(0, 0.0, 1.0); // range of hue is from 0 to 2PI
-//            histogram.setRange(1, 0.0, 1.0); // range of saturation is from 0 to 1
-//
-//            // Compute the histogram
-//            GHistogramFeatureOps.histogram(hs,histogram);
-//
-//            UtilFeature.normalizeL2(histogram); // normalize so that image size doesn't matter
-
-
-            // Extract hue and saturation bands which are independent of intensity
-            GrayF32 H = imageHsv.getBand(0);
-            GrayF32 S = imageHsv.getBand(1);
-            Log.i(TAG, "onCameraFrame: HSV segment: saturation band height = " + S.getHeight() + ", saturation band width = " + S.getWidth() + " ");
-
-//            // Adjust the relative importance of Hue and Saturation.
-//            // Hue has a range of 0 to 2*PI and Saturation from 0 to 1.
-            float adjustUnits = (float) (Math.PI / 2.0);
-            // Euclidean distance squared threshold for deciding which pixels are members of the selected set
-            float maxDist2 = 0.4f * 0.4f;
-            float hue = 0.12f;
-            float saturation = 0.15f;
-            double[] red = new double[]{255d, 0d, 0d, 255d};
-            double[] green = new double[]{0d, 255d, 0d, 255d};
-            double[] greenBlue = new double[]{0d, 0d, 255d, 255d};
-            double[] free_space_white = new double[]{255d, 255d, 255d, 125d};
-            double[] black = new double[]{0d, 0d, 0d, 255d};
-            int i_ = 0;
-            int numberOfFilters = 0;
-            if (determiningFreeFloorspace.contains("HSV")) {
-                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with colour/HS(V).");
-                numberOfFilters++;
-                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                    for (int x = 0; x < imageHsv.width; x++) {
-                        i_++;
-//                    if(0== i_ % 100) {
-//                        Log.i(TAG, "onCameraFrame: HSV segment: "+i_+"th iteration: x="+x+", y="+y);
-//                    }
-                        // Hue is an angle in radians, so simple subtraction doesn't work
-                        float h_pixel = H.unsafe_get(x, y);                      // range of 0.0 to 2.0*PI
-                        float s_pixel = S.unsafe_get(x, y);                      // range of 0.0 to 1.0
-//                    float dh      = UtilAngle.dist(h_pixel,hue);            // range of 0.0 to 2.0*PI
-//                    float ds      = (s_pixel-saturation)*adjustUnits;       // range of 0.0 to 2.0*PI
-//
-                        // this distance measure is a bit naive, but good enough for to demonstrate the concept
-//                    float dist2 = dh*dh + ds*ds;
-//                    if( dist2 <= maxDist2 ) {
-                        if (  // varies a lot with the white balance
-                                (h_pixel >= 2.0f    // 2.26893f
-                                        &&
-                                        h_pixel <= 4.6f)  // 4.39823f   )
-                                        &
-                                        s_pixel <= 0.35f
-                                ) {
-//                        output.setRGB(x,y,image.getRGB(x,y));
-                            hsvMatch[x][y] = 1;                     //  hsvMatch = new boolean[image.width][image.height]
-                            matRgb.put(y, x, green);
-                        } else {
-                            hsvMatch[x][y] = 0;                     //  hsvMatch = new boolean[image.width][image.height]
-                            matRgb.put(y, x, red);
-                        }
-                    }
-                }
-                for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                    for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
-
-                        int sum_ = 0;
-                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
-                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
-                                sum_ += hsvMatch[x2][y2];
-                            }
-                        }
-                        if (sum_ > 25) { // over 50% good
-                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
-                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
-                                    matRgb.put(y2, x2, greenBlue);                  // TODO - boolean output for the block
-                                    combinedOutput[x2][y2]++;
-                                    if(free_hist[x2][y2] < free_hist_window_length) {
-                                        free_hist[x2][y2]++;
-                                    }
-                                }
-                            }
-                        } else {
-                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
-                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
-                                    // TODO - output for the block
-                                    if(free_hist[x2][y2]>0) {
-                                        free_hist[x2][y2]--;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with colour/HS(V).");
-            }
-
-            if (determiningFreeFloorspace.contains("Texture")) {
-                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with texture.");
-                numberOfFilters++;
-                //--- gray level run-length ------------------------------------------------------------
-                GrayF32 V = imageHsv.getBand(2);
-                GrayF32 gradient_img = V.createNew(imageHsv.width, imageHsv.height);
-                GrayF32 run_count_img = V.createNew(imageHsv.width, imageHsv.height);
-                int run_count_bins[] = new int[imageHsv.width]; // could have a run all the same intensity, e.g. facing a blank wall, or camera covered.
-
-                float max_intensity = 254.0f;
-                float intensity_left = 0.0f;
-                float intensity_previous = 0.0f;
-                float intensity_right;
-                float intensity = 0.0f;
-                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                    for (int x = 0; x < imageHsv.width; x++) {
-                        intensity_previous = intensity;
-                        if (x > 0) {
-                            intensity_left = intensity_previous;
-                            intensity = V.unsafe_get(x, y);
-                            if (intensity_left - intensity > (max_intensity / 20.0f)) {
-                                gradient_img.set(x, y, max_intensity);
-                            }  // simplified from TextureFilter
-                        }
-                        //if(x < imageHsv.width-1) { intensity_right = V.unsafe_get(x+1,y);}
-                    }
-                    // run back over the row, counting runs of the same(ish) gradient
-
-                    int run_count = 0;
-                    float last_gradient = 0.0f;
-                    float param_run_count_tolerance = 0.1f;
-                    boolean param_allow_for_slow_gradient = false;
-                    for (int x = 0; x < imageHsv.width; x++) {
-
-                        if (last_gradient - param_run_count_tolerance < gradient_img.unsafe_get(x, y) && gradient_img.unsafe_get(x, y) < last_gradient + param_run_count_tolerance) {
-                            run_count++;
-                        } else {
-                            int run_count_was = run_count;
-                            run_count_bins[run_count]++;                        // increment the bin               up to the current pixel
-                            run_count = 0;                                        // reset run_count                 at the current pixel
-                            last_gradient = gradient_img.unsafe_get(x, y);     // reset the gradient to the value at the current pixel
-
-                            int indexScaled_backward = x;
-                            for (int x_neg = x - 1; x_neg > 0 && x_neg >= ((x - 1) - run_count_was); x_neg--) {
-                                int param_run_count_upper_cutoff = 20;                                                //  TODO - by hand fiddling !
-                                if (run_count_was >= param_run_count_upper_cutoff) {                                  //  TODO - by hand fiddling !
-                                    run_count_img.set(x_neg, y, 254.0f);
-                                    runlengthMatch[x_neg][y] = 1;
-                                } else {
-                                    ;
-                                    run_count_img.set(x_neg, y, ((float) run_count_was / (float) param_run_count_upper_cutoff) * 254.0f);  // approximate: will break if any run is over 254 long, but OK for now
-                                    runlengthMatch[x_neg][y] = 0;
-                                }
-                            }
-                        }
-                    }
-                } // end of row for runlengthMatch
-                for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                    for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
-
-                        int sum_ = 0;
-                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
-                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
-                                sum_ += runlengthMatch[x2][y2];
-                            }
-                        }
-                        if (sum_ < 25) { // under XYZ                                               // TODO - PARAMETER - should look at the runlengths in bins
-                            for (int y2 = y - 3; y2 <= y + 3; y2++) {
-                                for (int x2 = x - 3; x2 <= x + 3; x2++) {
-                                    matRgb.put(y2, x2, greenBlue);                                  // TODO - boolean output for the block
-                                    combinedOutput[x2][y2]++;
-                                }
-                            }
-                        }
-
-                    }
-                }
-                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with texture.");
-            }
-
-            // combine boolean outputs for the block: GOOD && GOOD == GOOD == FREE
-            if (numberOfFilters > 0) {
-                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace checking combined filter outputs.");
-                // TODO - do this blockwise and use a hashmark pattern ?
-                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-                    for (int x = 0; x < imageHsv.width; x++) {
-                        if (combinedOutput[x][y] >= numberOfFilters) {
-                            matRgb.put(y, x, free_space_white);                                  // TODO - boolean output for the block
-                        }
-                    }
-                }
-                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace checking combined filter outputs.");
-
-
-                if (determiningFreeFloorspace.contains("display_projected")){
-                    Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
-                    // Display a projection onto an arbitrary 10x10 world, plan view, with -5<=y<=5 and 0<=x<=10, with camera at y=0 x=0, and camera x = world x, and camera y = world y, and camera z = world z + camera pose z.
-//                    for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
-//                        for (int x = 0; x < imageHsv.width; x++) {
-//                            matRgb.put(y, x, black);                                  // TODO - boolean output for the block
-//                        }
-//                    }
-                    for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
-                        for (int x = 0; x < imageHsv.width; x++) {
-                            if (combinedOutput[x][y] >= numberOfFilters) {
-                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_gold, free_space_projected_purple);  // TODO - paint onto the image, clipping at the image edges
-                            }
-                        }
-                    }
-                }
-                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected.");
-
-
-                if (determiningFreeFloorspace.contains("display_hist_projected")){
-                    Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
-                    for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
-                        for (int x = 0; x < imageHsv.width; x++) {
-                            if (free_hist[x][y] >= free_hist_window_average) {
-                                free_space_frozen[x][y] = 1;
-                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_darkGreen, free_space_projected_aqua);  // TODO - paint onto the image, clipping at the image edges
-                            }
-                            if(free_space_frozen[x][y] > 0) {
-                                if(combinedOutput[x][y] >= numberOfFilters) {
-                                    projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_paleGreen, free_space_projected_darkCyan);
-                                } else {
-                                    projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_magenta, free_space_projected_mediumOrchid);
-                                }
-                            }
-                        }
-                    }
-                }
-                Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected_hist.");
-
-
-            } else {
-                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace NOT checking combined filter outputs : numberOfFilters="+numberOfFilters);
-            }
-
-
+            freeSpace(camera);
         }
         Log.i(TAG, "onCameraFrame: after HSV segment ");
 
@@ -1284,6 +751,554 @@ public class MainActivity
             return matRgb;
         } else {
             return matGray;
+        }
+    }
+
+    private void freeSpace(Camera camera) {
+        Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
+
+        Log.i(TAG, "onCameraFrame: HSV segment: before convertPreviewBoofCVHsv");
+        convertPreviewBoofCVHsv(last_frame_bytes(), camera);
+        Log.i(TAG, "onCameraFrame: HSV segment: after convertPreviewBoofCVHsv");
+
+
+//            Planar<GrayF32> hs = imageHsv.partialSpectrum(0,1);
+//            // The number of bins is an important parameter.  Try adjusting it
+//            Histogram_F64 histogram = new Histogram_F64(25,25);
+//            histogram.setRange(0, 0.0, 1.0); // range of hue is from 0 to 2PI
+//            histogram.setRange(1, 0.0, 1.0); // range of saturation is from 0 to 1
+//
+//            // Compute the histogram
+//            GHistogramFeatureOps.histogram(hs,histogram);
+//
+//            UtilFeature.normalizeL2(histogram); // normalize so that image size doesn't matter
+
+
+        // Extract hue and saturation bands which are independent of intensity
+        GrayF32 H = imageHsv.getBand(0);
+        GrayF32 S = imageHsv.getBand(1);
+        Log.i(TAG, "onCameraFrame: HSV segment: saturation band height = " + S.getHeight() + ", saturation band width = " + S.getWidth() + " ");
+
+//            // Adjust the relative importance of Hue and Saturation.
+//            // Hue has a range of 0 to 2*PI and Saturation from 0 to 1.
+        float adjustUnits = (float) (Math.PI / 2.0);
+        // Euclidean distance squared threshold for deciding which pixels are members of the selected set
+        float maxDist2 = 0.4f * 0.4f;
+        float hue = 0.12f;
+        float saturation = 0.15f;
+        double[] red = new double[]{255d, 0d, 0d, 255d};
+        double[] green = new double[]{0d, 255d, 0d, 255d};
+        double[] greenBlue = new double[]{0d, 0d, 255d, 255d};
+        double[] free_space_white = new double[]{255d, 255d, 255d, 125d};
+        double[] black = new double[]{0d, 0d, 0d, 255d};
+        int i_ = 0;
+        int numberOfFilters = 0;
+        if (determiningFreeFloorspace.contains("HSV")) {
+            Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with colour/HS(V).");
+            numberOfFilters++;
+            for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0; x < imageHsv.width; x++) {
+                    i_++;
+//                    if(0== i_ % 100) {
+//                        Log.i(TAG, "onCameraFrame: HSV segment: "+i_+"th iteration: x="+x+", y="+y);
+//                    }
+                    // Hue is an angle in radians, so simple subtraction doesn't work
+                    float h_pixel = H.unsafe_get(x, y);                      // range of 0.0 to 2.0*PI
+                    float s_pixel = S.unsafe_get(x, y);                      // range of 0.0 to 1.0
+//                    float dh      = UtilAngle.dist(h_pixel,hue);            // range of 0.0 to 2.0*PI
+//                    float ds      = (s_pixel-saturation)*adjustUnits;       // range of 0.0 to 2.0*PI
+//
+                    // this distance measure is a bit naive, but good enough for to demonstrate the concept
+//                    float dist2 = dh*dh + ds*ds;
+//                    if( dist2 <= maxDist2 ) {
+                    if (  // varies a lot with the white balance
+                            (h_pixel >= 2.0f    // 2.26893f
+                                    &&
+                                    h_pixel <= 4.6f)  // 4.39823f   )
+                                    &
+                                    s_pixel <= 0.35f
+                            ) {
+//                        output.setRGB(x,y,image.getRGB(x,y));
+                        hsvMatch[x][y] = 1;                     //  hsvMatch = new boolean[image.width][image.height]
+                        matRgb.put(y, x, green);
+                    } else {
+                        hsvMatch[x][y] = 0;                     //  hsvMatch = new boolean[image.width][image.height]
+                        matRgb.put(y, x, red);
+                    }
+                }
+            }
+            for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
+
+                    int sum_ = 0;
+                    for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                        for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                            sum_ += hsvMatch[x2][y2];
+                        }
+                    }
+                    if (sum_ > 25) { // over 50% good
+                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                matRgb.put(y2, x2, greenBlue);                  // TODO - boolean output for the block
+                                combinedOutput[x2][y2]++;
+                                if(free_hist[x2][y2] < free_hist_window_length) {
+                                    free_hist[x2][y2]++;
+                                }
+                            }
+                        }
+                    } else {
+                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                // TODO - output for the block
+                                if(free_hist[x2][y2]>0) {
+                                    free_hist[x2][y2]--;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with colour/HS(V).");
+        }
+
+        if (determiningFreeFloorspace.contains("Texture")) {
+            Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace with texture.");
+            numberOfFilters++;
+            //--- gray level run-length ------------------------------------------------------------
+            GrayF32 V = imageHsv.getBand(2);
+            GrayF32 gradient_img = V.createNew(imageHsv.width, imageHsv.height);
+            GrayF32 run_count_img = V.createNew(imageHsv.width, imageHsv.height);
+            int run_count_bins[] = new int[imageHsv.width]; // could have a run all the same intensity, e.g. facing a blank wall, or camera covered.
+
+            float max_intensity = 254.0f;
+            float intensity_left = 0.0f;
+            float intensity_previous = 0.0f;
+            float intensity_right;
+            float intensity = 0.0f;
+            for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0; x < imageHsv.width; x++) {
+                    intensity_previous = intensity;
+                    if (x > 0) {
+                        intensity_left = intensity_previous;
+                        intensity = V.unsafe_get(x, y);
+                        if (intensity_left - intensity > (max_intensity / 20.0f)) {
+                            gradient_img.set(x, y, max_intensity);
+                        }  // simplified from TextureFilter
+                    }
+                    //if(x < imageHsv.width-1) { intensity_right = V.unsafe_get(x+1,y);}
+                }
+                // run back over the row, counting runs of the same(ish) gradient
+
+                int run_count = 0;
+                float last_gradient = 0.0f;
+                float param_run_count_tolerance = 0.1f;
+                boolean param_allow_for_slow_gradient = false;
+                for (int x = 0; x < imageHsv.width; x++) {
+
+                    if (last_gradient - param_run_count_tolerance < gradient_img.unsafe_get(x, y) && gradient_img.unsafe_get(x, y) < last_gradient + param_run_count_tolerance) {
+                        run_count++;
+                    } else {
+                        int run_count_was = run_count;
+                        run_count_bins[run_count]++;                        // increment the bin               up to the current pixel
+                        run_count = 0;                                        // reset run_count                 at the current pixel
+                        last_gradient = gradient_img.unsafe_get(x, y);     // reset the gradient to the value at the current pixel
+
+                        int indexScaled_backward = x;
+                        for (int x_neg = x - 1; x_neg > 0 && x_neg >= ((x - 1) - run_count_was); x_neg--) {
+                            int param_run_count_upper_cutoff = 20;                                                //  TODO - by hand fiddling !
+                            if (run_count_was >= param_run_count_upper_cutoff) {                                  //  TODO - by hand fiddling !
+                                run_count_img.set(x_neg, y, 254.0f);
+                                runlengthMatch[x_neg][y] = 1;
+                            } else {
+                                ;
+                                run_count_img.set(x_neg, y, ((float) run_count_was / (float) param_run_count_upper_cutoff) * 254.0f);  // approximate: will break if any run is over 254 long, but OK for now
+                                runlengthMatch[x_neg][y] = 0;
+                            }
+                        }
+                    }
+                }
+            } // end of row for runlengthMatch
+            for (int y = 0 + 3; y < imageHsv.height - 3; y = y + 7) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0 + 3; x < imageHsv.width - 3; x = x + 7) {
+
+                    int sum_ = 0;
+                    for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                        for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                            sum_ += runlengthMatch[x2][y2];
+                        }
+                    }
+                    if (sum_ < 25) { // under XYZ                                               // TODO - PARAMETER - should look at the runlengths in bins
+                        for (int y2 = y - 3; y2 <= y + 3; y2++) {
+                            for (int x2 = x - 3; x2 <= x + 3; x2++) {
+                                matRgb.put(y2, x2, greenBlue);                                  // TODO - boolean output for the block
+                                combinedOutput[x2][y2]++;
+                            }
+                        }
+                    }
+
+                }
+            }
+            Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace with texture.");
+        }
+
+        // combine boolean outputs for the block: GOOD && GOOD == GOOD == FREE
+        if (numberOfFilters > 0) {
+            Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace checking combined filter outputs.");
+            // TODO - do this blockwise and use a hashmark pattern ?
+            for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                for (int x = 0; x < imageHsv.width; x++) {
+                    if (combinedOutput[x][y] >= numberOfFilters) {
+                        matRgb.put(y, x, free_space_white);                                  // TODO - boolean output for the block
+                    }
+                }
+            }
+            Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace checking combined filter outputs.");
+
+
+            if (determiningFreeFloorspace.contains("display_projected")){
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
+                // Display a projection onto an arbitrary 10x10 world, plan view, with -5<=y<=5 and 0<=x<=10, with camera at y=0 x=0, and camera x = world x, and camera y = world y, and camera z = world z + camera pose z.
+//                    for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+//                        for (int x = 0; x < imageHsv.width; x++) {
+//                            matRgb.put(y, x, black);                                  // TODO - boolean output for the block
+//                        }
+//                    }
+                for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
+                    for (int x = 0; x < imageHsv.width; x++) {
+                        if (combinedOutput[x][y] >= numberOfFilters) {
+                            projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_gold, free_space_projected_purple);  // TODO - paint onto the image, clipping at the image edges
+                        }
+                    }
+                }
+            }
+            Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected.");
+
+
+            if (determiningFreeFloorspace.contains("display_hist_projected")){
+                Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace display_projected.");
+                for (int y = imageHsv.height/2; y < imageHsv.height; y++) {            // todo: don't bother about the upper half of the image for now: will be off the floorplain for now
+                    for (int x = 0; x < imageHsv.width; x++) {
+                        if (free_hist[x][y] >= free_hist_window_average) {
+                            free_space_frozen[x][y] = 1;
+                            projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_darkGreen, free_space_projected_aqua);  // TODO - paint onto the image, clipping at the image edges
+                        }
+                        if(free_space_frozen[x][y] > 0) {
+                            if(combinedOutput[x][y] >= numberOfFilters) {
+                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_paleGreen, free_space_projected_darkCyan);
+                            } else {
+                                projectOntoWorldFreeSpace(x, y, imageHsv.width, imageHsv.height, position[2], matRgb, free_space_magenta, free_space_projected_mediumOrchid);
+                            }
+                        }
+                    }
+                }
+            }
+            Log.i(TAG, "onCameraFrame: HSV segment: end determiningFreeFloorspace display_projected_hist.");
+
+
+        } else {
+            Log.i(TAG, "onCameraFrame: HSV segment: determiningFreeFloorspace NOT checking combined filter outputs : numberOfFilters="+numberOfFilters);
+        }
+    }
+
+    private void detectAndEstimate_SURF() {
+        try {
+            String[] surfFeatureDescriptors = Hardcoding.testSurfFeatureDescriptors();
+            String[] imageBfeatureString = surfFeatureDescriptors;
+            Class imageTypeGrayF32 = GrayF32.class;   //  Class imageType = GrayF32.class;
+            Class imageRgbType = Planar.class;
+            AssociatePoints app = setupAssociatePointsVariables(imageTypeGrayF32, imageRgbType);
+            AssociatePoints.ReturnValue associations = app.associateSurfAndString(image, imageBfeatureString);    // -- SURF !!!
+
+            FastQueue<AssociatedIndex> matches = associations.associate_getMatches;
+            Log.i(TAG, "onCameraFrame: SURF feature: matches.size=" + matches.size());
+            List<Point2D_F64> leftPts = associations.pointsA;
+            List<Point2D_F64> rightPts = associations.pointsB;
+//                // from AssociationPanel
+//                public void drawPoints( List<Point2D_F64> leftPts , List<Point2D_F64> rightPts,
+//                        FastQueue< AssociatedIndex > matches ) {
+            int assocLeft[], assocRight[];    // which features are associated with each other
+            List<Point2D_F64> allLeft = new ArrayList<>();
+            List<Point2D_F64> allRight = new ArrayList<>();
+            assocLeft = new int[matches.size()];
+            assocRight = new int[matches.size()];
+            for (int i = 0; i < matches.size(); i++) {
+                Log.i(TAG, "onCameraFrame: SURF feature: matches[" + i + "]");
+                AssociatedIndex a = matches.get(i);
+                allLeft.add(leftPts.get(a.src));
+                allRight.add(rightPts.get(a.dst));
+                assocLeft[i] = i;
+                assocRight[i] = i;
+            }
+            for (int i = 0; i < assocLeft.length; i++) {
+                if (assocLeft[i] == -1) {
+                    continue;
+                }
+                Log.i(TAG, "onCameraFrame: SURF feature: ");
+                Point2D_F64 l = leftPts.get(i);
+                Point2D_F64 r = rightPts.get(assocLeft[i]);
+                //            Color color = colors[i];
+                //            drawAssociation(g2, scaleLeft,scaleRight,rightX, l, r, color);
+//                        drawSurfFeatureLocus(l.getX(),l.getY())
+//                        displayTagCentre_OpenCV((int)locationPixel.x, (int)locationPixel.y, fm);
+                displaySurf_OpenCV((int) l.getX(), (int) l.getY());
+            }
+//                }
+
+        } catch (Exception e) {
+            Log.e(TAG, "onCameraFrame: exception running SURF features: ", e);
+            e.printStackTrace();
+        }
+        Log.i(TAG, "onCameraFrame: after SURF feature processing.");
+    }
+
+    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected, RobotId singleDummyRobotId, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim) {
+        try {
+            FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
+                    new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
+
+            //        detector.setLensDistortion(lensDistortion);
+
+
+            CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
+            LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
+            detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
+
+            //// TODO - timing here  c[camera_num]-f[frameprocessed]
+            Log.i(logTag, "start detector.detect(image);");
+            detector.detect(image);
+            Log.i(TAG, "onCameraFrame: found " + detector.totalFound() + " tags via BoofCV");
+            //// TODO - timing here  c[camera_num]-f[frameprocessed]
+            Log.i(logTag, "finished detector.detect(image);");
+
+
+            // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
+            for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
+                String logTagIteration = logTag + "-detectionOrder_" + detectionOrder_;
+                Log.i(logTagIteration, "start");
+                int tag_id = -1;
+                MarkerIdFormatValidator markerIdFormatValidator = new MarkerIdFormatValidator(detector, detectionOrder_, tag_id);
+                if (!markerIdFormatValidator.isValid()) {
+                    drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
+                    continue;
+                }
+                tag_id = markerIdFormatValidator.getTag_id();
+                tag_id = (int) detector.getId(detectionOrder_);
+                VisionTask visionTask = vosTaskSet.visionTaskToExecute(Algorithm.BOOFCV_SQUARE_FIDUCIAL,tag_id);     // NOTE: BoofCV square fiducial is an open-ended algorithm which we then narrow down to the descriptors in question, whereas e.g. Kaess includes/excludes within the algorithm.
+                if (null == visionTask) {
+                    drawMarkeLocationOnDisplay_BoofCV_invalidTagId(detector, detectionOrder_);
+                    continue;
+                }
+                //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                String logTagTag = logTagIteration + "-t" + tag_id;
+
+                drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_);
+                Log.i(logTagTag, "onCameraFrame: finished checking tag_id");
+
+                if (detector.hasMessage()) {
+                    System.out.println("onCameraFrame: Message   = " + detector.getMessage(detectionOrder_));
+                }
+
+                if (detector.is3D()) {
+                    Log.i(logTagTag, "onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+                    Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
+                    detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
+                    Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
+
+                    Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
+                    Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
+                    ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                    System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+                    System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+
+
+                    // testing 2017_08_23
+                    double[] eulerZYZ = new double[]{0, 0, 0};
+                    ConvertRotation3D_F64.matrixToEuler(targetToSensor_boofcvFrame.getR(), EulerType.ZYZ, eulerZYZ);
+                    Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ = " + eulerZYZ[0] + "," + eulerZYZ[1] + "," + eulerZYZ[2]);
+
+                    Se3_F64 sensorToTarget_testing = null;
+                    sensorToTarget_testing = targetToSensor_boofcvFrame.invert(sensorToTarget_testing);
+
+                    Quaternion_F64 sensorToTarget_testing_quat;
+                    sensorToTarget_testing_quat = new Quaternion_F64();
+                    ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getRotation(), sensorToTarget_testing_quat);
+//
+//                            detectedFeaturesClient.reportDetectedFeature(80000+tag_id,
+//                                    sensorToTarget_testing.getZ(), sensorToTarget_testing.getX(), sensorToTarget_testing.getY(),
+//                                    sensorToTarget_testing_quat.z,sensorToTarget_testing_quat.x,sensorToTarget_testing_quat.y,sensorToTarget_testing_quat.w);
+
+                    /** Mirror across YZ plane / mirror along X axis:
+                     * sensor-to-target +x = target-to-sensor +x
+                     * sensor-to-target +y = target-to-sensor -y
+                     * sensor-to-target +z = target-to-sensor -x   */
+                    Se3_F64 targetToSensor_boofcvFrame_testing = new Se3_F64();
+                    detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame_testing);
+                    /** Convert from BoofCV coordinate convention to ROS coordinate convention */
+                    Se3_F64 targetToSensor_ROSFrame = new Se3_F64();
+                    targetToSensor_ROSFrame.setTranslation(new Vector3D_F64(
+                            targetToSensor_boofcvFrame_testing.getZ(), targetToSensor_boofcvFrame_testing.getX(), targetToSensor_boofcvFrame_testing.getY()));
+
+
+                    Quaternion_F64 tToS_Boof_testing_quat = ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame_testing.getRotation(), null);
+                    Quaternion_F64 tToS_ROS_testing_quat = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                            tToS_Boof_testing_quat.w, tToS_Boof_testing_quat.z, tToS_Boof_testing_quat.x, tToS_Boof_testing_quat.y);
+                    Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
+                            tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
+                    );
+                    DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3, 3);
+                    ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
+
+                    /** Mirror across the XY plane. */
+                    Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
+                    sensorToTarget_ROSFrame_mirrored.setTranslation(new Vector3D_F64(
+                            targetToSensor_ROSFrame.getX(), -targetToSensor_ROSFrame.getY(), -targetToSensor_ROSFrame.getZ()));
+
+                    sensorToTarget_ROSFrame_mirrored.setRotation(sensorToTarget_ROSFrame_mirrored_rot);
+
+                    DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot = new DenseMatrix64F(3, 3);
+
+                    DenseMatrix64F rotate_around_X_by_180 = CommonOps.identity(3);
+                    ConvertRotation3D_F64.setRotX(PI, rotate_around_X_by_180);
+//                        CommonOps.mult(rotate_around_X_by_180,sensorToTarget_ROSFrame_mirrored_rot,sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                    /** Note: post-multiply with BoofCV - I think that it is column-major ?? */  // TODO - check BoofCV conventions
+                    CommonOps.mult(sensorToTarget_ROSFrame_mirrored_rot, rotate_around_X_by_180, sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                    Quaternion_F64 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q = new Quaternion_F64();
+                    ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
+
+//                      This is the camera-to-marker transform - keep this code, but publish the camera-to-robot-base transform instead
+//                      /** Report as e.g. 60170, 60155, etc. */
+                    detectedFeaturesClient.reportDetectedFeature(60000 + tag_id,
+                            // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
+                            sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
+                            sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
+
+
+                    Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
+                    sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setRotation(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
+                    sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setTranslation(sensorToTarget_ROSFrame_mirrored.getTranslation());
+
+
+                    geometry_msgs.Point position = visionTask.getRelationToBase().getPosition();
+                    Se3_F64 transformOfFeatureInVisualModel = new Se3_F64();                    // transform from robot to marker, e.g. base_link to feature
+                    transformOfFeatureInVisualModel.setTranslation(position.getX(), position.getY(), position.getZ());
+                    Quaternion_F64 rotationOfFeatureInVisualModel_q = convertRosToBoofcvQuaternion(visionTask);
+                    DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3, 3);
+                    ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
+                    transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m));
+                    Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
+                    transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
+
+                    DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
+
+                    Se3_F64 sensorToTarget_ROSFrame_toRobotBaseLink = new Se3_F64();
+
+//                      this is the camera-to-robot-base transform
+//                      /** Report as e.g. 60170, 60155, etc. */
+                    transformOfFeatureInVisualModel_inv.concat(                                 // pose from previous as transform from camera to marker
+                            sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t,      // transform from marker to robot, from robot visual model
+                            sensorToTarget_ROSFrame_toRobotBaseLink);                          // output
+                    Quaternion_F64 sensorToTarget_ROSFrame_toRobotBaseLink_q = new Quaternion_F64();
+                    ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_toRobotBaseLink.getRotation(), sensorToTarget_ROSFrame_toRobotBaseLink_q);
+
+                    detectedFeaturesClient.reportDetectedFeature(70000 + tag_id,
+                            sensorToTarget_ROSFrame_toRobotBaseLink.getX(), sensorToTarget_ROSFrame_toRobotBaseLink.getY(), sensorToTarget_ROSFrame_toRobotBaseLink.getZ(),
+                            sensorToTarget_ROSFrame_toRobotBaseLink_q.x, sensorToTarget_ROSFrame_toRobotBaseLink_q.y, sensorToTarget_ROSFrame_toRobotBaseLink_q.z, sensorToTarget_ROSFrame_toRobotBaseLink_q.w);
+
+                    //  Report the detected feature pose in the world coordinate frame/system,
+                    // applying the camera's current pose to the detected feature's pose,
+                    // before reporting to the VOS Server.
+
+                    if (poseKnown()) {
+                        Log.i(logTagTag, "poseKnown()");
+                        Log.i(logTagTag, "poseKnown(): translation: " + this.position[0] + "," + this.position[1] + "," + this.position[2]);
+                        Log.i(logTagTag, "poseKnown(): rotation quaternion: " + this.orientation[0] + "," + this.orientation[1] + "," + this.orientation[2] + "," + this.orientation[3]);
+                        Se3_F64 worldToCamera = new Se3_F64();
+                        worldToCamera.setTranslation(this.position[0], this.position[1], this.position[2]);
+                        Quaternion_F64 worldToCamera_rot_q = new Quaternion_F64(this.orientation[3], this.orientation[0], this.orientation[1], this.orientation[2]);
+                        DenseMatrix64F worldToCamera_rot_m = new DenseMatrix64F(3, 3);
+                        worldToCamera.setRotation(
+                                ConvertRotation3D_F64.quaternionToMatrix(
+                                        worldToCamera_rot_q,  //  (double w, double x, double y, double z)
+                                        worldToCamera_rot_m));
+
+                        detectedFeaturesClient.reportDetectedFeature(40000 + tag_id,
+                                worldToCamera.getX(), worldToCamera.getY(), worldToCamera.getZ(),
+                                worldToCamera_rot_q.x, worldToCamera_rot_q.y, worldToCamera_rot_q.z, worldToCamera_rot_q.w);
+
+                        Se3_F64 worldToRobotBaseLink = new Se3_F64();
+                        sensorToTarget_ROSFrame_toRobotBaseLink.concat(
+                                worldToCamera,
+                                worldToRobotBaseLink
+                        );
+                        Quaternion_F64 worldToRobotBaseLink_q = new Quaternion_F64();
+                        ConvertRotation3D_F64.matrixToQuaternion(worldToRobotBaseLink.getRotation(), worldToRobotBaseLink_q);
+
+                        detectedFeaturesClient.reportDetectedFeature(50000 + tag_id,
+                                worldToRobotBaseLink.getX(), worldToRobotBaseLink.getY(), worldToRobotBaseLink.getZ(),
+                                worldToRobotBaseLink_q.x, worldToRobotBaseLink_q.y, worldToRobotBaseLink_q.z, worldToRobotBaseLink_q.w);
+                    } else {
+                        Log.i(logTagTag, "! poseKnown()");
+                    }
+
+
+                    Se3_F64 translation_to_marker = sensorToTarget_ROSFrame_mirrored;
+                    Quaternion_F64 quaternion_to_marker = sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q;
+
+                    double[] eulerZYZ_fromInvert = new double[]{0, 0, 0};
+                    ConvertRotation3D_F64.matrixToEuler(sensorToTarget_testing.getR(), EulerType.ZYZ, eulerZYZ_fromInvert);
+                    Log.i(logTagTag, "onCameraFrame : testing 2017_08_23: eulerZYZ_fromInvert = " + eulerZYZ_fromInvert[0] + "," + eulerZYZ_fromInvert[1] + "," + eulerZYZ_fromInvert[2]);
+                    Vector3D_F64 sensorToTarget_testing_trans = sensorToTarget_testing.getTranslation();
+                    Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_trans : x = " + sensorToTarget_testing_trans.getX() + ", y = " + sensorToTarget_testing_trans.getY() + ", z = " + sensorToTarget_testing_trans.getZ());
+                    sensorToTarget_testing_quat = new Quaternion_F64();
+                    ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
+                    Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
+
+                    Point2D_F64 locationPixel = new Point2D_F64();
+                    detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
+                    if (isPartOfRobotVisualModel(tag_id)) {
+                        List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected, singleDummyRobotId);
+                        DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, quaternion_to_marker);
+                        visionTaskFeaturesDetected.add(detectedTag);
+                        Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
+                    } else if (isALandmark(tag_id)) {
+                        DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, locationPixel);
+                        landmarkFeatures.add(detectedTag);
+                        Log.i(logTagTag, "onCameraFrame: isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
+                    } else { // not part of something that we are looking for, so ignore
+                        Log.i(logTagTag, "onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
+                        continue;
+                    }
+
+                    //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
+                    Log.i(logTagTag, "onCameraFrame: after detectedFeaturesClient.reportDetectedFeature");
+                    if (LOCALISING_CAMERA_FROM_OBSERVED_FEATURES) {
+                        updateLocationFromDetectedFeature(tag_id, logTagTag, translation_to_marker, quaternion_to_marker);
+                    }
+                    if (TESTING_TRANSFORMATIONS_OF_TRANSFORMS) {
+                        variousUnusedAttemptsAtCoordinateSystemCorrection();
+                    }
+
+                } else {  // 3D info not available for tag/marker
+                    drawMarkeLocationOnDisplay_BoofCV_no3dData(detector, detectionOrder_);
+                }
+            }
+            updateTrackingData(robotFeatures);
+            if (FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
+                Se3_F64 cameraPose = updatePoseEstimate(landmarkFeatures);
+                int numElementsInRot = cameraPose.R.getNumElements();
+                Vector3D_F64 translation = cameraPose.T;
+                Log.i(TAG, "onCameraFrame: cameraPose: " + /*" rotation numElements=" + numElementsInRot + ", rotation=" + cameraPose.R.toString() + */", translation =" + translation.toString());
+            } else {
+                Log.i(TAG, "onCameraFrame: cameraPose: not enough landmarks detected to estimate camera pose.");
+            }
+
+            Log.i(TAG, "onCameraFrame: after processing for " + detector.totalFound() + " tags found via BoofCV");
+
+        } catch (Exception e) {
+            Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
+            e.printStackTrace();
         }
     }
 
@@ -1456,6 +1471,14 @@ public class MainActivity
         }
     }
 
+    /**
+     * Filter and smooth the robot pose estimates for one time period
+     * - no motion model -
+     * from the poses of the detected features of that robot
+     * and send that pose estimate to the VOS Server.
+     *
+     * @param robots map of robot ids to detected features.
+     */
     private void calcAndReportRobotPose(HashMap<RobotId, List<DetectedTag>> robots) {
     /* Dev: part of robot visual model */
         for(RobotId robotId_ : robots.keySet()) {
