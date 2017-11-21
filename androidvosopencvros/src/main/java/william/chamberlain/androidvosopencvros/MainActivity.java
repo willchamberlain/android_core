@@ -202,6 +202,10 @@ public class MainActivity
     private LocaliseFromAFeatureServer localiseFromAFeatureServer;
     private VosTaskAssignmentSubscriberNode vosTaskAssignmentSubscriberNode;
 
+    private SmartCameraTopLevelController smartCameraTopLevelController = new SmartCameraTopLevelController();
+    private SmartCameraExtrinsicsCalibrator smartCameraExtrinsicsCalibrator = new SmartCameraExtrinsicsCalibrator();
+
+
 //    private WhereIs whereIs;
 
     private LocationManager mLocationManager;
@@ -460,6 +464,9 @@ public class MainActivity
             this.vosTaskAssignmentSubscriberNode = new VosTaskAssignmentSubscriberNode();
             this.vosTaskAssignmentSubscriberNode.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
             this.vosTaskAssignmentSubscriberNode.setVisionSource_WhereIs(this);
+            this.vosTaskAssignmentSubscriberNode.setSmartCameraTopLevelController(this.smartCameraTopLevelController);
+            setupSmartCameraExtrinsicsCalibrator();
+
             nodeMainExecutor.execute(this.vosTaskAssignmentSubscriberNode, nodeConfiguration8);
         }
         Log.i("init","finish configuring ROS nodes");
@@ -469,6 +476,12 @@ public class MainActivity
         Log.i("init","finish configuring fixed camera poses");
 
         Log.i("init", "finished");
+    }
+
+    void setupSmartCameraExtrinsicsCalibrator() {
+        this.vosTaskAssignmentSubscriberNode.addRobotStatusChangeListener(this.smartCameraExtrinsicsCalibrator);
+        this.smartCameraExtrinsicsCalibrator.setRobotPoseMeasure(this.vosTaskAssignmentSubscriberNode);
+        this.smartCameraExtrinsicsCalibrator.setRobotGoalPublisher(this.vosTaskAssignmentSubscriberNode);
     }
 
 
@@ -698,6 +711,13 @@ public class MainActivity
             Log.i(logTag, "finished convertPreviewForBoofCV(last_frame_bytes(), camera);");
             VosTaskSet thingsIShouldBeLookingFor = vosTaskSet;
 
+
+            if(thingsIShouldBeLookingFor.includes(Algorithm.GEOMETRIC)) {
+                Log.i(TAG, "onCameraFrame: start GEOMETRIC feature processing.");
+            } else {
+                Log.i(TAG, "onCameraFrame: not GEOMETRIC feature processing.");
+            }
+
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
                 Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
                 detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim);
@@ -719,7 +739,7 @@ public class MainActivity
                 }
             }
 
-            calcAndReportRobotPose(robotsDetected);
+            dealWithDetectedFeatures(robotsDetected);
             Log.i(TAG, "onCameraFrame: after reported robot pose ");
 
         } else {
@@ -745,6 +765,7 @@ public class MainActivity
         if (screenLocked) {
             blankScreenOutput_OpenCV(logTag);
         }
+        smartCameraExtrinsicsCalibrator.finishedWithImage();
         Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if (displayRgb) {
             renderGUI();
@@ -1052,7 +1073,7 @@ public class MainActivity
         Log.i(TAG, "onCameraFrame: after SURF feature processing.");
     }
 
-    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected, RobotId singleDummyRobotId, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim) {
+    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim) {
         try {
             FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                     new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -1258,7 +1279,7 @@ public class MainActivity
                     Point2D_F64 locationPixel = new Point2D_F64();
                     detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                     if (isPartOfRobotVisualModel(tag_id)) {
-                        List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected, singleDummyRobotId);
+                        List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected_, singleDummyRobotId_);
                         DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, quaternion_to_marker);
                         visionTaskFeaturesDetected.add(detectedTag);
                         Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
@@ -1283,6 +1304,12 @@ public class MainActivity
                 } else {  // 3D info not available for tag/marker
                     drawMarkeLocationOnDisplay_BoofCV_no3dData(detector, detectionOrder_);
                 }
+
+                Point2D_F64 locationPixel = new Point2D_F64();
+                detector.getImageLocation(detectionOrder_,locationPixel);
+                PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
+                this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition);
+
             }
             updateTrackingData(robotFeatures);
             if (FOUR_POINTS_REQUIRED_FOR_PNP <= landmarkFeatures.size()) {
@@ -1327,11 +1354,11 @@ public class MainActivity
     }
 
     @NonNull
-    private List<DetectedTag> visionTaskFeaturesDetected(HashMap<RobotId, List<DetectedTag>> robotsDetected, RobotId singleDummyRobotId) {
-        List<DetectedTag> robotFeatures__ = robotsDetected.get(singleDummyRobotId);
+    private List<DetectedTag> visionTaskFeaturesDetected(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_) {
+        List<DetectedTag> robotFeatures__ = robotsDetected_.get(singleDummyRobotId_);
         if(null == robotFeatures__) {
             robotFeatures__ = new ArrayList<DetectedTag>();
-            robotsDetected.put(singleDummyRobotId,robotFeatures__);
+            robotsDetected_.put(singleDummyRobotId_,robotFeatures__);
         }
         return robotFeatures__;
     }
@@ -1469,6 +1496,24 @@ public class MainActivity
                 eventLog_DetectedFeaturesClient_notAvailable(tagId);
             }
         }
+    }
+
+    private void dealWithDetectedFeatures(HashMap<RobotId, List<DetectedTag>> detectedFeatures) {
+        for(RobotId robotId_ : detectedFeatures.keySet()) {
+            HashMap<RobotId, List<DetectedTag>> detectedFeaturesSubset = new HashMap<RobotId, List<DetectedTag>>();
+            detectedFeaturesSubset.put(robotId_, detectedFeatures.get(robotId_));
+            if (robotId_.idString().startsWith(VisionTaskType.LOCALISE_CAMERA.name())) {
+                localiseCameraFromFeatures(detectedFeaturesSubset);
+            } else if (robotId_.idString().startsWith(VisionTaskType.LOCALISE_EXTERNAL.name())) {
+                calcAndReportRobotPose(detectedFeaturesSubset);
+            } else {
+
+            }
+        }
+    }
+
+    private void localiseCameraFromFeatures(HashMap<RobotId, List<DetectedTag>> robots) {
+
     }
 
     /**

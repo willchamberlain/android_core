@@ -38,4 +38,4 @@ include "/mnt/nixbig/downloads/android_cv_bridge"
 // include "compressed_map_transport"
 // include "polling_input_stream"
 
-include ':vos', ':tests'
+include ':vos', ':tests', ':just.atest'

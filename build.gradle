@@ -288,3 +288,10 @@ configure(subprojects.findAll { it.name.startsWith("vos") }) {
 // Don't need uploadArchives
 // defaultTasks 'assembleRelease', 'uploadArchives'
 defaultTasks 'assembleRelease'
+
+
+//tasks.whenTaskAdded { task ->
+//    if (task.name.equals("lint")) {
+//        task.enabled = false
+//    }
+//}
