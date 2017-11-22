@@ -1105,6 +1105,9 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
     }
 
     @Override
+    public void resetExtrinsicCalibration(){}
+
+    @Override
     public void relocalise() {
         poseKnown   = false;
         position    = new double[]{0.0,0.0,1.0};

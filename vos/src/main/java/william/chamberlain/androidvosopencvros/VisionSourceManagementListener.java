@@ -176,6 +176,9 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case ALLOCATE_TO_TARGET:
                             visionSource.allocateTo(VisionSource.TARGET_ALLOCATION_KEY);
                             break;
+                        case RESET_EXTERNAL_CALIBRATION:
+                            visionSource.resetExtrinsicCalibration();
+                            break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");
                             break;

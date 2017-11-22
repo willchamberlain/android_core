@@ -27,7 +27,8 @@ public enum ManagementCommand {
 //        ORIENTATION("orientation"),
 //        POSE("pose"),
         ALLOCATE_TO_ROBOT("task: robot 170 290 250 330"),
-        ALLOCATE_TO_TARGET("task: target 210");
+        ALLOCATE_TO_TARGET("task: target 210"),
+        RESET_EXTERNAL_CALIBRATION("reset external calibration");
 
         public final String command_val;
 

@@ -123,6 +123,9 @@ public class CameraActivity
     @Override
     public void allocateTo(String targetKey) {}
 
+    @Override
+    public void resetExtrinsicCalibration(){}
+
     /*** end implement VisionSource *****************************************************************/
 
     VosTaskSet vosTaskSet;

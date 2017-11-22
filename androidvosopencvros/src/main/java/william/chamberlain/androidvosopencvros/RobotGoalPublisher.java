@@ -9,7 +9,9 @@ import geometry_msgs.PoseStamped;
  */
 
 interface RobotGoalPublisher {
-    void sendRobotGoal(PoseStamped poseStamped_);
+    void sendRobotGoalInWorldFrame(PoseStamped poseStamped_);
 
-    void sendRobotGoal(Transform transform_);
+    void sendRobotGoalInWorldFrame(Transform transform_);
+
+    void sendRobotGoalInRobotFrame(Transform transform_);
 }

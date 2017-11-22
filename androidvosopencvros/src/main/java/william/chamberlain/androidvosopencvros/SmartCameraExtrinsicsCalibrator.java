@@ -18,6 +18,7 @@ import static actionlib_msgs.GoalStatus.ABORTED;
 import static actionlib_msgs.GoalStatus.ACTIVE;
 import static actionlib_msgs.GoalStatus.LOST;
 import static actionlib_msgs.GoalStatus.PENDING;
+import static actionlib_msgs.GoalStatus.PREEMPTED;
 import static actionlib_msgs.GoalStatus.PREEMPTING;
 import static actionlib_msgs.GoalStatus.RECALLED;
 import static actionlib_msgs.GoalStatus.RECALLING;
@@ -215,7 +216,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             }
             System.out.println("SCEC: planRobotPositions: calculating poses: "+stateString());
 //            List<Transform> plannedRobotPositions = new ArrayList<>();
-            float scale = 0.2f;
+            float scale = 0.25f;
             Observation lastObservation = observations.get(observations.size() - 1);
             System.out.println("SCEC: planRobotPositions: lastObservation="+lastObservation);
             PixelPosition pixelPosition = lastObservation.pixelPosition;
@@ -223,7 +224,6 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             Quaternion robotGoalRotation = RosTypes.copyQuaternion(lastObservation.map_to_baselink_pose);
             Vector3 robotGoalPositionInWorldFrame = RosTypes.copyVector3(lastObservation.map_to_baselink_pose);
             robotGoalPoses = new ArrayList<Transform>(1);
-
 
             final PlanningStrategy planningStrategy = carryOn;
             switch(planningStrategy) {
@@ -254,8 +254,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 }
                 case carryOn: {
                     if (askRobotToMove_worldFrame) {
-                        for (int i_ = 1; i_ < 5; i_++) {
-                            Vector3 changeFromFirstObservationInRobotFrame = new Vector3((double) i_ * scale, 0.0, 0.0);
+                        for (int i_ = 1; i_ < 6; i_++) {
+                            double y = 0.0;
+                            if(i_%2 == 0) { y = (double) i_ * scale; }
+                            Vector3 changeFromFirstObservationInRobotFrame = new Vector3((double) i_ * scale, y, 0.0);
                             Vector3 changeFromFirstObservationInWorldFrame = robotGoalRotation.rotateAndScaleVector(changeFromFirstObservationInRobotFrame);
                             robotGoalPositionInWorldFrame = robotGoalPositionInWorldFrame.add(changeFromFirstObservationInWorldFrame);
                             Transform robotGoalPose = new Transform(robotGoalPositionInWorldFrame, robotGoalRotation);
@@ -264,8 +266,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                         }
                         TEMP_NUM_OBS_EQUAL_NUM_PLANNED = robotGoalPoses.size();
                     } else {
-                        for (int i_ = 1; i_ < 5; i_++) {
-                            Vector3 changeFromFirstObservationInRobotFrame = new Vector3((double) i_ * scale, 0.0, 0.0);
+                        for (int i_ = 1; i_ < 6; i_++) {
+                            double y = 0.0;
+                            if(i_%2 == 0) { y = (double) i_ * scale; }
+                            Vector3 changeFromFirstObservationInRobotFrame = new Vector3((double) i_ * scale, y, 0.0);
                             Transform robotGoalPose = new Transform(changeFromFirstObservationInRobotFrame, Quaternion.identity());
                             robotGoalPoses.add(robotGoalPose);
                             System.out.println("SCEC: planRobotPositions: carryOnInRobotFrame: new robotGoalPose=" + robotGoalPose);
@@ -308,6 +312,13 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             robotGoalPublisher.sendRobotGoalInRobotFrame(nextPose);
             System.out.println("SCEC: askRobotToMove: sendRobotGoalInRobotFrame("+nextPose+"): "+stateString());
         }
+        try {
+            System.out.println("SCEC: askRobotToMove: start sleep.");
+            Thread.sleep(2000);
+            System.out.println("SCEC: askRobotToMove: end sleep.");
+        } catch(InterruptedException ie) {
+            System.out.println("SCEC: askRobotToMove: sleep interrupted: "+ie.getMessage());
+        }
 //        System.out.println("SCEC: askRobotToMove: end: "+stateString());
     }
 
@@ -349,6 +360,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                     case ACTIVE:        // started moving
                         System.out.println("SCEC: robotStatusChange: ACTIVE");
                         robotIsMoving();
+                        break;
+                    case PREEMPTED:
+                        System.out.println("SCEC: robotStatusChange: PREEMPTED");
+                        robotInUncertainMoveState();
                         break;
                     case SUCCEEDED:     // got there: now measure position and try estimating a ground plane
                         System.out.println("SCEC: robotStatusChange: SUCCEEDED");

@@ -1093,6 +1093,8 @@ public class MainActivity
             Log.i(logTag, "finished detector.detect(image);");
 
 
+            boolean smartCameraExtrinsicsCalibrator_first_notification_this_frame = true;
+
             // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
             for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
                 //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
@@ -1211,6 +1213,14 @@ public class MainActivity
                     Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
                     transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
 
+                    Point2D_F64 locationPixel = new Point2D_F64();
+                    detector.getImageLocation(detectionOrder_,locationPixel);
+                    PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
+                    if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
+                        smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
+                        this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition,transformOfFeatureInVisualModel);
+                    }
+
                     DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
 
                     Se3_F64 sensorToTarget_ROSFrame_toRobotBaseLink = new Se3_F64();
@@ -1276,7 +1286,7 @@ public class MainActivity
                     ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
                     Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
 
-                    Point2D_F64 locationPixel = new Point2D_F64();
+                    locationPixel = new Point2D_F64();
                     detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                     if (isPartOfRobotVisualModel(tag_id)) {
                         List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected_, singleDummyRobotId_);
@@ -1307,8 +1317,11 @@ public class MainActivity
 
                 Point2D_F64 locationPixel = new Point2D_F64();
                 detector.getImageLocation(detectionOrder_,locationPixel);
-                PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
-                this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition);
+//                PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
+//                if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
+//                    smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
+//                    this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition,transformOfFeatureInVisualModel_inv);
+//                }
 
             }
             updateTrackingData(robotFeatures);
@@ -2247,6 +2260,12 @@ public class MainActivity
 
     public void allocateTo(String targetKey) {
         allocatedTargets.put(ROBOT_ALLOCATION_KEY,true);
+    }
+
+
+    @Override
+    public void resetExtrinsicCalibration(){
+        this.smartCameraExtrinsicsCalibrator.uncalibrated();
     }
 
     @Override

@@ -10,6 +10,7 @@ public interface VisionSource {
     void relocalise();
     void publishCurrentFrame();
     void allocateTo(String targetKey);
+    void resetExtrinsicCalibration();
 
     void startObstacleDetection();
     void startObstacleDetectionHSV();

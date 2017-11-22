@@ -133,6 +133,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
 
         robot_goal_publisher = connectedNode.newPublisher("/move_base_simple/goal", PoseStamped._TYPE);
+        robot_goal_publisher.setLatchMode(true);
 
         /*** Behaviour ?  Input to/from a task/behaviour : TODO: move to a UncalibratedBehaviour instance? TODO: instance per-robot-that-has-task(s) ************************************/
         robot_move_base_status_subscriber = connectedNode_.newSubscriber("/move_base/status",GoalStatusArray._TYPE);     // TODO: hardcoding
@@ -189,7 +190,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         //  https://answers.ros.org/question/250292/in-rosjavahow-can-i-transform-the-odom-frame-to-map-frame/
         //  https://answers.ros.org/question/249861/how-can-i-record-the-robot-trajectory-and-show-it-on-the-android-device/
         // obtain current robot pose
-        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("map"), GraphName.of("base_link"));
+        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
         Transform robotPoseInMap = frameTransform.getTransform();
 
         return robotPoseInMap;
@@ -224,14 +225,23 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
 
     @Override
-    public void sendRobotGoal(PoseStamped poseStamped_) {
+    public void sendRobotGoalInWorldFrame(PoseStamped poseStamped_) {
         robot_goal_publisher.publish(poseStamped_);
     }
 
     @Override
-    public void sendRobotGoal(Transform transform_) {
+    public void sendRobotGoalInWorldFrame(Transform transform_) {
         PoseStamped poseStamped = robot_goal_publisher.newMessage();
         header(poseStamped, "map");
+        RosTypes.updatePoseStampedFromTransform(transform_, poseStamped);
+
+        robot_goal_publisher.publish(poseStamped);
+    }
+
+    @Override
+    public void sendRobotGoalInRobotFrame(Transform transform_) {
+        PoseStamped poseStamped = robot_goal_publisher.newMessage();
+        header(poseStamped, "base_link");
         RosTypes.updatePoseStampedFromTransform(transform_, poseStamped);
 
         robot_goal_publisher.publish(poseStamped);
