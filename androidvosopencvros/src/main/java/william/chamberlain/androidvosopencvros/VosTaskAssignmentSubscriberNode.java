@@ -147,29 +147,6 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
                     for (GoalStatus move_base_goalStatus : goalStatusArray.getStatusList()) {
                         if(move_base_goalStatus.getGoalId().getId().startsWith("/move_base")) {                         // TODO: hardcoding
                             statusList.add(move_base_goalStatus);
-
-//
-//                            final byte status_now = move_base_goalStatus.getStatus();
-//                            if(MOVE_BASE_STATUS_INIT == move_base_status) {                             // starting status
-//                                move_base_status = status_now;
-//                            } else if (status_now == move_base_status) {                                // status unchanged
-//
-//                            } else {                                                                    // status change
-//                                log.info("Status changed: was '"+move_base_status+"', is now '"+status_now+"'.");
-//                                move_base_status = status_now;
-//                                // smartCameraTopLevelController.statusChanged(-9000, move_base_status);    // TODO: do this
-//                                switch (status_now) {
-//                                    case PENDING:       // started waiting for planning
-//                                        break;
-//                                    case ACTIVE:        // started moving
-//                                        break;
-//                                    case SUCCEEDED:     // got there: now measure position and try estimating a ground plane
-//                                        measureRobotPose();
-//                                        break;
-//                                    default:            // failed in some fashion: go back to previous and try another
-//                                }
-//                            }
-
                             for (RobotStatusChangeListener changeListener : robotStatusChangeListeners) {
                                 changeListener.robotStatusChange(statusList);
                             }
@@ -183,6 +160,8 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
     }
 
+
+
     /*** RobotPoseMeasure *****************************************/
 
     public Transform askRobotForPose() {  // see SmartCameraExtrinsicsCalibrator
@@ -192,6 +171,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         // obtain current robot pose
         FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
         Transform robotPoseInMap = frameTransform.getTransform();
+        frameTransform.toTransformStampedMessage()
 
         return robotPoseInMap;
 
@@ -206,30 +186,31 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
     /*** RobotStatusMonitor *****************************************/
 
-    @Override
+    @Override // RobotStatusMonitor
     public GoalStatus[] robotStatusChange() {
         return new GoalStatus[0];
     }
 
     List<RobotStatusChangeListener> robotStatusChangeListeners = new ArrayList<>(1);
 
-    @Override
+    @Override // RobotStatusMonitor
     public void addRobotStatusChangeListener(RobotStatusChangeListener listener_) {
         robotStatusChangeListeners.add(listener_);
     }
 
-    @Override
+    @Override // RobotStatusMonitor
     public void removeRobotStatusChangeListener(RobotStatusChangeListener listener_) {
         robotStatusChangeListeners.remove(listener_);
     }
 
+    /*** RobotGoalPublisher *****************************************/
 
-    @Override
+    @Override // RobotGoalPublisher
     public void sendRobotGoalInWorldFrame(PoseStamped poseStamped_) {
         robot_goal_publisher.publish(poseStamped_);
     }
 
-    @Override
+    @Override // RobotGoalPublisher
     public void sendRobotGoalInWorldFrame(Transform transform_) {
         PoseStamped poseStamped = robot_goal_publisher.newMessage();
         header(poseStamped, "map");
@@ -238,7 +219,8 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         robot_goal_publisher.publish(poseStamped);
     }
 
-    @Override
+
+    @Override // RobotGoalPublisher
     public void sendRobotGoalInRobotFrame(Transform transform_) {
         PoseStamped poseStamped = robot_goal_publisher.newMessage();
         header(poseStamped, "base_link");
