@@ -10,5 +10,5 @@ import actionlib_msgs.GoalStatus;
 
 
 interface RobotStatusChangeListener {
-    void robotStatusChange(List<GoalStatus> statuses);
+    void robotStatusChange(java.util.Date statusTime, List<GoalStatus> statuses);
 }

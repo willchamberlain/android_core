@@ -125,7 +125,7 @@ public class Camera2BasicFragment extends Fragment
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
-    static final int targetFPS = 3; //4; //8;
+    static final int targetFPS = 8; //3; //4; //8;
     static final int numRecordsToUse = 10;
     public static final float FX_FOCAL_LENGTH_X_PIXELS_AS_CALIBRATED = 528.65F;  // Nexus 6 # 510  //= 263.1f*2.0f; // 519.902859f;
     public static final float FY_FOCAL_LENGTH_Y_PIXELS_AS_CALIBRATED = 527.93F;  // Nexus 6 # 510  //= 262.8f*2.0f; // 518.952669f;
@@ -322,6 +322,10 @@ public class Camera2BasicFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
+            if(frameNum == 0) {
+                Log.i(TAG,"onImageAvailable: frameNum==0");
+                List<Point3>
+            }
             frameNum++;  if (frameNum == Long.MAX_VALUE) { frameNum=1; }
 
             long registerAsVisionSourceStartTime = Calendar.getInstance().getTimeInMillis();

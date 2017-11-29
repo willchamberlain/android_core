@@ -218,6 +218,17 @@ public abstract class RosActivity extends Activity {
   @Override
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     super.onActivityResult(requestCode, resultCode, data);
+
+      /*********************************************************/
+      /*** start just trying some JavaCV ***********************/
+
+//      List<org.opencv.core.Point3> pointsIn3d;
+
+      /*** end just try some JavaCV ****************************/
+      /*********************************************************/
+
+
+
     if (resultCode == RESULT_OK) {
       int camNum;
       try {

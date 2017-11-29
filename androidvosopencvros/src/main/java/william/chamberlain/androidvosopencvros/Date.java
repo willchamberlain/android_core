@@ -13,4 +13,11 @@ public class Date {
     public static Time nowAsTime() {
         return Time.fromMillis((new java.util.Date()).getTime());
     }
+
+    public static java.util.Date toDate(Time rosTime) {
+        long longNanoSeconds = (long)rosTime.nsecs;
+        long longSeconds     = (long)rosTime.secs;
+        long timeInMilliseconds = longNanoSeconds*1000L*1000L + longSeconds/1000L;
+        return new java.util.Date(timeInMilliseconds);
+    }
 }

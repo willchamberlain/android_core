@@ -30,6 +30,7 @@ include "androidvosopencvros"
 include "AppCamera2"
 //include "androidvosopencv"
 include "/mnt/nixbig/downloads/android_cv_bridge"
+// include "unit_tests"  // doesn't work because of Android Studio / Gradle problems once you declare any sourceSets
 //include "plainjavafortesting"
 
 // TODO(damonkohler): The following projects are not included in the

@@ -206,6 +206,7 @@ public class MainActivity
     private SmartCameraExtrinsicsCalibrator smartCameraExtrinsicsCalibrator = new SmartCameraExtrinsicsCalibrator();
 
 
+
 //    private WhereIs whereIs;
 
     private LocationManager mLocationManager;
@@ -642,6 +643,7 @@ public class MainActivity
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         frameNumber++;
+        java.util.Date frameTime = new java.util.Date();
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
             Log.i(TAG,"onCameraFrame: readyToProcessImages is false: returning image without processing.");
@@ -720,7 +722,7 @@ public class MainActivity
 
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
                 Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
-                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim);
+                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, frameTime);
                 Log.i(TAG, "onCameraFrame: after BoofCV Square Fiducial feature processing.");
             } else {
                 Log.i(TAG, "onCameraFrame: NOT BoofCV Square Fiducial feature processing.");
@@ -765,7 +767,7 @@ public class MainActivity
         if (screenLocked) {
             blankScreenOutput_OpenCV(logTag);
         }
-        smartCameraExtrinsicsCalibrator.finishedWithImage();
+        smartCameraExtrinsicsCalibrator.imageReceived();
         Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if (displayRgb) {
             renderGUI();
@@ -1073,7 +1075,7 @@ public class MainActivity
         Log.i(TAG, "onCameraFrame: after SURF feature processing.");
     }
 
-    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim) {
+    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date frameTime) {
         try {
             FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                     new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -1218,7 +1220,7 @@ public class MainActivity
                     PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
                     if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
                         smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
-                        this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition,transformOfFeatureInVisualModel);
+                        this.smartCameraExtrinsicsCalibrator.detectedInImage("",frameTime, pixelPosition,transformOfFeatureInVisualModel);
                     }
 
                     DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
@@ -1320,7 +1322,7 @@ public class MainActivity
 //                PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
 //                if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
 //                    smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
-//                    this.smartCameraExtrinsicsCalibrator.robotDetectedInImage(pixelPosition,transformOfFeatureInVisualModel_inv);
+//                    this.smartCameraExtrinsicsCalibrator.detectedInImage(pixelPosition,transformOfFeatureInVisualModel_inv);
 //                }
 
             }

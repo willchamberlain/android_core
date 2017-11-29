@@ -25,6 +25,7 @@ import actionlib_msgs.GoalStatusArray;
 import geometry_msgs.Point;
 import geometry_msgs.Pose;
 import geometry_msgs.PoseStamped;
+import geometry_msgs.PoseWithCovarianceStamped;
 import geometry_msgs.Quaternion;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.ros_types.RosTypes;
@@ -38,7 +39,7 @@ import static william.chamberlain.androidvosopencvros.ros_types.RosTypes.header;
  * Created by will on 1/09/17.
  */
 
-public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements RobotStatusMonitor, RobotPoseMeasure, RobotGoalPublisher {
+public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements RobotStatusMonitor, RobotPoseMeasure, RobotGoalPublisher, RobotPoseMonitor {
 
     private String nodeNamespace = null;
     private VisionSource_WhereIs visionSource_WhereIs = null;
@@ -48,6 +49,8 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     private SmartCameraTopLevelController smartCameraTopLevelController;
     Publisher<PoseStamped> robot_goal_publisher = null;
     private Subscriber<GoalStatusArray> robot_move_base_status_subscriber = null;        // SEE detect_feature_server_3.py  handle_move_base_status()
+    private List<Subscriber<PoseWithCovarianceStamped>> robot_pose_covar_subscriber_List = new ArrayList<>();
+
     static final byte MOVE_BASE_STATUS_INIT = -1;
     byte move_base_status = MOVE_BASE_STATUS_INIT;
 
@@ -143,12 +146,14 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
                 if (null == goalStatusArray.getStatusList() || goalStatusArray.getStatusList().size() <= 0) {
 
                 } else {
+                    Time rosTime = goalStatusArray.getHeader().getStamp();
+                    java.util.Date statusTime = Date.toDate(rosTime);
                     List<GoalStatus> statusList = new ArrayList<GoalStatus>();
                     for (GoalStatus move_base_goalStatus : goalStatusArray.getStatusList()) {
                         if(move_base_goalStatus.getGoalId().getId().startsWith("/move_base")) {                         // TODO: hardcoding
                             statusList.add(move_base_goalStatus);
                             for (RobotStatusChangeListener changeListener : robotStatusChangeListeners) {
-                                changeListener.robotStatusChange(statusList);
+                                changeListener.robotStatusChange(statusTime,statusList);
                             }
                         }
                     }
@@ -156,8 +161,30 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
             }
         } );
 
+        String robot_graph_prefix = "";
+        addSubscriptionToRobotPose(connectedNode_, robot_graph_prefix);
+    }
 
+    private void addSubscriptionToRobotPose(ConnectedNode connectedNode_, String robot_graph_prefix) {
+        Subscriber<PoseWithCovarianceStamped> robot_pose_covar_subscriber = null;
+        robot_pose_covar_subscriber = connectedNode_.newSubscriber(robot_graph_prefix+"/amcl_pose", PoseWithCovarianceStamped._TYPE);     // TODO: hardcoding
+        robot_pose_covar_subscriber.addMessageListener(new PoseListener(robot_graph_prefix));
+        robot_pose_covar_subscriber_List.add(robot_pose_covar_subscriber);
+    }
 
+    class PoseListener implements MessageListener<PoseWithCovarianceStamped>{
+        String robotId=null;
+        public PoseListener(String robot_graph_prefix) {
+            robotId = robot_graph_prefix;
+        }
+        @Override
+        public void onNewMessage(PoseWithCovarianceStamped pose) {
+            for (RobotPoseListener poseListener : robotPoseListeners) {
+                if(poseListener.robotIds().contains(robotId)) {
+                    poseListener.robotPose(robotId, pose);
+                }
+            }
+        }
     }
 
 
@@ -171,7 +198,6 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         // obtain current robot pose
         FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
         Transform robotPoseInMap = frameTransform.getTransform();
-        frameTransform.toTransformStampedMessage()
 
         return robotPoseInMap;
 
@@ -202,6 +228,23 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     public void removeRobotStatusChangeListener(RobotStatusChangeListener listener_) {
         robotStatusChangeListeners.remove(listener_);
     }
+
+    /*** RobotPoseMonitor *******************************************/
+
+    List<RobotPoseListener> robotPoseListeners = new ArrayList<>(1);
+
+    @Override
+    public void addRobotPoseListener(RobotPoseListener listener_) {
+        robotPoseListeners.add(listener_);
+    }
+
+    @Override
+    public void removeRobotPoseListener(RobotPoseListener listener_) {
+        robotPoseListeners.remove(listener_);
+    }
+
+
+
 
     /*** RobotGoalPublisher *****************************************/
 
