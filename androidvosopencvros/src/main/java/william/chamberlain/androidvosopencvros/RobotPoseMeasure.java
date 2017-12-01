@@ -1,5 +1,6 @@
 package william.chamberlain.androidvosopencvros;
 
+import org.ros.rosjava_geometry.FrameTransform;
 import org.ros.rosjava_geometry.Transform;
 
 /**
@@ -8,4 +9,5 @@ import org.ros.rosjava_geometry.Transform;
 
 interface RobotPoseMeasure {
     Transform askRobotForPose();
+    FrameTransform askRobotForPoseFrame();
 }
