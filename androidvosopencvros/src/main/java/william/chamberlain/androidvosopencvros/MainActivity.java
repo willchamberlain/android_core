@@ -50,6 +50,7 @@ import android.view.MenuItem;
 import android.view.WindowManager;
 import android.view.MenuInflater;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,6 +60,8 @@ import java.util.regex.Matcher;
 
 
 import android.util.Log;
+
+import com.instacart.library.truetime.TrueTime;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -238,6 +241,16 @@ public class MainActivity
         setContentView(R.layout.activity_main);
 
         checkPermissions();
+
+        final String ntpHost="172.19.63.161";           // TODO - pass the host portion of ROS_MASTER_URI from RosActivity
+        try {
+            new Thread(new Runnable(){ @Override public void run() {
+                try { TrueTime.build() .withNtpHost(ntpHost) .initialize();}
+                catch(IOException e){System.out.println("ERROR: IOException initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage()); e.printStackTrace();} } }
+            ).start();
+        }
+        catch(RuntimeException e) { Log.e(TAG,"onCreate: exception initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage(), e); }
+
 
         mLocationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
         mSensorManager = (SensorManager)this.getSystemService(SENSOR_SERVICE);
@@ -644,6 +657,11 @@ public class MainActivity
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         frameNumber++;
         java.util.Date frameTime = new java.util.Date();
+
+        /* TODO - for full NTP impl - several NTP servers, several requests per server, fastest response per server, median filter over time differences across servers - see /mnt/nixbig/downloads/ntp_instacart_truetime_android/truetime-android/library-extension-rx/src/main/java/com/instacart/library/truetime/TrueTimeRx.java */
+        if(TrueTime.isInitialized()){ java.util.Date realDate = TrueTime.now(); Log.i(TAG,"onCameraFrame: date from TrueTime - java.util.Date() = "+(realDate.getTime()-frameTime.getTime()));}
+        else{Log.i(TAG,"onCameraFrame: TrueTime is not initialised.");}
+
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
             Log.i(TAG,"onCameraFrame: readyToProcessImages is false: returning image without processing.");
@@ -757,11 +775,11 @@ public class MainActivity
 
 
         Log.i(TAG, "onCameraFrame: starting OpenCV segment ");
-    if( !running_native) {
-        Log.i(TAG, "running_native == false: not running native code, not running OpenCV segment ");
-    } else {
-        imageProcessingNative(focalLengthCalc, calcImgDim);
-    } // end  if( running_native)
+        if( !running_native) {
+            Log.i(TAG, "running_native == false: not running native code, not running OpenCV segment ");
+        } else {
+            imageProcessingNative(focalLengthCalc, calcImgDim);
+        } // end  if( running_native)
         Log.i(TAG, "after OpenCV segment ");
 
         if (screenLocked) {

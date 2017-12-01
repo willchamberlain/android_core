@@ -208,6 +208,10 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         // if estimate is bad, set robot goal to gather more data
         // if estimate is good, done
     }
+    public FrameTransform askRobotForPoseFrame() {  // see SmartCameraExtrinsicsCalibrator
+        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
+        return frameTransform;
+    }
 
 
     /*** RobotStatusMonitor *****************************************/
