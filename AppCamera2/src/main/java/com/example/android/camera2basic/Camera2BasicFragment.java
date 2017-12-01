@@ -324,7 +324,7 @@ public class Camera2BasicFragment extends Fragment
         public void onImageAvailable(ImageReader reader) {
             if(frameNum == 0) {
                 Log.i(TAG,"onImageAvailable: frameNum==0");
-                List<Point3>
+//                List<Point3>
             }
             frameNum++;  if (frameNum == Long.MAX_VALUE) { frameNum=1; }
 

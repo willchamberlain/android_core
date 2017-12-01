@@ -51,7 +51,9 @@ import android.view.WindowManager;
 import android.view.MenuInflater;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -68,6 +70,8 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.ros.time.NtpTimeProvider;
+import org.ros.time.TimeProvider;
 
 import boofcv.abst.feature.associate.AssociateDescription;
 import boofcv.abst.feature.associate.ScoreAssociation;
@@ -136,6 +140,8 @@ public class MainActivity
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
     public static final boolean LOCALISING_CAMERA_FROM_OBSERVED_FEATURES = false;
     public static final boolean TESTING_TRANSFORMATIONS_OF_TRANSFORMS = false;
+    public static final String TIME_QUT_EDU_AU = "time.qut.edu.au";
+    private String ntpHostname = TIME_QUT_EDU_AU;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
@@ -234,6 +240,9 @@ public class MainActivity
 //        return (CameraManager) this.getSystemService(CAMERA_SERVICE);
 //    }
 
+
+    private static final String ntpHost="172.19.63.161";           // TODO - pass the host portion of ROS_MASTER_URI from RosActivity
+
     @Override
     protected void onCreate(Bundle savedInstanceState)   // TODO - look at lifecycle doco and do this properly
     {
@@ -242,12 +251,21 @@ public class MainActivity
 
         checkPermissions();
 
-        final String ntpHost="172.19.63.161";           // TODO - pass the host portion of ROS_MASTER_URI from RosActivity
         try {
-            new Thread(new Runnable(){ @Override public void run() {
-                try { TrueTime.build() .withNtpHost(ntpHost) .initialize();}
-                catch(IOException e){System.out.println("ERROR: IOException initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage()); e.printStackTrace();} } }
-            ).start();
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    for (int i_ = 1; i_ <= 50; i_++) {
+                        try {
+                            TrueTime.build().withNtpHost(ntpHost).withRootDispersionMax(300).initialize();
+                            break;
+                        } catch (IOException e) {
+                            System.out.println("ERROR: IOException initialising TrueTime to NTP host " + ntpHost + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            } ).start();
         }
         catch(RuntimeException e) { Log.e(TAG,"onCreate: exception initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage(), e); }
 
@@ -336,6 +354,14 @@ public class MainActivity
 
 
 
+    public TimeProvider timeProvider = null;
+    private NtpTimeProvider ntpTimeProvider=null;
+
+    private NodeConfiguration configTimeProvider(NodeConfiguration nodeConfiguration_) {
+        if(null != ntpTimeProvider) { nodeConfiguration_.setTimeProvider(ntpTimeProvider); }
+        return nodeConfiguration_;
+    }
+
     @Override
     protected void init(NodeMainExecutor nodeMainExecutor) // configure nodes: config gets fed to an AsyncTask to start the Nodes in a Bound Service: see https://developer.android.com/reference/android/app/Service.html , https://developer.android.com/guide/components/processes-and-threads.html
     {
@@ -378,9 +404,28 @@ public class MainActivity
 
         Log.i("init","begin configuring ROS nodes");
 
+        NodeConfiguration nodeConfigurationBase = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+        nodeConfigurationBase.setMasterUri(masterURI);
+        try {
+            InetAddress ntpServerAddress = InetAddress.getByName(ntpHostname);
+            ntpTimeProvider = new NtpTimeProvider(ntpServerAddress, nodeMainExecutorService.getScheduledExecutorService());
+            timeProvider = ntpTimeProvider;
+            nodeConfigurationBase.setTimeProvider(timeProvider);
+            Log.i(TAG,"init: configured ROS TimeProvider NtpTimeProvider(\""+ntpServerAddress+"\", ), TimeProvider="+timeProvider);
+            java.util.Date date1 = new java.util.Date();
+            Time time1           = ntpTimeProvider.getCurrentTime();
+            java.util.Date date2 = new java.util.Date();
+            Time time2           = ntpTimeProvider.getCurrentTime();
+            Log.i(TAG, "NtpTimeProvider: NtpTimeProvider time1 - java.util date1 = "+(time1.totalNsecs() - date1.getTime()*1000L*1000L));
+            Log.i(TAG, "NtpTimeProvider: NtpTimeProvider time2 - java.util date2 = "+(time2.totalNsecs() - date2.getTime()*1000L*1000L));
+        } catch(UnknownHostException e){Log.e(TAG,"init: failed to configure ROS TimeProvider due to unknown host in  InetAddress.getByName( "+masterURI+").getHost() ))  : "+e, e); }
+
+
+
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"detectedfeatures_serviceclient_node");
             this.detectedFeaturesClient = new DetectedFeaturesClient();
             detectedFeaturesClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
@@ -390,13 +435,14 @@ public class MainActivity
 
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName(NODE_NAMESPACE+"pose_server");
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"pose_server");
             this.setPoseServer = new SetPoseServer();
             setPoseServer.setNodeNamespace(NODE_NAMESPACE);
             setPoseServer.setPosedEntity(this);
-            nodeMainExecutor.execute(this.setPoseServer, nodeConfiguration);
+            nodeMainExecutor.execute(this.setPoseServer, nodeConfiguration8);
         }
 
 //        if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
@@ -410,20 +456,22 @@ public class MainActivity
 //        }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration.setMasterUri(masterURI);
-            nodeConfiguration.setNodeName(NODE_NAMESPACE+"vision_source_management_topic_listener");
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
+            nodeConfiguration8.setNodeName(NODE_NAMESPACE+"vision_source_management_topic_listener");
             this.visionSourceManagementListener = new VisionSourceManagementListener();
             visionSourceManagementListener.setNodeNamespace(NODE_NAMESPACE);
             visionSourceManagementListener.setDimmableScreen(this);
             visionSourceManagementListener.setVariableResolution(this);
             visionSourceManagementListener.setVisionSource(this);
-            nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration);
+            nodeMainExecutor.execute(this.visionSourceManagementListener, nodeConfiguration8);
         }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceclient_node");
             this.localiseFromAFeatureClient = new LocaliseFromAFeatureClient();
             localiseFromAFeatureClient.setCameraFrameId(Naming.cameraFrameId(getCamNum()));
@@ -432,9 +480,11 @@ public class MainActivity
         }
 
 
+
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"registervisionsource_serviceclient_node");
             this.registerVisionSourceClient = new RegisterVisionSourceClient();
             registerVisionSourceClient.setBaseUrl(Naming.cameraNamespace(getCamNum()));
@@ -446,8 +496,9 @@ public class MainActivity
         }
 
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"localiseFromAFeature_serviceserver_node");
             this.localiseFromAFeatureServer = new LocaliseFromAFeatureServer();
             localiseFromAFeatureServer.setNodeNamespace(Naming.cameraNamespace(getCamNum()));
@@ -472,8 +523,9 @@ public class MainActivity
             3.1) ... calling  MainActivity.dealWithRequestForInformation(WhereIsAsPub message)
         */
         if(currentapiVersion >= android.os.Build.VERSION_CODES.GINGERBREAD){
-            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
-            nodeConfiguration8.setMasterUri(masterURI);
+//            NodeConfiguration nodeConfiguration8 = NodeConfiguration.newPublic(InetAddressFactory.newNonLoopback().getHostAddress());
+//            nodeConfiguration8.setMasterUri(masterURI);
+            NodeConfiguration nodeConfiguration8 = NodeConfiguration.copyOf(nodeConfigurationBase);
             nodeConfiguration8.setNodeName(NODE_NAMESPACE+"_vos_vision_tasks");
             this.vosTaskAssignmentSubscriberNode = new VosTaskAssignmentSubscriberNode();
             this.vosTaskAssignmentSubscriberNode.setNodeNamespace(Naming.cameraNamespace(getCamNum()));

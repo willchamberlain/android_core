@@ -14,7 +14,7 @@
  * the License.
  */
 
-include "android_10", ':rosjava', ':apache_xmlrpc_client', ':apache_xmlrpc_common', ':apache_xmlrpc_server'
+include "android_10"
 include "android_15"
 //include "android_sensors_driver"
 //include "android_acm_serial"
@@ -39,4 +39,9 @@ include "/mnt/nixbig/downloads/android_cv_bridge"
 // include "compressed_map_transport"
 // include "polling_input_stream"
 
-include ':vos', ':tests', ':just.atest'
+include ':vos'
+
+include ':tests', ':just.atest'
+
+//           include ':rosjava', ':apache_xmlrpc_client', ':apache_xmlrpc_common', ':apache_xmlrpc_server'
+
