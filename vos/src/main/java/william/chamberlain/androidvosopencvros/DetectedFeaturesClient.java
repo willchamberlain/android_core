@@ -77,6 +77,11 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         System.out.println("DetectedFeaturesClient: onStart: success");
     }
 
+    public DetectedFeatureRequest emptyRequest() {
+        return featureServiceClient.newMessage();
+    }
+
+
     /** Reports the detected feature pose in the camera coordinate frame/system, and the camera's current pose to the VOS Server.
      *
      * @param x translation from camera centre frame to the feature - per Kaess AprilTag library.

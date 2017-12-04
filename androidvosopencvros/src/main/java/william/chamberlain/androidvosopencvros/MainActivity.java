@@ -105,12 +105,14 @@ import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
+import vos_aa1.DetectedFeatureRequest;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
 import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
+import william.chamberlain.androidvosopencvros.time.Datetime;
 
 import static boofcv.struct.image.ImageDataType.F32;
 import static boofcv.struct.image.ImageType.Family.GRAY;
@@ -141,7 +143,7 @@ public class MainActivity
     public static final boolean LOCALISING_CAMERA_FROM_OBSERVED_FEATURES = false;
     public static final boolean TESTING_TRANSFORMATIONS_OF_TRANSFORMS = false;
     public static final String TIME_QUT_EDU_AU = "time.qut.edu.au";
-    private String ntpHostname = TIME_QUT_EDU_AU;
+    private String ntpHostname = "172.19.63.161"; //TIME_QUT_EDU_AU;
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
@@ -357,10 +359,6 @@ public class MainActivity
     public TimeProvider timeProvider = null;
     private NtpTimeProvider ntpTimeProvider=null;
 
-    private NodeConfiguration configTimeProvider(NodeConfiguration nodeConfiguration_) {
-        if(null != ntpTimeProvider) { nodeConfiguration_.setTimeProvider(ntpTimeProvider); }
-        return nodeConfiguration_;
-    }
 
     @Override
     protected void init(NodeMainExecutor nodeMainExecutor) // configure nodes: config gets fed to an AsyncTask to start the Nodes in a Bound Service: see https://developer.android.com/reference/android/app/Service.html , https://developer.android.com/guide/components/processes-and-threads.html
@@ -410,14 +408,24 @@ public class MainActivity
             InetAddress ntpServerAddress = InetAddress.getByName(ntpHostname);
             ntpTimeProvider = new NtpTimeProvider(ntpServerAddress, nodeMainExecutorService.getScheduledExecutorService());
             timeProvider = ntpTimeProvider;
+            try {
+                ntpTimeProvider.updateTime();
+            } catch (IOException e) {
+                Log.e(TAG,"init: NtpTimeProvider: ntpTimeProvider.updateTime() exception"+e, e);
+            }
             nodeConfigurationBase.setTimeProvider(timeProvider);
             Log.i(TAG,"init: configured ROS TimeProvider NtpTimeProvider(\""+ntpServerAddress+"\", ), TimeProvider="+timeProvider);
-            java.util.Date date1 = new java.util.Date();
-            Time time1           = ntpTimeProvider.getCurrentTime();
-            java.util.Date date2 = new java.util.Date();
-            Time time2           = ntpTimeProvider.getCurrentTime();
-            Log.i(TAG, "NtpTimeProvider: NtpTimeProvider time1 - java.util date1 = "+(time1.totalNsecs() - date1.getTime()*1000L*1000L));
-            Log.i(TAG, "NtpTimeProvider: NtpTimeProvider time2 - java.util date2 = "+(time2.totalNsecs() - date2.getTime()*1000L*1000L));
+            java.util.Date date1        = new java.util.Date();
+            org.ros.message.Time time1  = ntpTimeProvider.getCurrentTime();
+            java.util.Date trueTimeDate1 = TrueTime.now();
+            java.util.Date date2        = new java.util.Date();
+            org.ros.message.Time time2  = ntpTimeProvider.getCurrentTime();
+            java.util.Date trueTimeDate2 = TrueTime.now();
+            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - java.util date1 = "+(time1.totalNsecs() - date1.getTime()*1000L*1000L));
+            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - java.util date2 = "+(time2.totalNsecs() - date2.getTime()*1000L*1000L));
+            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - TrueTime.now() date1 = "+(time1.totalNsecs() - trueTimeDate1.getTime()*1000L*1000L));
+            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - TrueTime.now() date2 = "+(time2.totalNsecs() - trueTimeDate2.getTime()*1000L*1000L));
+
         } catch(UnknownHostException e){Log.e(TAG,"init: failed to configure ROS TimeProvider due to unknown host in  InetAddress.getByName( "+masterURI+").getHost() ))  : "+e, e); }
 
 
@@ -708,11 +716,29 @@ public class MainActivity
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         frameNumber++;
-        java.util.Date frameTime = new java.util.Date();
 
+        java.util.Date systemTime = new java.util.Date();
         /* TODO - for full NTP impl - several NTP servers, several requests per server, fastest response per server, median filter over time differences across servers - see /mnt/nixbig/downloads/ntp_instacart_truetime_android/truetime-android/library-extension-rx/src/main/java/com/instacart/library/truetime/TrueTimeRx.java */
-        if(TrueTime.isInitialized()){ java.util.Date realDate = TrueTime.now(); Log.i(TAG,"onCameraFrame: date from TrueTime - java.util.Date() = "+(realDate.getTime()-frameTime.getTime()));}
-        else{Log.i(TAG,"onCameraFrame: TrueTime is not initialised.");}
+        checkAndLogTimeVsTrueTime("onCameraFrame: time test: system time: ",systemTime);
+        try {
+            if(TrueTime.isInitialized()) {
+                java.util.Date trueTimeDate = TrueTime.now();
+                DetectedFeatureRequest dummyRequest = detectedFeaturesClient.emptyRequest();  //  NOTE : this is 01/01/1970 00:00:00
+                java.util.Date dummyRequestTime_as_javaUtilDate = william.chamberlain.androidvosopencvros.Date.toDate(dummyRequest.getHeader().getStamp());
+                checkAndLogTimeVsTrueTime("onCameraFrame: time test: ROS Java dummy request: ", dummyRequestTime_as_javaUtilDate);
+                checkAndLogTimeVsTrueTime("onCameraFrame: time test: ROS Java dummy request: ", dummyRequestTime_as_javaUtilDate, trueTimeDate);
+                trueTimeDate = TrueTime.now();
+                org.ros.message.Time timeProviderTime = timeProvider.getCurrentTime();
+                Log.i(TAG,"onCameraFrame: time test: TrueTime.now() = "+trueTimeDate+" = "+trueTimeDate.getTime() + "ms");
+                Log.i(TAG,"onCameraFrame: time test: timeProvider.getCurrentTime() = "+timeProviderTime+" = "+( timeProviderTime.totalNsecs() / (1000L*1000L)) + "ms" );
+                java.util.Date timeProviderTime_as_javaUtilDate = new java.util.Date( ( timeProviderTime.totalNsecs() / (1000L*1000L)) );
+                checkAndLogTimeVsTrueTime("onCameraFrame: time test: NtpTimeProvider vs TrueTime: ", timeProviderTime_as_javaUtilDate, trueTimeDate);
+
+            } else {Log.i(TAG,"onCameraFrame: time test: TrueTime is not initialised.");}
+        } catch (Exception e) {
+            Log.e(TAG,"onCameraFrame: exception comparing TrueTime to a dummy request's time: "+e, e);
+        }
+        java.util.Date imageFrameTime = systemTime;
 
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
@@ -792,7 +818,7 @@ public class MainActivity
 
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
                 Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
-                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, frameTime);
+                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, imageFrameTime);
                 Log.i(TAG, "onCameraFrame: after BoofCV Square Fiducial feature processing.");
             } else {
                 Log.i(TAG, "onCameraFrame: NOT BoofCV Square Fiducial feature processing.");
@@ -845,6 +871,15 @@ public class MainActivity
         } else {
             return matGray;
         }
+    }
+
+    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime) {
+        if(TrueTime.isInitialized()){ java.util.Date realDate = TrueTime.now(); Log.i(TAG,logMsgPrefix_+": date from TrueTime.now() - arg[["+systemTime+"]] = "+(realDate.getTime()-systemTime.getTime())+"milliseconds");}
+        else{Log.i(TAG,logMsgPrefix_+": TrueTime is not initialised.");}
+    }
+
+    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime , java.util.Date trueTime) {
+        Log.i(TAG,logMsgPrefix_+": date from arg[["+trueTime+"]] - arg[["+systemTime+"]] = "+(trueTime.getTime()-systemTime.getTime())+"milliseconds");
     }
 
     private void freeSpace(Camera camera) {
