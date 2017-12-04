@@ -723,11 +723,6 @@ public class MainActivity
         try {
             if(TrueTime.isInitialized()) {
                 java.util.Date trueTimeDate = TrueTime.now();
-                DetectedFeatureRequest dummyRequest = detectedFeaturesClient.emptyRequest();  //  NOTE : this is 01/01/1970 00:00:00
-                java.util.Date dummyRequestTime_as_javaUtilDate = william.chamberlain.androidvosopencvros.Date.toDate(dummyRequest.getHeader().getStamp());
-                checkAndLogTimeVsTrueTime("onCameraFrame: time test: ROS Java dummy request: ", dummyRequestTime_as_javaUtilDate);
-                checkAndLogTimeVsTrueTime("onCameraFrame: time test: ROS Java dummy request: ", dummyRequestTime_as_javaUtilDate, trueTimeDate);
-                trueTimeDate = TrueTime.now();
                 org.ros.message.Time timeProviderTime = timeProvider.getCurrentTime();
                 Log.i(TAG,"onCameraFrame: time test: TrueTime.now() = "+trueTimeDate+" = "+trueTimeDate.getTime() + "ms");
                 Log.i(TAG,"onCameraFrame: time test: timeProvider.getCurrentTime() = "+timeProviderTime+" = "+( timeProviderTime.totalNsecs() / (1000L*1000L)) + "ms" );
