@@ -33,7 +33,6 @@ import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalib
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.robotMoving;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.uncalibrated;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.waitingForObs;
-import static william.chamberlain.androidvosopencvros.PlanningStrategy.carryOn;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.recordObs;
 
 /**
@@ -146,10 +145,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     @Override  // RobotPoseListener
     public void robotPose(String robotId, PoseWithCovarianceStamped pose) {
-        robotPoses.add(new PoseFromRobotData(robotId, Date.toDate(pose.getHeader().getStamp()), pose));
+        robotPoses.add(new PoseFromRobotData(robotId, DateAndTime.toDate(pose.getHeader().getStamp()), pose));
     }
-    private void recordRobotPose(String robotId, FrameTransform poseFrame) {
-        robotPoses.add(new PoseFromRobotData(robotId, Date.toDate(poseFrame.getTime()), poseFrame.getTransform() ) );
+    public void recordRobotPose(String robotId, FrameTransform poseFrame) {
+        robotPoses.add(new PoseFromRobotData(robotId, DateAndTime.toDate(poseFrame.getTime()), poseFrame.getTransform() ) );
     }
 
     @Override  // RobotPoseListener
@@ -176,53 +175,27 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
      * :  baselink_to_tag_transform - the visual model feature pose - is needed later to transform
      *    from the robot's reported base_link pose to the 3D point of the visual feature, so that
      *    the 2D point - 3D point association is for the visual feature
-     * :  the date/frameTime is the time that the visual feature/robot was detected, and is used to
+     * :  the date/imageCaptureTime is the time that the visual feature/robot was detected, and is used to
      *    associate this data point with the robot's published base_link pose.
      */
-    public void detectedInImage(String robotId_, java.util.Date frameTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_) {
-        System.out.println("detectedInImage("+robotId_+", "+frameTime_+", "+robotPositionInImage_+", "+baselink_to_tag_transform_+");");
-        if(!TrueTime.isInitialized()){
-            System.out.println("SCEC: detectedInImage: drop out because cannot deal with data timestamps without NTP-corrected datetime.");
-            return;
-        }
-        synchronized (FSM_LOCK) {
-            try {
-                FSM_IS_BUSY = true;
-                if(uncalibrated == state) {
-                    state = recordObs;
-                    FrameTransform frameTransform = askRobotForItsPoseFrame();
-                    Observation2 detectionInImage = new Observation2(robotId_, frameTime_, robotPositionInImage_, frameTransform.getTransform(), baselink_to_tag_transform_);
-                    if(planRobotPositions(detectionInImage)) {
-                        askRobotToMove();
-                    }
-                }
-                if(waitingForObs == state) {
-                    try {            System.out.println("SCEC: detectedInImage: start sleep 1.");
-                        Thread.sleep(500);            System.out.println("SCEC: askRobotToMove: end sleep.");
-                    } catch(InterruptedException ie) {
-                        System.out.println("SCEC: detectedInImage: sleep 1 interrupted: "+ie.getMessage());
-                    }
-                    FrameTransform frameTransform = askRobotForItsPoseFrame();
-                    Observation2 detectionInImage = new Observation2(robotId_, frameTime_, robotPositionInImage_, frameTransform.getTransform(), baselink_to_tag_transform_);
-                    recordRobotDetectionInImage(detectionInImage);      System.out.println("SCEC: detectedInImage: detectionInImages.size()="+detectionInImages.size());
-                    recordRobotPose(robotId_, frameTransform);          System.out.println("SCEC: detectedInImage: robotPoses.size()="+robotPoses.size());
-                    PoseFromRobotData associatedPose = associateData(detectionInImage);
-                    if(null!=associatedPose && estimateExtrinsics()) {
-                        state = calibrated;                 System.out.println("SCEC: detectedInImage: camera calibrated");
-                        return;
-                    }
-                    if(planRobotPositions(detectionInImage)) {
-                        try {            System.out.println("SCEC: detectedInImage: start sleep 2.");
-                            Thread.sleep(500);            System.out.println("SCEC: askRobotToMove: end sleep.");
-                        } catch(InterruptedException ie) {
-                            System.out.println("SCEC: detectedInImage: sleep 2 interrupted: "+ie.getMessage());
-                        }
-                        askRobotToMove();
-                    }
-                }
-            } finally {
-                FSM_IS_BUSY = false;
-            }
+    public void detectedInImage(String robotId_, java.util.Date imageCaptureTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_) {
+        detectedInImage_2(robotId_, imageCaptureTime_, robotPositionInImage_, baselink_to_tag_transform_);
+    }
+
+    public void detectedInImage_2(String robotId_, java.util.Date imageCaptureTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_) {
+        System.out.println("detectedInImage_2("+robotId_+", "+imageCaptureTime_+", "+robotPositionInImage_+", "+baselink_to_tag_transform_+");");
+        TEMP_NUM_OBS_EQUAL_NUM_PLANNED = 20;
+        FrameTransform frameTransform = askRobotForItsPoseFrame();
+        recordRobotPose(robotId_, frameTransform);
+        Observation2 detectionInImage = new Observation2(robotId_, imageCaptureTime_, robotPositionInImage_, frameTransform.getTransform(), baselink_to_tag_transform_);
+        System.out.println("SCEC: detectedInImage_2: Observation2 imageCaptureTime_ = "+imageCaptureTime_.getTime()+"ms");
+        recordRobotDetectionInImage(detectionInImage);      System.out.println("SCEC: detectedInImage_2: detectionInImages.size()="+detectionInImages.size());
+        System.out.println("SCEC: detectedInImage_2: detectionInImage imageCaptureTime = "+detectionInImage.imageCaptureTime.getTime()+"ms");
+        associateData(detectionInImage);
+        if(estimateExtrinsics()){
+            System.out.println("SCEC: detectedInImage_2: estimateExtrinsics()!!");
+        } else {
+            System.out.println("SCEC: detectedInImage_2: NOT estimateExtrinsics() yet.");
         }
     }
 
@@ -236,10 +209,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     /** May return null. */
     public PoseFromRobotData associateData(Observation2 detectionInImageData_) {
-        long detectionTime = detectionInImageData_.frameTime.getTime();
-        long detectionTimeEarly = detectionTime - 1000;      // 0.1s
-        long detectionTimeLate = detectionTime + 1000;       // 0.1s
-        long bestDiffMilliseconds = 1000;                   // 1.0s
+        long detectionTime = detectionInImageData_.imageCaptureTime.getTime();
+        long detectionTimeEarly = detectionTime - 100;      // 0.1s
+        long detectionTimeLate = detectionTime + 100;       // 0.1s
+        long bestDiffMilliseconds = 1000000;                   // 1.0s
         PoseFromRobotData associatedPose = null;
         int robotPosesSize = robotPoses.size();
         for (int i_=robotPosesSize-1; i_>=0; i_--) {                // most recent into the past ...
@@ -248,17 +221,23 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 //            if(detectionTimeLate < poseFromRobotTime) {             // ... so if our upper bound is lower than/before the pose time, ...
 //                break;                                              // ... we've gone past the window.
 //            }
+            System.out.println("associateData: diff="+(detectionTime-poseFromRobotTime)+", detectionTimeEarly="+detectionTimeEarly+", poseFromRobotTime="+poseFromRobotTime+", detectionTime="+detectionTime+", detectionTimeLate="+detectionTimeLate);
             if(detectionTimeEarly <= poseFromRobotTime && detectionTimeLate >= poseFromRobotTime) {  //  pose time is in the bracket for the visual observation time
+                System.out.println("associateData: IS in range: diff="+(detectionTime-poseFromRobotTime)+", detectionTimeEarly="+detectionTimeEarly+", poseFromRobotTime="+poseFromRobotTime+", detectionTime="+detectionTime+", detectionTimeLate="+detectionTimeLate);
                 long diffMilliseconds = java.lang.Math.abs( detectionTime - poseFromRobotTime );
                 if (diffMilliseconds < bestDiffMilliseconds) {
                     bestDiffMilliseconds = diffMilliseconds;
                     associatedPose = poseFromRobot;
+                    System.out.println("associateData: current best: diff="+(detectionTime-poseFromRobotTime)+", detectionTimeEarly="+detectionTimeEarly+", poseFromRobotTime="+poseFromRobotTime+", detectionTime="+detectionTime+", detectionTimeLate="+detectionTimeLate);
                 }
+            } else {
+                System.out.println("associateData: NOT in range: diff="+(detectionTime-poseFromRobotTime)+", detectionTimeEarly="+detectionTimeEarly+", poseFromRobotTime="+poseFromRobotTime+", detectionTime="+detectionTime+", detectionTimeLate="+detectionTimeLate);
             }
         }
         if(null != associatedPose) {        System.out.println("SCEC: associateData: associated="+associatedPose+" , "+detectionInImageData_);
             associatedData.add(new AssociatedData(associatedPose, detectionInImageData_));
             System.out.println("SCEC: associateData: total number associated="+associatedData.size());
+            System.out.println("associateData: best: diff="+(detectionTime-associatedPose.poseTime.getTime())+", detectionTimeEarly="+detectionTimeEarly+", poseFromRobotTime="+associatedPose.poseTime.getTime()+", detectionTime="+detectionTime+", detectionTimeLate="+detectionTimeLate);
         } else {System.out.println("SCEC: no association for "+detectionInImageData_);}
         return associatedPose;
     }
@@ -283,7 +262,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     }
 
     //  1) time  2) pose  3) covariance/uncertainty
-    private FrameTransform askRobotForItsPoseFrame() {                          System.out.println("SCEC: askRobotForItsPose: "+stateString());
+    public FrameTransform askRobotForItsPoseFrame() {                          System.out.println("SCEC: askRobotForItsPose: "+stateString());
         FrameTransform transform = robotPoseMeasure.askRobotForPoseFrame();       System.out.println("SCEC: askRobotForItsPose: transform ="+transform);
         return transform;
     }
@@ -505,7 +484,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     private boolean estimateExtrinsics() {
         int i_ = 0;
         for(AssociatedData associatedDatapoint : associatedData) {
-            System.out.println("SCEC: estimateExtrinsics: observation "+i_+" = "+associatedDatapoint);
+            System.out.println("SCEC: estimateExtrinsics: AssociatedData "+i_+" = "+associatedDatapoint);
             i_++;
         }
         if(null != associatedData  &&  associatedData.size() >= TEMP_NUM_OBS_EQUAL_NUM_PLANNED) {
@@ -514,6 +493,62 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         }
         System.out.println("SCEC: estimateExtrinsics: false");
         return false;
+    }
+
+    /**
+     * Robot detected in a camera image
+     * :  the 2D point is just the PixelPosition
+     * :  baselink_to_tag_transform - the visual model feature pose - is needed later to transform
+     *    from the robot's reported base_link pose to the 3D point of the visual feature, so that
+     *    the 2D point - 3D point association is for the visual feature
+     * :  the date/imageCaptureTime is the time that the visual feature/robot was detected, and is used to
+     *    associate this data point with the robot's published base_link pose.
+     */
+    public void detectedInImage_1(String robotId_, java.util.Date frameTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_) {
+        System.out.println("detectedInImage_1("+robotId_+", "+frameTime_+", "+robotPositionInImage_+", "+baselink_to_tag_transform_+");");
+        //        if(!TrueTime.isInitialized()){
+        //            System.out.println("SCEC: detectedInImage_1: drop out because cannot deal with data timestamps without NTP-corrected datetime.");
+        //            return;
+        //        }
+        synchronized (FSM_LOCK) {
+            try {
+                FSM_IS_BUSY = true;
+                if(uncalibrated == state) {
+                    state = recordObs;
+                    FrameTransform frameTransform = askRobotForItsPoseFrame();
+                    Observation2 detectionInImage = new Observation2(robotId_, frameTime_, robotPositionInImage_, frameTransform.getTransform(), baselink_to_tag_transform_);
+                    if(planRobotPositions(detectionInImage)) {
+                        askRobotToMove();
+                    }
+                }
+                if(waitingForObs == state) {
+                    try {            System.out.println("SCEC: detectedInImage_1: start sleep 1.");
+                        Thread.sleep(500);            System.out.println("SCEC: askRobotToMove: end sleep.");
+                    } catch(InterruptedException ie) {
+                        System.out.println("SCEC: detectedInImage_1: sleep 1 interrupted: "+ie.getMessage());
+                    }
+                    FrameTransform frameTransform = askRobotForItsPoseFrame();
+                    Observation2 detectionInImage = new Observation2(robotId_, frameTime_, robotPositionInImage_, frameTransform.getTransform(), baselink_to_tag_transform_);
+                    recordRobotDetectionInImage(detectionInImage);      System.out.println("SCEC: detectedInImage_1: detectionInImages.size()="+detectionInImages.size());
+                    recordRobotPose(robotId_, frameTransform);          System.out.println("SCEC: detectedInImage_1: robotPoses.size()="+robotPoses.size());
+                    PoseFromRobotData associatedPose = associateData(detectionInImage);
+                    if(null!=associatedPose && estimateExtrinsics()) {
+                        state = calibrated;                 System.out.println("SCEC: detectedInImage_1: camera calibrated");
+                        return;
+                    }
+                    if(planRobotPositions(detectionInImage)) {
+                        try {            System.out.println("SCEC: detectedInImage_1: start sleep 2.");
+                            Thread.sleep(500);            System.out.println("SCEC: askRobotToMove: end sleep.");
+                        } catch(InterruptedException ie) {
+                            System.out.println("SCEC: detectedInImage_1: sleep 2 interrupted: "+ie.getMessage());
+                        }
+                        askRobotToMove();
+                    }
+                }
+            } finally {
+                FSM_IS_BUSY = false;
+            }
+        }
     }
 
 }

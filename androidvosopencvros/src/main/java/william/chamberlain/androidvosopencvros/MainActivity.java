@@ -63,7 +63,7 @@ import java.util.regex.Matcher;
 
 import android.util.Log;
 
-import com.instacart.library.truetime.TrueTime;
+//import com.instacart.library.truetime.TrueTime;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.CameraBridgeViewBase;
@@ -105,14 +105,12 @@ import georegression.struct.point.Vector3D_F64;
 import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import sensor_msgs.Imu;
-import vos_aa1.DetectedFeatureRequest;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.android_mechanics.PermissionsChecker;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 import william.chamberlain.androidvosopencvros.device.ImuCallback;
 import william.chamberlain.androidvosopencvros.monitoring.ImuMonitoringPublisher;
 import william.chamberlain.androidvosopencvros.resilient.ResilientNetworkActivity;
-import william.chamberlain.androidvosopencvros.time.Datetime;
 
 import static boofcv.struct.image.ImageDataType.F32;
 import static boofcv.struct.image.ImageType.Family.GRAY;
@@ -253,23 +251,23 @@ public class MainActivity
 
         checkPermissions();
 
-        try {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    for (int i_ = 1; i_ <= 50; i_++) {
-                        try {
-                            TrueTime.build().withNtpHost(ntpHost).withRootDispersionMax(300).initialize();
-                            break;
-                        } catch (IOException e) {
-                            System.out.println("ERROR: IOException initialising TrueTime to NTP host " + ntpHost + ": " + e.getMessage());
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            } ).start();
-        }
-        catch(RuntimeException e) { Log.e(TAG,"onCreate: exception initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage(), e); }
+//        try {
+//            new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//                    for (int i_ = 1; i_ <= 50; i_++) {
+//                        try {
+//                            TrueTime.build().withNtpHost(ntpHost).withRootDispersionMax(300).initialize();
+//                            break;
+//                        } catch (IOException e) {
+//                            System.out.println("ERROR: IOException initialising TrueTime to NTP host " + ntpHost + ": " + e.getMessage());
+//                            e.printStackTrace();
+//                        }
+//                    }
+//                }
+//            } ).start();
+//        }
+//        catch(RuntimeException e) { Log.e(TAG,"onCreate: exception initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage(), e); }
 
 
         mLocationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
@@ -406,26 +404,22 @@ public class MainActivity
         nodeConfigurationBase.setMasterUri(masterURI);
         try {
             InetAddress ntpServerAddress = InetAddress.getByName(ntpHostname);
-            ntpTimeProvider = new NtpTimeProvider(ntpServerAddress, nodeMainExecutorService.getScheduledExecutorService());
-            timeProvider = ntpTimeProvider;
-            try {
-                ntpTimeProvider.updateTime();
-            } catch (IOException e) {
-                Log.e(TAG,"init: NtpTimeProvider: ntpTimeProvider.updateTime() exception"+e, e);
-            }
+            initialiseNtpTimeProvider(ntpServerAddress);
             nodeConfigurationBase.setTimeProvider(timeProvider);
             Log.i(TAG,"init: configured ROS TimeProvider NtpTimeProvider(\""+ntpServerAddress+"\", ), TimeProvider="+timeProvider);
-            java.util.Date date1        = new java.util.Date();
-            org.ros.message.Time time1  = ntpTimeProvider.getCurrentTime();
-            java.util.Date trueTimeDate1 = TrueTime.now();
-            java.util.Date date2        = new java.util.Date();
-            org.ros.message.Time time2  = ntpTimeProvider.getCurrentTime();
-            java.util.Date trueTimeDate2 = TrueTime.now();
-            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - java.util date1 = "+(time1.totalNsecs() - date1.getTime()*1000L*1000L));
-            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - java.util date2 = "+(time2.totalNsecs() - date2.getTime()*1000L*1000L));
-            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - TrueTime.now() date1 = "+(time1.totalNsecs() - trueTimeDate1.getTime()*1000L*1000L));
-            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - TrueTime.now() date2 = "+(time2.totalNsecs() - trueTimeDate2.getTime()*1000L*1000L));
 
+            DateAndTime.configTimeProvider(timeProvider);
+            Log.i(TAG,"init: configured Date:  Date.configTimeProvider( ROS TimeProvider NtpTimeProvider(\""+ntpServerAddress+"\", ), TimeProvider="+timeProvider+")" );
+//            java.util.Date date1        = new java.util.Date();
+//            org.ros.message.Time time1  = ntpTimeProvider.getCurrentTime();
+//            java.util.Date trueTimeDate1 = TrueTime.now();
+//            java.util.Date date2        = new java.util.Date();
+//            org.ros.message.Time time2  = ntpTimeProvider.getCurrentTime();
+//            java.util.Date trueTimeDate2 = TrueTime.now();
+//            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - java.util date1 = "+(time1.totalNsecs() - date1.getTime()*1000L*1000L)+"ns = "+(time1.totalNsecs()/(1000L*1000L) - date1.getTime())+"ms");
+//            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - java.util date2 = "+(time2.totalNsecs() - date2.getTime()*1000L*1000L)+"ns = "+(time2.totalNsecs()/(1000L*1000L) - date2.getTime())+"ms");
+//            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time1 - TrueTime.now() date1 = "+(time1.totalNsecs() - trueTimeDate1.getTime()*1000L*1000L)+"ns = "+(time1.totalNsecs()/(1000L*1000L) - trueTimeDate1.getTime())+"ms");
+//            Log.i(TAG, "init: NtpTimeProvider: NtpTimeProvider time2 - TrueTime.now() date2 = "+(time2.totalNsecs() - trueTimeDate2.getTime()*1000L*1000L)+"ns = "+(time2.totalNsecs()/(1000L*1000L) - trueTimeDate2.getTime())+"ms");
         } catch(UnknownHostException e){Log.e(TAG,"init: failed to configure ROS TimeProvider due to unknown host in  InetAddress.getByName( "+masterURI+").getHost() ))  : "+e, e); }
 
 
@@ -550,6 +544,16 @@ public class MainActivity
         Log.i("init","finish configuring fixed camera poses");
 
         Log.i("init", "finished");
+    }
+
+    private void initialiseNtpTimeProvider(InetAddress ntpServerAddress) {
+        ntpTimeProvider = new NtpTimeProvider(ntpServerAddress, nodeMainExecutorService.getScheduledExecutorService());
+        timeProvider = ntpTimeProvider;
+        try {
+            ntpTimeProvider.updateTime();
+        } catch (IOException e) {
+            Log.e(TAG,"init: NtpTimeProvider: ntpTimeProvider.updateTime() exception"+e, e);
+        }
     }
 
     void setupSmartCameraExtrinsicsCalibrator() {
@@ -716,26 +720,28 @@ public class MainActivity
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         frameNumber++;
+        java.util.Date imageFrameTime = DateAndTime.nowAsDate();
 
+        try { smartCameraExtrinsicsCalibrator.recordRobotPose("",smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame()); }
+        catch (Exception e) { Log.e(TAG, "onCameraFrame: exception with smartCameraExtrinsicsCalibrator.recordRobotPose: "+e, e); }
         java.util.Date systemTime = new java.util.Date();
         /* TODO - for full NTP impl - several NTP servers, several requests per server, fastest response per server, median filter over time differences across servers - see /mnt/nixbig/downloads/ntp_instacart_truetime_android/truetime-android/library-extension-rx/src/main/java/com/instacart/library/truetime/TrueTimeRx.java */
-        checkAndLogTimeVsTrueTime("onCameraFrame: time test: system time: ",systemTime);
-        try {
-            if(TrueTime.isInitialized()) {
-                java.util.Date trueTimeDate = TrueTime.now();
-                org.ros.message.Time timeProviderTime = timeProvider.getCurrentTime();
-                Log.i(TAG,"onCameraFrame: time test: TrueTime.now() = "+trueTimeDate+" = "+trueTimeDate.getTime() + "ms");
-                Log.i(TAG,"onCameraFrame: time test: timeProvider.getCurrentTime() = "+timeProviderTime+" = "+( timeProviderTime.totalNsecs() / (1000L*1000L)) + "ms" );
-                java.util.Date timeProviderTime_as_javaUtilDate = new java.util.Date( ( timeProviderTime.totalNsecs() / (1000L*1000L)) );
-                checkAndLogTimeVsTrueTime("onCameraFrame: time test: NtpTimeProvider vs TrueTime: ", timeProviderTime_as_javaUtilDate, trueTimeDate);
+//        checkAndLogTimeVsTrueTime("onCameraFrame: time test: system time: ",systemTime);
+//        try {
+//            if(TrueTime.isInitialized()) {
+//                java.util.Date trueTimeDate = TrueTime.now();
+//                org.ros.message.Time timeProviderTime = timeProvider.getCurrentTime();
+//                Log.i(TAG,"onCameraFrame: time test: TrueTime.now() = "+trueTimeDate+" = "+trueTimeDate.getTime() + "ms");
+//                Log.i(TAG,"onCameraFrame: time test: timeProvider.getCurrentTime() = "+timeProviderTime+" = "+( timeProviderTime.totalNsecs() / (1000L*1000L)) + "ms" );
+//                java.util.Date timeProviderTime_as_javaUtilDate = new java.util.Date( ( timeProviderTime.totalNsecs() / (1000L*1000L)) );
+//                checkAndLogTimeVsTrueTime("onCameraFrame: time test: NtpTimeProvider vs TrueTime: ", timeProviderTime_as_javaUtilDate, trueTimeDate);
+//            } else {Log.i(TAG,"onCameraFrame: time test: TrueTime is not initialised.");}
+//        } catch (Exception e) {
+//            Log.e(TAG,"onCameraFrame: exception comparing TrueTime to a dummy request's time: "+e, e);
+//        }
+//        java.util.Date imageFrameTime = systemTime;
 
-            } else {Log.i(TAG,"onCameraFrame: time test: TrueTime is not initialised.");}
-        } catch (Exception e) {
-            Log.e(TAG,"onCameraFrame: exception comparing TrueTime to a dummy request's time: "+e, e);
-        }
-        java.util.Date imageFrameTime = systemTime;
-
-        Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
+                Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if(!readyToProcessImages) {
             Log.i(TAG,"onCameraFrame: readyToProcessImages is false: returning image without processing.");
             return inputFrame.gray();
@@ -868,14 +874,14 @@ public class MainActivity
         }
     }
 
-    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime) {
-        if(TrueTime.isInitialized()){ java.util.Date realDate = TrueTime.now(); Log.i(TAG,logMsgPrefix_+": date from TrueTime.now() - arg[["+systemTime+"]] = "+(realDate.getTime()-systemTime.getTime())+"milliseconds");}
-        else{Log.i(TAG,logMsgPrefix_+": TrueTime is not initialised.");}
-    }
+//    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime) {
+//        if(TrueTime.isInitialized()){ java.util.Date realDate = TrueTime.now(); Log.i(TAG,logMsgPrefix_+": date from TrueTime.now() - arg[["+systemTime+"]] = "+(realDate.getTime()-systemTime.getTime())+"milliseconds");}
+//        else{Log.i(TAG,logMsgPrefix_+": TrueTime is not initialised.");}
+//    }
 
-    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime , java.util.Date trueTime) {
-        Log.i(TAG,logMsgPrefix_+": date from arg[["+trueTime+"]] - arg[["+systemTime+"]] = "+(trueTime.getTime()-systemTime.getTime())+"milliseconds");
-    }
+//    private void checkAndLogTimeVsTrueTime(String logMsgPrefix_, java.util.Date systemTime , java.util.Date trueTime) {
+//        Log.i(TAG,logMsgPrefix_+": date from arg[["+trueTime+"]] - arg[["+systemTime+"]] = "+(trueTime.getTime()-systemTime.getTime())+"milliseconds");
+//    }
 
     private void freeSpace(Camera camera) {
         Log.i(TAG, "onCameraFrame: HSV segment: current_image_bytes_is_not_null ");
@@ -1495,7 +1501,7 @@ public class MainActivity
 
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
-        Time timeNow = Date.nowAsTime();
+        Time timeNow = DateAndTime.nowAsTime();
         detectedFeatures.clear();
 //        Matcher matcher;
         for (String tag : tags) {

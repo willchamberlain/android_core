@@ -13,15 +13,15 @@ import georegression.struct.so.Quaternion_F64;
 
 public class Observation2 {
     String robotId;
-    java.util.Date frameTime;
+    java.util.Date imageCaptureTime;
     PixelPosition pixelPosition;
     Transform map_to_baselink_pose;
     Se3_F64 baselink_to_tag_transform;
-    Se3_F64       map_to_tag_transform_boofcv;
-    public Observation2(String robotId_, java.util.Date frameTime_, PixelPosition pixelPosition_, Transform map_to_baselink_pose_, Se3_F64 baselink_to_tag_transform_) {
-        this.robotId        =   robotId_;
-        this.frameTime      =   frameTime_;
-        this.pixelPosition  =   pixelPosition_;
+    Se3_F64 map_to_tag_transform_boofcv;
+    public Observation2(String robotId_, java.util.Date imageCaptureTime_, PixelPosition pixelPosition_, Transform map_to_baselink_pose_, Se3_F64 baselink_to_tag_transform_) {
+        this.robotId            =   robotId_;
+        this.imageCaptureTime   =   imageCaptureTime_;
+        this.pixelPosition      =   pixelPosition_;
         this.map_to_baselink_pose      = map_to_baselink_pose_;
         this.baselink_to_tag_transform = baselink_to_tag_transform_;
 
@@ -52,7 +52,7 @@ public class Observation2 {
     public String toString() {
         return "Observation{" +
                 " robotId=" + robotId +
-                ", framteTime=" + frameTime +
+                ", framteTime=" + imageCaptureTime +
                 ", pixelPosition=" + pixelPosition +
                 ", map_to_baselink_pose=" + map_to_baselink_pose +
                 ", baselink_to_tag_transform=" + baselink_to_tag_transform +

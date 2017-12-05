@@ -7,7 +7,7 @@ import georegression.struct.se.Se3_F64;
  */
 
 public interface VisionTaskRunning {
-    void detectedInImage(String robotId_, java.util.Date frameTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_);
+    void detectedInImage(String robotId_, java.util.Date imageCaptureTime_, PixelPosition robotPositionInImage_, Se3_F64 baselink_to_tag_transform_);
 
     /**
      * Keep track of image frame events - e.g. to track the number of frames

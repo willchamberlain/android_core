@@ -1038,7 +1038,7 @@ Log.i(robotId_.idString(), "estimated pose from "+numTagsForRobot+" tag detectio
 
         System.out.println("---------- detected " + tags.length + " tags ----------------------------------------------------------------------------------------------------");
 
-        Time timeNow = Date.nowAsTime();
+        Time timeNow = DateAndTime.nowAsTime();
         detectedFeatures.clear();
 //        Matcher matcher;
         for (String tag : tags) {

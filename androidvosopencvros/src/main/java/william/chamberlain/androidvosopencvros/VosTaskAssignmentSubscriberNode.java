@@ -1,11 +1,7 @@
 package william.chamberlain.androidvosopencvros;
 
 
-import android.os.SystemClock;
-
-import org.apache.commons.httpclient.Header;
 import org.apache.commons.logging.Log;
-import org.ros.android.view.visualization.VisualizationView;
 import org.ros.message.MessageListener;
 import org.ros.message.Time;
 import org.ros.namespace.GraphName;
@@ -22,17 +18,11 @@ import java.util.List;
 
 import actionlib_msgs.GoalStatus;
 import actionlib_msgs.GoalStatusArray;
-import geometry_msgs.Point;
-import geometry_msgs.Pose;
 import geometry_msgs.PoseStamped;
 import geometry_msgs.PoseWithCovarianceStamped;
-import geometry_msgs.Quaternion;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.ros_types.RosTypes;
 
-import static actionlib_msgs.GoalStatus.ACTIVE;
-import static actionlib_msgs.GoalStatus.PENDING;
-import static actionlib_msgs.GoalStatus.SUCCEEDED;
 import static william.chamberlain.androidvosopencvros.ros_types.RosTypes.header;
 
 /**
@@ -147,7 +137,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
                 } else {
                     Time rosTime = goalStatusArray.getHeader().getStamp();
-                    java.util.Date statusTime = Date.toDate(rosTime);
+                    java.util.Date statusTime = DateAndTime.toDate(rosTime);
                     List<GoalStatus> statusList = new ArrayList<GoalStatus>();
                     for (GoalStatus move_base_goalStatus : goalStatusArray.getStatusList()) {
                         if(move_base_goalStatus.getGoalId().getId().startsWith("/move_base")) {                         // TODO: hardcoding
