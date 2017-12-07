@@ -131,5 +131,14 @@ android {
         abortOnError false
     }
 
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'armeabi'
+            universalApk false
+        }
+    }
+
 
 }
