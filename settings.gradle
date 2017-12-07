@@ -41,7 +41,7 @@ include "/mnt/nixbig/downloads/android_cv_bridge"
 
 include ':vos'
 
-include ':tests', ':just.atest'
+// include ':tests', ':just.atest'
 
 //           include ':rosjava', ':apache_xmlrpc_client', ':apache_xmlrpc_common', ':apache_xmlrpc_server'
 

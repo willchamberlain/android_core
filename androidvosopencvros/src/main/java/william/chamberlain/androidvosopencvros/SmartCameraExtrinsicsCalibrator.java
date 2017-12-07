@@ -235,11 +235,13 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     public void imageReceived() {
     }
 
+    static final int TIME_TOLERANCE_MS = 200;
+
     /** May return null. */
     public PoseFromRobotData associateData(Observation2 detectionInImageData_) {
         long detectionTime = detectionInImageData_.imageCaptureTime.getTime();
-        long detectionTimeEarly = detectionTime - 100;      // 0.1s
-        long detectionTimeLate = detectionTime + 100;       // 0.1s
+        long detectionTimeEarly = detectionTime - TIME_TOLERANCE_MS;      // 0.1s
+        long detectionTimeLate  = detectionTime + TIME_TOLERANCE_MS;       // 0.1s
         long bestDiffMilliseconds = 1000000;                   // 1.0s
         PoseFromRobotData associatedPose = null;
         int robotPosesSize = robotPoses.size();

@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+//apply plugin: 'application'
+//mainClassName = "william.chamberlain.androidvosopencvros.Test_RosJavaCompileAndRunExternal"
+
 /*
  * Copyright (C) 2011 Google Inc.
  *
