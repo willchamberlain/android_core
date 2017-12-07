@@ -30,6 +30,7 @@ import static actionlib_msgs.GoalStatus.REJECTED;
 import static actionlib_msgs.GoalStatus.SUCCEEDED;
 import static org.bytedeco.javacpp.opencv_core.CV_64FC1;
 import static org.bytedeco.javacpp.opencv_core.setIdentity;
+import static william.chamberlain.androidvosopencvros.Geometry_OpenCV.matToString;
 import static william.chamberlain.androidvosopencvros.PlanningStrategy.fixedSet;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.NaN;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.left;
@@ -803,16 +804,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         return cameraPoseInWorldCoords;
     }
 
-    private String matToString(opencv_core.Mat opencv_matrix) {
-        String string = "";
-        for (int rowNum_ = 0; rowNum_<opencv_matrix.size().height(); rowNum_++) {   // rows
-            string = string+"\n";
-            for(int colNum_ = 0; colNum_<opencv_matrix.size().width(); colNum_++) { // columns
-                string = string + opencv_matrix.getDoubleBuffer().get( rowNum_*opencv_matrix.size().width() + colNum_) + ",";
-            }
-        }
-        return string;
-    }
+
 
 }
 

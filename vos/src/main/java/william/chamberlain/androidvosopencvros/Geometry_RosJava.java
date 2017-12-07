@@ -31,4 +31,5 @@ public class Geometry_RosJava {
         featureOrientation.setW(qw);
         return featureOrientation;
     }
+
 }
