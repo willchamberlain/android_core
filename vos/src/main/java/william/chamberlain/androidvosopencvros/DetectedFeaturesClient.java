@@ -110,9 +110,9 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         visualFeature.setId(tagId);
 
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
-        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
+        Geometry_RosJava.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
-        Geometry.applyTranslationParams(x, y, z, translationToFeature);
+        Geometry_RosJava.applyTranslationParams(x, y, z, translationToFeature);
 
         serviceRequest.setVisualFeature(visualFeature);
         featureServiceClient.call(serviceRequest,featureResponseListener);
@@ -158,9 +158,9 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         visualFeature.setId(tagId);
 
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
-        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
+        Geometry_RosJava.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
-        Geometry.applyTranslationParams(x, y, z, translationToFeature);
+        Geometry_RosJava.applyTranslationParams(x, y, z, translationToFeature);
 
         serviceRequest.setVisualFeature(visualFeature);
     }
@@ -172,9 +172,9 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         PoseStamped cameraPose = serviceRequest.getCameraPose();
         cameraPose.getHeader().setFrameId(cameraFrameId);
         Quaternion cameraOrientationInWorld = cameraPose.getPose().getOrientation();
-        Geometry.applyQuaternionParams(posedEntity.getOrientationQuaternionXyzw(), cameraOrientationInWorld);  // TODO ?
+        Geometry_RosJava.applyQuaternionParams(posedEntity.getOrientationQuaternionXyzw(), cameraOrientationInWorld);  // TODO ?
         Point cameraPositionInWorld = cameraPose.getPose().getPosition();
-        Geometry.applyTranslationParams(posedEntity.getPositionXyz(), cameraPositionInWorld);
+        Geometry_RosJava.applyTranslationParams(posedEntity.getPositionXyz(), cameraPositionInWorld);
         serviceRequest.setCameraPose(cameraPose);
     }
 

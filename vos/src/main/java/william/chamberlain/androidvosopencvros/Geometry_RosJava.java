@@ -7,7 +7,7 @@ import geometry_msgs.Quaternion;
  * Created by will on 22/02/17.
  */
 
-public class Geometry {
+public class Geometry_RosJava {
 
     public static Point applyTranslationParams(double[] pXyzw, Point translationToFeature) {
         return applyTranslationParams(pXyzw[0], pXyzw[1], pXyzw[2], translationToFeature);

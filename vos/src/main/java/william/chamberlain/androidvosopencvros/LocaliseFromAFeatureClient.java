@@ -68,10 +68,10 @@ public class LocaliseFromAFeatureClient extends AbstractNodeMain {
         VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
 
         Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
-        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
+        Geometry_RosJava.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
 
         Point translationToFeature = visualFeature.getPose().getPose().getPosition();
-        Geometry.applyTranslationParams(x, y, z, translationToFeature);
+        Geometry_RosJava.applyTranslationParams(x, y, z, translationToFeature);
 
         visualFeature.setAlgorithm(APRIL_TAGS_KAESS_36_H_11.canonicalName());
         visualFeature.setId(tagId);

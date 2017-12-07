@@ -56,8 +56,8 @@ public class MarkerPublisherNode extends AbstractNodeMain {
         marker.setAction(Marker.ADD);
 
         marker.getHeader().setFrameId(parent_frame_id);                      // use the frame_id of the parent, and the timestamp of the parent to allow synchronisation
-        Geometry.applyTranslationParams(x, y, z, marker.getPose().getPosition());
-        Geometry.applyQuaternionParams(qx, qy, qz, qw, marker.getPose().getOrientation());
+        Geometry_RosJava.applyTranslationParams(x, y, z, marker.getPose().getPosition());
+        Geometry_RosJava.applyQuaternionParams(qx, qy, qz, qw, marker.getPose().getOrientation());
 
         marker.setLifetime(Duration.MAX_VALUE);
 
