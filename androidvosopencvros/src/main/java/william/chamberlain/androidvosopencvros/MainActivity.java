@@ -1197,7 +1197,10 @@ public class MainActivity
             //        detector.setLensDistortion(lensDistortion);
 
 
-            CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
+            CameraPinhole pinholeModel = new CameraPinhole(
+                    focalLengthCalc.getFocal_length_in_pixels_x(matGray.width()),
+                    focalLengthCalc.getFocal_length_in_pixels_y(matGray.height()),
+                    calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
             LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
             detector.setLensDistortion(pinholeDistort);  // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
@@ -1985,7 +1988,9 @@ public class MainActivity
         FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator();
         CalcImageDimensions calcImgDim = new CalcImageDimensions();
         //CameraPinhole(double fx, double fy, double skew, double cx, double cy, int width, int height)
-        CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(focalLengthCalculator.focal_length_in_pixels_x, focalLengthCalculator.focal_length_in_pixels_y, 0, calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), (int)matGray.size().width, (int)matGray.size().height);
+        CameraPinholeRadial cameraIntrinsics = new CameraPinholeRadial(
+                FocalLengthCalculator.getFocal_length_in_pixels_x(matGray.width()), FocalLengthCalculator.getFocal_length_in_pixels_y(matGray.height()),
+                0, calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), (int)matGray.size().width, (int)matGray.size().height);
 
         return estimator.estimateCameraPoseFrom3D2DPointMatches(
                 cameraIntrinsics,//CameraIntrinsics.exampleCameraPinholeRadial(),  /*  TODO - HARDCODING in here */
@@ -2750,27 +2755,6 @@ System.out.println("imuData(Imu imu): relocalising");
         }
     }
 
-    private class FocalLengthCalculator {
-        private float focal_length_in_pixels_x;
-        private float focal_length_in_pixels_y;
-
-        public float getFocal_length_in_pixels_x() {
-            return focal_length_in_pixels_x;
-        }
-
-        public float getFocal_length_in_pixels_y() {
-            return focal_length_in_pixels_y;
-        }
-
-        public FocalLengthCalculator() {
-            //        calculateFocalLength_a(camera);     // try calculating the focal length
-            //        calculateFocalLength_b();             // try calculating the focal length
-            // TODO - 640 is now a magic number : it is the image width in pixels at the time of calibration of focal length
-            focal_length_in_pixels_x = 519.902859f * ((float)matGray.size().width/640.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-            focal_length_in_pixels_y = 518.952669f * ((float)matGray.size().height/480.0f);  // TODO - for Samsung Galaxy S3s from /mnt/nixbig/ownCloud/project_AA1__1_1/results/2016_12_04_callibrate_in_ROS/calibrationdata_grey/ost.txt
-        }
-    }
-
     private class CalcImageDimensions {
         private int width;
         private int height;
@@ -2886,8 +2870,8 @@ System.out.println("imuData(Imu imu): relocalising");
         //  CameraPinhole pinholeModel = new CameraPinhole(focalLengthCalc.getFocal_length_in_pixels_x(), focalLengthCalc.getFocal_length_in_pixels_y(), calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
         FocalLengthCalculator focalLengthCalculator = new FocalLengthCalculator();
         CalcImageDimensions calcImgDim = new CalcImageDimensions();
-        float  fx   = focalLengthCalculator.getFocal_length_in_pixels_x();
-        float  fy   = focalLengthCalculator.getFocal_length_in_pixels_y();
+        float  fx   = focalLengthCalculator.getFocal_length_in_pixels_x(matGray.width());
+        float  fy   = focalLengthCalculator.getFocal_length_in_pixels_y(matGray.height());
         float  u0   = calcImgDim.getPx_pixels();
         float  v0   = calcImgDim.getPy_pixels();
         double skew = calcImgDim.getSkew();

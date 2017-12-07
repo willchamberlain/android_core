@@ -7,6 +7,10 @@ import geometry_msgs.Pose;
 import geometry_msgs.Quaternion;
 
 public class Hardcoding {
+    public static final float CALIBRATED_FOCAL_LENGTH_X = 519.902859f;
+    public static final float CALIBRATED_FOCAL_LENGTH_Y = 518.952669f;
+    public static final float CALIBRATED_IMAGE_WIDTH    = 640.0f;
+    public static final float CALIBRATED_IMAGE_HEIGHT   = 480.0f;
 
 
     public static final int MARKER_OFFSET_INT = 90000;
