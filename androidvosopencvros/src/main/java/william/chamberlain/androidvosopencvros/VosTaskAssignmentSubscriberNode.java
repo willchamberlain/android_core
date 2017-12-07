@@ -137,7 +137,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
                 } else {
                     Time rosTime = goalStatusArray.getHeader().getStamp();
-                    java.util.Date statusTime = DateAndTime.toDate(rosTime);
+                    java.util.Date statusTime = DateAndTime.toJavaDate(rosTime);
                     List<GoalStatus> statusList = new ArrayList<GoalStatus>();
                     for (GoalStatus move_base_goalStatus : goalStatusArray.getStatusList()) {
                         if(move_base_goalStatus.getGoalId().getId().startsWith("/move_base")) {                         // TODO: hardcoding

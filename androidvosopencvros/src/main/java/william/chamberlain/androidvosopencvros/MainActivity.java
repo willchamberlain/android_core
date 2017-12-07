@@ -70,6 +70,7 @@ import org.opencv.android.CameraBridgeViewBase;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
+import org.ros.rosjava_geometry.FrameTransform;
 import org.ros.time.NtpTimeProvider;
 import org.ros.time.TimeProvider;
 
@@ -553,6 +554,7 @@ public class MainActivity
             ntpTimeProvider.updateTime();
         } catch (IOException e) {
             Log.e(TAG,"init: NtpTimeProvider: ntpTimeProvider.updateTime() exception"+e, e);
+            throw new RuntimeException("initialiseNtpTimeProvider: initialising ntpTimeProvider failed.",e);
         }
     }
 
@@ -722,8 +724,14 @@ public class MainActivity
         frameNumber++;
         java.util.Date imageFrameTime = DateAndTime.nowAsDate();
 
-        try { smartCameraExtrinsicsCalibrator.recordRobotPose("",smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame()); }
+        FrameTransform frameTransform = null;
+        try { frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame();
+            Log.i(TAG,"DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()) = "+DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()));
+//            smartCameraExtrinsicsCalibrator.recordRobotPose("", frameTransform);
+        }
         catch (Exception e) { Log.e(TAG, "onCameraFrame: exception with smartCameraExtrinsicsCalibrator.recordRobotPose: "+e, e); }
+
+
         java.util.Date systemTime = new java.util.Date();
         /* TODO - for full NTP impl - several NTP servers, several requests per server, fastest response per server, median filter over time differences across servers - see /mnt/nixbig/downloads/ntp_instacart_truetime_android/truetime-android/library-extension-rx/src/main/java/com/instacart/library/truetime/TrueTimeRx.java */
 //        checkAndLogTimeVsTrueTime("onCameraFrame: time test: system time: ",systemTime);
@@ -819,7 +827,7 @@ public class MainActivity
 
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
                 Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
-                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, imageFrameTime);
+                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, imageFrameTime, frameTransform);
                 Log.i(TAG, "onCameraFrame: after BoofCV Square Fiducial feature processing.");
             } else {
                 Log.i(TAG, "onCameraFrame: NOT BoofCV Square Fiducial feature processing.");
@@ -1181,7 +1189,7 @@ public class MainActivity
         Log.i(TAG, "onCameraFrame: after SURF feature processing.");
     }
 
-    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date frameTime) {
+    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date frameTime, FrameTransform frameTransform) {
         try {
             FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                     new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -1238,8 +1246,7 @@ public class MainActivity
                     Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
                     Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
-                    Quaternion_F64 quatBoofCV_TtoS = new Quaternion_F64();
-                    ConvertRotation3D_F64.matrixToQuaternion(targetToSensor_boofcvFrame.getR(), quatBoofCV_TtoS);
+                    Quaternion_F64 quatBoofCV_TtoS = transform_to_quaternion_boofcv(targetToSensor_boofcvFrame);
                     System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
                     System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
 
@@ -1326,7 +1333,15 @@ public class MainActivity
                     PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
                     if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
                         smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
-                        this.smartCameraExtrinsicsCalibrator.detectedInImage("",frameTime, pixelPosition,transformOfFeatureInVisualModel);
+                        Se3_F64 estimated_camera_pose =
+                                this.smartCameraExtrinsicsCalibrator.detectedInImage("",frameTime, pixelPosition,transformOfFeatureInVisualModel, frameTransform);
+                        if(null != estimated_camera_pose) {
+                            Quaternion_F64 quaternionBoofCV = transform_to_quaternion_boofcv(estimated_camera_pose);
+                            detectedFeaturesClient.justPublishPose(
+                                    10000,
+                                    estimated_camera_pose.getX(), estimated_camera_pose.getY(), estimated_camera_pose.getZ(),
+                                    quaternionBoofCV.x, quaternionBoofCV.y, quaternionBoofCV.z, quaternionBoofCV.w);
+                        }
                     }
 
                     DenseMatrix64F sensorToTarget_ROSFrame_toRobotBaseLink_rot = new DenseMatrix64F(3, 3);
@@ -1448,6 +1463,19 @@ public class MainActivity
             Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
             e.printStackTrace();
         }
+    }
+
+    @NonNull
+    private Quaternion_F64 transform_to_quaternion_boofcv(Se3_F64 transform_boofcv) {
+        DenseMatrix64F rotation_mat_boofcv = transform_boofcv.getR();
+        return rotation_mat_to_quaternion_boofcv(rotation_mat_boofcv);
+    }
+
+    @NonNull
+    private Quaternion_F64 rotation_mat_to_quaternion_boofcv(DenseMatrix64F rotation_mat_boofcv) {
+        Quaternion_F64 quaternionBoofCV = new Quaternion_F64();
+        ConvertRotation3D_F64.matrixToQuaternion(rotation_mat_boofcv, quaternionBoofCV);
+        return quaternionBoofCV;
     }
 
     DetectDescribePoint detDesc;

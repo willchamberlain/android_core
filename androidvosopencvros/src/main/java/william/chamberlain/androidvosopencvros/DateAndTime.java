@@ -3,7 +3,6 @@ package william.chamberlain.androidvosopencvros;
 import java.util.Calendar;
 import android.support.annotation.NonNull;
 
-import org.ros.message.Time;
 import org.ros.time.TimeProvider;
 
 import static java.util.Calendar.SECOND;
@@ -62,7 +61,7 @@ public class DateAndTime {
             return new java.util.Date();
         } else if(ROSJAVA == providerType) {
             System.out.println("Date.nowAsDate(): ROSJAVA == providerType");
-            return toDate(timeProvider.getCurrentTime());
+            return toJavaDate(timeProvider.getCurrentTime());
         } else {
             System.out.println("Date.nowAsDate(): exception: No time provider configured");
             throw new RuntimeException("No time provider configured");
@@ -75,23 +74,26 @@ public class DateAndTime {
      * @param date2
      * @return difference in milliseconds as date1 - date2.
      */
-    public static long diffMs(java.util.Date date1, java.util.Date date2) {
-        return date1.getTime() - date2.getTime();
-    }
-
+    public static long diffMs(java.util.Date date1, java.util.Date date2) { return date1.getTime() - date2.getTime(); }
     /**
      * Returns date1 - date2 in nanoseconds.
      * @param date1
      * @param date2
      * @return difference in nanoseconds as date1 - date2.
      */
-    public static long diffNs(java.util.Date date1, java.util.Date date2) {
-        return diffMs(date1,date2)*(1000L*1000L);
-    }
+    public static long diffNs(java.util.Date date1, java.util.Date date2) { return diffMs(date1,date2)*(1000L*1000L); }
 
-    public static java.util.Date toDate(org.ros.message.Time rosTime) {
+    public static long diffNs(java.util.Date java_date1, org.ros.message.Time ros_time2) { return java_date1.getTime()*(1000L*1000L) - ros_time2.totalNsecs(); }
+    public static long diffNs(org.ros.message.Time ros_time1, java.util.Date java_date2) { return diffNs(java_date2, ros_time1); }
+    public static long diffMs(org.ros.message.Time ros_time1, java.util.Date java_date2) { return diffNs(java_date2, ros_time1)/(1000*1000); }
+    public static long diffMs(java.util.Date java_date1, org.ros.message.Time ros_time2) { return diffNs(java_date1, ros_time2)/(1000*1000); }
+
+    public static long diffMs(org.ros.message.Time ros_time1, org.ros.message.Time ros_time2) { return diffNs(ros_time1,ros_time2)/(1000*1000); }
+    public static long diffNs(org.ros.message.Time ros_time1, org.ros.message.Time ros_time2) { return ros_time1.totalNsecs() - ros_time2.totalNsecs(); }
+
+    public static java.util.Date toJavaDate(org.ros.message.Time rosTime) {
         long timeInMilliseconds = rosTime.totalNsecs() / (1000L*1000L);
-        System.out.println("Date.toDate: rosTime[ s : ns ] = [ "+rosTime.toString()+" ] timeInMilliseconds="+timeInMilliseconds);
+        System.out.println("Date.toJavaDate: rosTime[ s : ns ] = [ "+rosTime.toString()+" ] timeInMilliseconds="+timeInMilliseconds);
         return new java.util.Date( timeInMilliseconds );
     }
 
@@ -104,4 +106,5 @@ public class DateAndTime {
         System.out.println("Date.toRosTime: rosTime[ s : ns ] = [ "+seconds+" : "+nanoseconds+" ] timeInMilliseconds="+milliseconds);
         return new org.ros.message.Time(seconds,nanoseconds);
     }
+
 }

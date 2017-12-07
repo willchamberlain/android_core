@@ -102,6 +102,22 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         featureServiceClient.call(serviceRequest,featureResponseListener);
     }
 
+    public void justPublishPose(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw)  {
+        DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
+        VisualFeatureObservation visualFeature = serviceRequest.getVisualFeature();
+
+        visualFeature.setAlgorithm(Algorithm.APRIL_TAGS_KAESS_36_H_11.canonicalName());
+        visualFeature.setId(tagId);
+
+        Quaternion featureOrientation = visualFeature.getPose().getPose().getOrientation(); //  featureOrientationRelativeToCameraCentreFrame;
+        Geometry.applyQuaternionParams(qx, qy, qz, qw, featureOrientation);
+        Point translationToFeature = visualFeature.getPose().getPose().getPosition();
+        Geometry.applyTranslationParams(x, y, z, translationToFeature);
+
+        serviceRequest.setVisualFeature(visualFeature);
+        featureServiceClient.call(serviceRequest,featureResponseListener);
+    }
+
     /** Reports the detected feature pose in the world coordinate frame/system, applying the camera's current pose to the detected feature's pose, before reporting to the VOS Server.
      *
      * @param x translation from camera centre frame to the feature - per Kaess AprilTag library.

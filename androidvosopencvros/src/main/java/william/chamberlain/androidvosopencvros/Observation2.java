@@ -38,7 +38,9 @@ public class Observation2 {
         // NOTE: boofcv does this in reverse order from normal matrix mult notation
         this.map_to_tag_transform_boofcv = new Se3_F64();
         this.baselink_to_tag_transform.concat(mtbp_transform_boofcv,this.map_to_tag_transform_boofcv);
-        System.out.println("new Observation:\\n\\t baselink_to_tag_transform="+baselink_to_tag_transform+",\\n\\tmap_to_tag_transform_boofcv="+map_to_tag_transform_boofcv+",\\n\\t "+toString());
+        Quaternion_F64 map_to_tag_quaterion = new Quaternion_F64();
+        ConvertRotation3D_F64.matrixToQuaternion(map_to_tag_transform_boofcv.getRotation(),map_to_tag_quaterion);
+        System.out.println("new Observation2:\\n\\t baselink_to_tag_transform="+baselink_to_tag_transform.toString()+",\\n\\tmap_to_tag_transform_boofcv="+map_to_tag_transform_boofcv+" ,\\n\\t map_to_tag_transform_boofcv quaternion = "+map_to_tag_quaterion.toString()+",\\n\\t"+toString());
 
         // to get the world point observed, convert this.pose into BoofCV transform matrix via quaternion and translation
         //   transformOfFeatureInVisualModel.setTranslation(position.getX(), position.getY(), position.getZ());
@@ -50,13 +52,20 @@ public class Observation2 {
 
     @Override
     public String toString() {
-        return "Observation{" +
+        Quaternion_F64 map_to_base_link_quaterion = new Quaternion_F64(
+                map_to_baselink_pose.getRotationAndScale().getW(), map_to_baselink_pose.getRotationAndScale().getX(),
+                map_to_baselink_pose.getRotationAndScale().getY(), map_to_baselink_pose.getRotationAndScale().getZ());
+        Quaternion_F64 map_to_tag_quaterion = new Quaternion_F64();
+        ConvertRotation3D_F64.matrixToQuaternion(map_to_tag_transform_boofcv.getRotation(),map_to_tag_quaterion);
+        return "Observation2{" +
                 " robotId=" + robotId +
                 ", framteTime=" + imageCaptureTime +
                 ", pixelPosition=" + pixelPosition +
                 ", map_to_baselink_pose=" + map_to_baselink_pose +
+                ", map_to_baselink_pose quaternion=" + map_to_base_link_quaterion +
                 ", baselink_to_tag_transform=" + baselink_to_tag_transform +
                 ", map_to_tag_transform_boofcv=" + map_to_tag_transform_boofcv +
+                ", map_to_tag_transform_boofcv quaternion=" + map_to_tag_quaterion +
                 '}';
     }
 }
