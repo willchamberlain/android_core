@@ -803,12 +803,12 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         return cameraPoseInWorldCoords;
     }
 
-    private String matToString(opencv_core.Mat rotationMatrixTranspose) {
+    private String matToString(opencv_core.Mat opencv_matrix) {
         String string = "";
-        for (int rowNum_ = 0; rowNum_<rotationMatrixTranspose.size().height(); rowNum_++) {   // rows
+        for (int rowNum_ = 0; rowNum_<opencv_matrix.size().height(); rowNum_++) {   // rows
             string = string+"\n";
-            for(int colNum_ = 0; colNum_<rotationMatrixTranspose.size().width(); colNum_++) { // columns
-                string = string + rotationMatrixTranspose.getDoubleBuffer().get( rowNum_*rotationMatrixTranspose.size().width() + colNum_) + ",";
+            for(int colNum_ = 0; colNum_<opencv_matrix.size().width(); colNum_++) { // columns
+                string = string + opencv_matrix.getDoubleBuffer().get( rowNum_*opencv_matrix.size().width() + colNum_) + ",";
             }
         }
         return string;
