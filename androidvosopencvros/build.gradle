@@ -91,6 +91,14 @@ android {
         pickFirst '/org/xmlpull/v1/XmlPullParser.class'
         pickFirst '/org/xmlpull/v1/XmlPullParser'
     }
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'armeabi'
+            universalApk false
+        }
+    }
 }
 
 // Remove libraries that conflict with libraries already included with Android
@@ -142,7 +150,6 @@ dependencies {
 
 
     // or if you want the vanilla version of Truetime:
-
     compile ('com.github.instacart.truetime-android:library:3.3') {
         exclude group: 'junit' exclude group: 'xml-apis', module: 'xml-apis' exclude group: 'xpp3'
     }
