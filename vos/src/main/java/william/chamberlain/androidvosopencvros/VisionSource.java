@@ -11,6 +11,7 @@ public interface VisionSource {
     void publishCurrentFrame();
     void allocateTo(String targetKey);
     void resetExtrinsicCalibration();
+    void extrinsicsCalibration(ManagementCommand command);
 
     void startObstacleDetection();
     void startObstacleDetectionHSV();

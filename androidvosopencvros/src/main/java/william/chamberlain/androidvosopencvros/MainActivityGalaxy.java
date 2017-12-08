@@ -1504,6 +1504,8 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
     @Override
     public void resetExtrinsicCalibration(){}
 
+    public void extrinsicsCalibration(ManagementCommand command){}
+
     @Override
     public void relocalise() {
         poseKnown   = false;

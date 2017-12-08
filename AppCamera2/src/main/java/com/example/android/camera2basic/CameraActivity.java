@@ -33,6 +33,7 @@ import geometry_msgs.Pose;
 import william.chamberlain.androidvosopencvros.DetectedFeaturesClient;
 import william.chamberlain.androidvosopencvros.Hardcoding;
 import william.chamberlain.androidvosopencvros.LocaliseFromAFeatureClient;
+import william.chamberlain.androidvosopencvros.ManagementCommand;
 import william.chamberlain.androidvosopencvros.Naming;
 import william.chamberlain.androidvosopencvros.PosedEntity;
 import william.chamberlain.androidvosopencvros.RegisterVisionSourceClient;
@@ -125,6 +126,8 @@ public class CameraActivity
 
     @Override
     public void resetExtrinsicCalibration(){}
+
+    public void extrinsicsCalibration(ManagementCommand command){}
 
     /*** end implement VisionSource *****************************************************************/
 

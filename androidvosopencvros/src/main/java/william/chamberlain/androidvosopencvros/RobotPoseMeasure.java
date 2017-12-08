@@ -10,4 +10,5 @@ import org.ros.rosjava_geometry.Transform;
 interface RobotPoseMeasure {
     Transform askRobotForPose();
     FrameTransform askRobotForPoseFrame();
+    FrameTransform askRobotForPoseFrame(java.util.Date date);
 }

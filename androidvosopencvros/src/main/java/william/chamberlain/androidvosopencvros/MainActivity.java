@@ -724,12 +724,6 @@ public class MainActivity
         frameNumber++;
         java.util.Date imageFrameTime = DateAndTime.nowAsDate();
 
-        FrameTransform frameTransform = null;
-        try { frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame();
-            Log.i(TAG,"DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()) = "+DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()));
-//            smartCameraExtrinsicsCalibrator.recordRobotPose("", frameTransform);
-        }
-        catch (Exception e) { Log.e(TAG, "onCameraFrame: exception with smartCameraExtrinsicsCalibrator.recordRobotPose: "+e, e); }
 
 
         java.util.Date systemTime = new java.util.Date();
@@ -827,7 +821,7 @@ public class MainActivity
 
             if(thingsIShouldBeLookingFor.includes(Algorithm.BOOFCV_SQUARE_FIDUCIAL)) {
                 Log.i(TAG, "onCameraFrame: start BoofCV Square Fiducial feature processing.");
-                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, imageFrameTime, frameTransform);
+                detectAndEstimate_BoofCV_Fiducial_Binary(robotsDetected, singleDummyRobotId, robotFeatures, landmarkFeatures, logTag, focalLengthCalc, calcImgDim, imageFrameTime);
                 Log.i(TAG, "onCameraFrame: after BoofCV Square Fiducial feature processing.");
             } else {
                 Log.i(TAG, "onCameraFrame: NOT BoofCV Square Fiducial feature processing.");
@@ -1189,7 +1183,7 @@ public class MainActivity
         Log.i(TAG, "onCameraFrame: after SURF feature processing.");
     }
 
-    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date frameTime, FrameTransform frameTransform) {
+    private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date imageFrameTime) {
         try {
             FiducialDetector<GrayF32> detector = FactoryFiducial.squareBinary(
                     new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
@@ -1336,8 +1330,15 @@ public class MainActivity
                     PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
                     if(smartCameraExtrinsicsCalibrator_first_notification_this_frame) {
                         smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
+
+                        FrameTransform frameTransform = null;
+                        try { frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame(imageFrameTime);
+                            Log.i(TAG,"DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()) = "+DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()));
+//            smartCameraExtrinsicsCalibrator.recordRobotPose("", frameTransform);
+                        }
+                        catch (Exception e) { Log.e(TAG, "onCameraFrame: exception with smartCameraExtrinsicsCalibrator.recordRobotPose: "+e, e); }
                         Se3_F64 estimated_camera_pose =
-                                this.smartCameraExtrinsicsCalibrator.detectedInImage("",frameTime, pixelPosition,transformOfFeatureInVisualModel, frameTransform);
+                                this.smartCameraExtrinsicsCalibrator.detectedInImage("",imageFrameTime, pixelPosition,transformOfFeatureInVisualModel, frameTransform);
                         if(null != estimated_camera_pose) {
                             Quaternion_F64 quaternionBoofCV = transform_to_quaternion_boofcv(estimated_camera_pose);
                             detectedFeaturesClient.justPublishPose(
@@ -2407,6 +2408,26 @@ public class MainActivity
     @Override
     public void resetExtrinsicCalibration(){
         this.smartCameraExtrinsicsCalibrator.uncalibrated();
+    }
+
+    public void extrinsicsCalibration(ManagementCommand command) {
+        switch (command) {
+            case EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE:
+                Log.i(TAG,"extrinsicsCalibration: setting up to capture one image and pose.");
+                break;
+            case EXTERNAL_CALIBRATION_REQUEST_CURRENT_ROBOT_POSE:
+                java.util.Date now = DateAndTime.nowAsDate();
+                Log.i(TAG,"extrinsicsCalibration: setting up to current robot pose at "+now+" = "+now.getTime()+"ms");
+                FrameTransform frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame();
+                now = DateAndTime.nowAsDate();
+                Log.i(TAG,"extrinsicsCalibration: received current robot pose at "+now+" = "+now.getTime()+"ms");
+                Log.i(TAG,"extrinsicsCalibration: received current robot pose = "+frameTransform+" at "+now+" = "+now.getTime()+"ms");
+                break;
+            default:
+                Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");
+                throw new RuntimeException("extrinsicsCalibration: ManagementCommand '"+command+"' not recognised");
+        }
+
     }
 
     @Override

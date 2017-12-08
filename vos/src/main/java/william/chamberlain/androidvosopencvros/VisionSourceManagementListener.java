@@ -15,6 +15,8 @@ import java.util.regex.Pattern;
 import std_msgs.String;
 import william.chamberlain.androidvosopencvros.device.DimmableScreen;
 
+import static william.chamberlain.androidvosopencvros.ManagementCommand.EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE;
+
 /**
  * Listens for management commands on the /management topic.
  *
@@ -176,8 +178,11 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case ALLOCATE_TO_TARGET:
                             visionSource.allocateTo(VisionSource.TARGET_ALLOCATION_KEY);
                             break;
-                        case RESET_EXTERNAL_CALIBRATION:
+                        case EXTERNAL_CALIBRATION_RESET:
                             visionSource.resetExtrinsicCalibration();
+                            break;
+                        case EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE:
+                            visionSource.extrinsicsCalibration(EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE);
                             break;
                         default:
                             log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");

@@ -5,6 +5,7 @@ mainClassName = "william.chamberlain.androidvosopencvros.Test_RosJavaCompileAndR
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile project(':androidvosopencvros')
+    compile project(':vos')
 }
 
 sourceCompatibility = "1.7"

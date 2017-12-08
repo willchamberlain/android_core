@@ -31,6 +31,8 @@ import static actionlib_msgs.GoalStatus.SUCCEEDED;
 import static org.bytedeco.javacpp.opencv_core.CV_64FC1;
 import static org.bytedeco.javacpp.opencv_core.setIdentity;
 import static william.chamberlain.androidvosopencvros.Geometry_OpenCV.matToString;
+import static william.chamberlain.androidvosopencvros.Hardcoding.CAMERA_DISTORTION_COEFFICIENTS_5;
+import static william.chamberlain.androidvosopencvros.Hardcoding.CAMERA_INTRINSICS_MATRIX;
 import static william.chamberlain.androidvosopencvros.PlanningStrategy.fixedSet;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.NaN;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.left;
@@ -227,8 +229,24 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         }
     }
 
+    private static final double PIXEL_DIFFERENCE_THRESHOLD = 2.0d;  // if closer than 2px in x AND y, will reject as too similar - NOTE; assumes camera is fixed pose
+
     private void recordRobotDetectionInImage(Observation2 detectionInImage) {
-        detectionInImages.add(detectionInImage);
+        synchronized (associatedData_LOCK) {
+            for(Observation2 detection: detectionInImages) {
+                if(     Math.abs(detection.pixelPosition.getU()-detectionInImage.pixelPosition.getU()) < PIXEL_DIFFERENCE_THRESHOLD
+                        &&
+                        Math.abs(detection.pixelPosition.getV()-detectionInImage.pixelPosition.getV()) < PIXEL_DIFFERENCE_THRESHOLD
+                        ) {
+                    System.out.println("recordRobotDetectionInImage: rejected: "
+                            +"  u="+detection.pixelPosition.getU()+", u="+detectionInImage.pixelPosition.getU()
+                            +", v="+detection.pixelPosition.getV()+", v="+detectionInImage.pixelPosition.getV()
+                            +": "+detectionInImage+" =~= "+detection);
+                    return;
+                }
+            }
+            detectionInImages.add(detectionInImage);
+        }
     }
 
     /** Don't need this yet - records each frame from the camera, for timekeeping/event monitoring. */
@@ -265,7 +283,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             }
         }
         if(null != associatedPose) {        System.out.println("SCEC: associateData: associated="+associatedPose+" , "+detectionInImageData_);
-            synchronized (associatedData_lock) {
+            synchronized (associatedData_LOCK) {
                 associatedData.add(new AssociatedData(associatedPose, detectionInImageData_));
                 System.out.println("SCEC: associateData: total number associated=" + associatedData.size());
                 System.out.println("associateData: best: diff=" + (detectionTime - associatedPose.poseTime.getTime()) + ", detectionTimeEarly=" + detectionTimeEarly + ", poseFromRobotTime=" + associatedPose.poseTime.getTime() + ", detectionTime=" + detectionTime + ", detectionTimeLate=" + detectionTimeLate);
@@ -302,6 +320,11 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     //  1) time  2) pose  3) covariance/uncertainty
     public FrameTransform askRobotForItsPoseFrame() {                          System.out.println("SCEC: askRobotForItsPose: "+stateString());
         FrameTransform transform = robotPoseMeasure.askRobotForPoseFrame();       System.out.println("SCEC: askRobotForItsPose: transform ="+transform);
+        return transform;
+    }
+
+    public FrameTransform askRobotForItsPoseFrame(java.util.Date date) {                          System.out.println("SCEC: askRobotForItsPose: "+stateString());
+        FrameTransform transform = robotPoseMeasure.askRobotForPoseFrame(date);       System.out.println("SCEC: askRobotForItsPose: transform ="+transform);
         return transform;
     }
     /*****************************************************************/
@@ -518,7 +541,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         System.out.println("SCEC: robotFinishedMoving: end: "+stateString());
     }
 
-    private final Object associatedData_lock = new Object();
+    private final Object associatedData_LOCK = new Object();
 
     /** @return true if the extrinsics have been calculated and can finish the process.*/
     private Se3_F64 estimateExtrinsics() {
@@ -528,7 +551,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 System.out.println("SCEC: estimateExtrinsics: TRUE");
                 return true; }
          */
-        synchronized (associatedData_lock) {
+        synchronized (associatedData_LOCK) {
             if(null != associatedData  &&  associatedData.size() >= TEMP_NUM_OBS_EQUAL_NUM_PLANNED) {
                 IMAGE_PIXEL_2D_DATA_POINTS = new double[associatedData.size() * 2];
                 WORLD_3D_DATA_POINTS = new double[associatedData.size() * 3];
@@ -637,12 +660,6 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
 
 
-    private static final double[] CAMERA_INTRINSICS_MATRIX = {
-            2873.9d, 0.0d, 1624.4d,
-            0.0d, 2867.8d, 921.6d,
-            0.0d, 0.0d, 1.0d};
-
-    private static final double[] CAMERA_DISTORTION_COEFFICIENTS_5 = {0.0748d, -0.1524d, 0.0887d, 0.0d, 0.0d};
 
     private double[] IMAGE_PIXEL_2D_DATA_POINTS = {
             1538d, 589d,
@@ -675,17 +692,16 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 //            indexer.put(row,col,val)
 //            Mat imagePoints    = new Mat(10, 2, CV_64FC1); // pixel coordinates, as [ u=x=right, v=y=down ]
 //            imagePoints.push_back(new Mat(opencv_core.Point2f(1538.0f,589.0f)));
-        opencv_core.Mat cameraMatrix   = new opencv_core.Mat(3, 3, CV_64FC1);
-        cameraMatrix.getDoubleBuffer().put(CAMERA_INTRINSICS_MATRIX);
-        System.out.println("onCameraFrame: cameraMatrix = "+matToString(cameraMatrix));
-        double[] distCoeffsArray = CAMERA_DISTORTION_COEFFICIENTS_5;
-        opencv_core.Mat distCoeffs     = new opencv_core.Mat(distCoeffsArray.length, 1, CV_64FC1 );
-        System.out.println("onCameraFrame: distCoeffs = "+matToString(distCoeffs));
-        distCoeffs.getDoubleBuffer().put(distCoeffsArray);
+
         opencv_core.Mat rVec_Estimated = new opencv_core.Mat(3, 3, CV_64FC1); // Output rotation   _vector_ : world-to-camera
         opencv_core.Mat tVec_Estimated = new opencv_core.Mat(3, 1, CV_64FC1); // Output translation vector  : world-to-camera
+        opencv_core.Mat cameraIntrinsicsMatrix   = new opencv_core.Mat(3, 3, CV_64FC1);
+        opencv_core.Mat distCoeffs     = new opencv_core.Mat(5, 1, CV_64FC1 );
 
-        //        @param cameraMatrix Input camera matrix \f$A = \vecthreethree
+        cameraIntrinsicsMatrix.getDoubleBuffer().put(CAMERA_INTRINSICS_MATRIX); System.out.println("onCameraFrame: cameraIntrinsicsMatrix = "+matToString(cameraIntrinsicsMatrix));
+        distCoeffs.getDoubleBuffer().put(CAMERA_DISTORTION_COEFFICIENTS_5);     System.out.println("onCameraFrame: distCoeffs = "+matToString(distCoeffs));
+
+        //        @param cameraIntrinsicsMatrix Input camera matrix \f$A = \vecthreethree
         //              {fx}{0}{cx}
         //              {0}{fy}{cy}
         //              {0}{0}{1}\f$ .
@@ -697,17 +713,40 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         //        the model coordinate system to the camera coordinate system.
         //        @param tvec Output translation vector.
         //        @Namespace("cv") public static native @Cast("bool") boolean solvePnPRansac( @ByVal Mat objectPoints, @ByVal Mat imagePoints,
-        //                                  @ByVal Mat cameraMatrix, @ByVal Mat distCoeffs,
+        //                                  @ByVal Mat cameraIntrinsicsMatrix, @ByVal Mat distCoeffs,
         //                                  @ByVal Mat rvec, @ByVal Mat tvec,
         //                                  @Cast("bool") boolean useExtrinsicGuess/*=false*/, int iterationsCount/*=100*/,
         //                                  float reprojectionError/*=8.0*/, double confidence/*=0.99*/,
         //                                  @ByVal(nullValue = "cv::OutputArray(cv::noArray())") Mat inliers, int flags/*=cv::SOLVEPNP_ITERATIVE*/ );
 //        opencv_calib3d.solvePnPRansac(objectPoints, imagePoints,
-//                cameraMatrix,   distCoeffs,
+//                cameraIntrinsicsMatrix,   distCoeffs,
 //                rVec_Estimated, tVec_Estimated,
 //                false,          100,
 //                0.8f,           0.99d);
-        opencv_calib3d.solvePnPRansac(objectPoints, imagePoints, cameraMatrix, distCoeffs, rVec_Estimated, tVec_Estimated);
+
+        /*  http://answers.opencv.org/question/87546/solvepnp-fails-with-perfect-coordinates-and-cvposit-passes/
+        From my knowledge, the pose estimation problem (or PnP problem) is a non linear problem. Thus, it is a non trivial problem and it is always possible to converge to a local minima I think. That's why there are plenty of methods to estimate the camera pose:
+            Model-Based Object Pose in 25 Lines of Code (The POSIT method)
+            Complete Solution Classification for the Perspective-Three-Point Problem (SOLVEPNP_P3P)
+            EPnP: Efficient Perspective-n-Point Camera Pose Estimation (SOLVEPNP_EPNP)
+            A Direct Least-Squares (DLS) Method for PnP (SOLVEPNP_DLS)
+            Exhaustive Linearization for Robust Camera Pose and Focal Length Estimation (SOLVEPNP_UPNP)
+            and plenty of other methods that are not present in OpenCV 3.1.
+            ...
+            I observed a completly different behavior with and without the cast to float but that is not related to your issue, just that a small "noise" produces very different results for the DLT.
+         */
+        // note: Matlab is good - use Matlab
+        // https://github.com/opencv/opencv/issues/4854  -  solvePnP: is not handling all degenerated cases
+        // https://github.com/opencv/opencv/issues/6117  -  solvePnP fails with perfect coordinates (and cvPOSIT passes)
+        // http://answers.opencv.org/question/87546/solvepnp-fails-with-perfect-coordinates-and-cvposit-passes/
+        // see https://github.com/pthom/TestSolvePnp
+        // opencv_calib3d.solvePnP
+        // http://answers.opencv.org/question/74327/solvepnp-bad-result-planar-marker/ - SolvePNP Bad Result Planar Marker
+        //   -> https://xuchi.weebly.com/rpnp.html - A Robust O(n) Solution  to the Perspective-n-Point Problem
+        //         Converting from image coordinate to normalized coordinate
+        //  http://nghiaho.com/?page_id=576 - Pose Estimation For Planar Target -  It is used to determine the pose of a planar target.
+
+        opencv_calib3d.solvePnPRansac(objectPoints, imagePoints, cameraIntrinsicsMatrix, distCoeffs, rVec_Estimated, tVec_Estimated);
 
         System.out.println("onCameraFrame: rVec_Estimated = "+rVec_Estimated);
         System.out.println("onCameraFrame: rVec_Estimated.size().width()= "+rVec_Estimated.size().width()+", .height()="+rVec_Estimated.size().height());
