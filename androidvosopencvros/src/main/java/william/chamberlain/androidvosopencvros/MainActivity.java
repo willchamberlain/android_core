@@ -1332,8 +1332,14 @@ public class MainActivity
                         smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
 
                         FrameTransform frameTransform = null;
-                        try { frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame(imageFrameTime);
-                            Log.i(TAG,"DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()) = "+DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()));
+                        try {
+                            Log.i(TAG,"detectAndEstimate..: before askRobotForItsPoseFrame: DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()) = "+DateAndTime.diffNs(imageFrameTime, frameTransform.getTime()));
+                            long tic = DateAndTime.nowAsDate().getTime();
+                            Log.i(TAG,"detectAndEstimate..: before askRobotForItsPoseFrame("+imageFrameTime.getTime()+"ms): time now="+tic+"ms");
+                            frameTransform = smartCameraExtrinsicsCalibrator.askRobotForItsPoseFrame(imageFrameTime);
+                            long toc = DateAndTime.nowAsDate().getTime();
+                            Log.i(TAG,"detectAndEstimate..: after askRobotForItsPoseFrame("+imageFrameTime.getTime()+"ms): time now="+toc+"ms: took "+(toc-tic)+"ms");
+                            Log.i(TAG,"detectAndEstimate..: after askRobotForItsPoseFrame("+imageFrameTime.getTime()+"ms): frameTransform="+frameTransform);
 //            smartCameraExtrinsicsCalibrator.recordRobotPose("", frameTransform);
                         }
                         catch (Exception e) { Log.e(TAG, "onCameraFrame: exception with smartCameraExtrinsicsCalibrator.recordRobotPose: "+e, e); }

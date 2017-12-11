@@ -39,7 +39,7 @@ import static william.chamberlain.androidvosopencvros.ros_types.RosTypes.header;
 
 public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements RobotStatusMonitor, RobotPoseMeasure, RobotGoalPublisher, RobotPoseMonitor {
 
-    public static final String GET_TF_SERVICE_NAME = "/androidvosopencvros/register_vision_source";
+    public static final String GET_TF_SERVICE_NAME = "/androidvosopencvros/look_up_transform";
     public static final String ROBOT_GRAPHNAME_PREFIX = "";
     private String nodeNamespace = null;
     private VisionSource_WhereIs visionSource_WhereIs = null;
