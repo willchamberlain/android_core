@@ -7,6 +7,7 @@ import geometry_msgs.Pose;
  */
 
 public class VisionTask {
+    private String robotId="";
     private String algorithm;
     private String descriptor;
     private String requestId;
@@ -16,6 +17,16 @@ public class VisionTask {
     private int executions=0;
 
     public VisionTask(String algorithm, String descriptor, String requestId, Pose relationToBase, String returnUrl) {
+        this.algorithm = algorithm;
+        this.descriptor = descriptor;
+        this.requestId = requestId;
+        this.relationToBase = relationToBase;
+        this.returnUrl = returnUrl;
+        numberOfTimesToExecute=1;
+    }
+
+    public VisionTask(String robotId, String algorithm, String descriptor, String requestId, Pose relationToBase, String returnUrl) {
+        this.robotId = robotId;
         this.algorithm = algorithm;
         this.descriptor = descriptor;
         this.requestId = requestId;
@@ -86,10 +97,20 @@ public class VisionTask {
         return this;
     }
 
+    public String getRobotId() {
+        return robotId;
+    }
+
+    public VisionTask robotId(String robotId) {
+        this.robotId = robotId;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "VisionTask{" +
-                "algorithm='" + algorithm + '\'' +
+                " robotId='" + robotId + '\'' +
+                ", algorithm='" + algorithm + '\'' +
                 ", descriptor='" + descriptor + '\'' +
                 ", requestId='" + requestId + '\'' +
                 ", relationToBase=" + relationToBase +

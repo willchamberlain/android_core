@@ -3,6 +3,7 @@ package william.chamberlain.androidvosopencvros;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import vos_aa1.WhereIsAsPub;
 
@@ -57,6 +58,20 @@ public class VosTaskSet {
             }
         }
         return false;
+    }
+
+
+    public List<VisionTask> visionTaskListToExecute(Algorithm algorithm_, int tag_id) {
+        synchronized (this) {
+            List<VisionTask> visionTaskList = new ArrayList<>();
+            for (VisionTask visionTask : taskQueue) {
+                if( visionTask.getAlgorithm().equals(algorithm_.canonicalName())
+                        && visionTask.getDescriptor().equals(Integer.toString(tag_id))) {
+                    visionTaskList.add(visionTask);
+                }
+            }
+            return visionTaskList;
+        }
     }
 
     public VisionTask visionTaskToExecute(Algorithm algorithm_, int tag_id) {
@@ -134,6 +149,7 @@ public class VosTaskSet {
     public void addVisionTaskToQueue(WhereIsAsPub message) {
         synchronized (this) {
             taskQueue.add(new VisionTask()
+                    .robotId(message.getRobotId())
                     .algorithm(message.getAlgorithm())
                     .descriptor(message.getDescriptor())
                     .requestId(message.getRequestId())

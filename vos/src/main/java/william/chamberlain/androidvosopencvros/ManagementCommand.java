@@ -28,9 +28,13 @@ public enum ManagementCommand {
 //        POSE("pose"),
         ALLOCATE_TO_ROBOT("task: robot 170 290 250 330"),
         ALLOCATE_TO_TARGET("task: target 210"),
-        EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE("external calibration - capture one image"),
-        EXTERNAL_CALIBRATION_REQUEST_CURRENT_ROBOT_POSE("external calibration - request current robot pose"),
-        EXTERNAL_CALIBRATION_RESET("external calibration - reset");
+        EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE("external calibration capture one image"),
+        EXTERNAL_CALIBRATION_CAPTURE_STOP("external calibration stop capture"),
+        EXTERNAL_CALIBRATION_CAPTURE_CONTINUOUS("external calibration continuous"),
+        EXTERNAL_CALIBRATION_REQUEST_CURRENT_ROBOT_POSE("external calibration request current robot pose"),
+        EXTERNAL_CALIBRATION_TAKE_OBSERVATION("external calibration take observation"),
+        EXTERNAL_CALIBRATION_LIST_OBSERVATIONS("external calibration list observations"),
+        EXTERNAL_CALIBRATION_RESET("external calibration reset");
 
         public final String command_val;
 

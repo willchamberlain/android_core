@@ -9,6 +9,7 @@ import geometry_msgs.Pose;
  */
 class WhereIsAsPubLocal {
     private String algorithm, descriptor, requestId, returnUrl;
+    private String robotId="";
     private Pose relationToBase;
     private int rate;
 
@@ -64,6 +65,19 @@ class WhereIsAsPubLocal {
         return null;
     }
 
+    public String getRobotId() {
+        return robotId;
+    }
+
+    public void setRobotId(String robotId) {
+        this.robotId = robotId;
+    }
+
+    public WhereIsAsPubLocal robotId(String robotId) {
+        this.robotId = robotId;
+        return this;
+    }
+
     public WhereIsAsPubLocal(String algorithm, String descriptor, int rate) {
         this.algorithm = algorithm;
         this.descriptor = descriptor;
@@ -78,5 +92,16 @@ class WhereIsAsPubLocal {
                 new william.chamberlain.androidvosopencvros.device.Pose(
                     new william.chamberlain.androidvosopencvros.device.Point(x,y,z),
                     new william.chamberlain.androidvosopencvros.device.Quaternion(qx,qy,qz,qw) );
+    }
+
+    public WhereIsAsPubLocal(String robotId, String algorithm, String descriptor, int rate, double x, double y, double z, double qx, double qy, double qz, double qw) {
+        this.robotId = robotId;
+        this.algorithm = algorithm;
+        this.descriptor = descriptor;
+        this.rate = rate;
+        this.relationToBase =
+                new william.chamberlain.androidvosopencvros.device.Pose(
+                        new william.chamberlain.androidvosopencvros.device.Point(x,y,z),
+                        new william.chamberlain.androidvosopencvros.device.Quaternion(qx,qy,qz,qw) );
     }
 }

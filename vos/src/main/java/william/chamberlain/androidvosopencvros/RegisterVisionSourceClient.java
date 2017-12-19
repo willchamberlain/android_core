@@ -176,7 +176,7 @@ public class RegisterVisionSourceClient extends AbstractNodeMain {
             subscriber.addMessageListener(new MessageListener<WhereIsAsPub>() {
                 @Override
                 public void onNewMessage(WhereIsAsPub message) {
-                    Log.i("Listener<WhereIsAsPub>","onNewMessage(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
+                    Log.i("Listener<WhereIsAsPub>","onNewMessage(WhereIsAsPub message) : "+message.getRobotId()+", "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
                     whereIsSubscriber.called(message);
                 }
             });

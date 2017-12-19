@@ -92,8 +92,10 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
      * @param qz orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
      * @param qw orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
      */
-    public void reportDetectedFeature(int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
+    public void reportDetectedFeature(String robotId, String requestId, int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
+
+        applyVisionTaskDetailsForDetectedFeature(robotId, requestId, serviceRequest);
 
         applyCurrentPoseAsCameraPoseForDetectedFeature(serviceRequest);                             // sets DetectedFeatureRequest.cameraPose from PosedEntity pose.
 
@@ -137,6 +139,11 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
         applyDetectionPoseAndIdForDetectedFeature(tagId, x, y, z, qx, qy, qz, qw, serviceRequest);  // sets DetectedFeatureRequest.visualFeature pose of the marker.
 
         featureServiceClient.call(serviceRequest,featureResponseListener);
+    }
+
+    private void applyVisionTaskDetailsForDetectedFeature(String robotId, String requestId, DetectedFeatureRequest serviceRequest) {
+        serviceRequest.setRobotId(robotId);
+        serviceRequest.setRequestId(requestId);
     }
 
     /** Sets the marker id and pose of the detected feature in the DetectedFeatureRequest.

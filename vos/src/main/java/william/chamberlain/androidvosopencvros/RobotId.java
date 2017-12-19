@@ -15,6 +15,11 @@ public class RobotId implements java.io.Serializable, Comparable<String>, CharSe
         id = String.valueOf(id_int);
     }
 
+    public RobotId(String id_){
+        id_int = -1;
+        id = id_;
+    }
+
     public String idString(){
         return id;
     }

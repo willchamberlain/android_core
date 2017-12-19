@@ -24,7 +24,7 @@ public class WhereIsSubscriber {
     }
 
     public void called(WhereIsAsPub message){
-        Log.i("WhereIsSubscriber","called(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
+        Log.i("WhereIsSubscriber","called(WhereIsAsPub message) : "+message.getRobotId()+", "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         visionSource.dealWithRequestForInformation(message);
     }
 }
