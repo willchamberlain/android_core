@@ -9,7 +9,8 @@ import vos_aa1.WhereIsAsPub;
 public class WhereIsAsPubUtil {
     public static String toString(WhereIsAsPub message) {
         return "WhereIsAsPub{" +
-                "algorithm='" + message.getAlgorithm() + '\'' +
+                " robotId='" + message.getRobotId() + '\'' +
+                ", algorithm='" + message.getAlgorithm() + '\'' +
                 ", descriptor='" + message.getDescriptor() + '\'' +
                 ", requestId='" + message.getRequestId() + '\'' +
                 ", relationToBase=" + message.getRelationToBase() +

@@ -556,7 +556,7 @@ public class MainActivityGalaxy
     ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
 
     public void dealWithRequestForInformation(WhereIsAsPub message){
-        Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
+        Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getRobotId()+", "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         synchronized (this) {
             addVisionTaskToQueue(message);
         }
@@ -564,6 +564,7 @@ public class MainActivityGalaxy
 
     private void addVisionTaskToQueue(WhereIsAsPub message) {
         taskQueue.add(new VisionTask()
+                .robotId(message.getRobotId())
                 .algorithm(message.getAlgorithm())
                 .descriptor(message.getDescriptor())
                 .requestId(message.getRequestId())
@@ -574,6 +575,7 @@ public class MainActivityGalaxy
 
     private void addVisionTaskToQueue(WhereIsAsPubLocal message) {
         taskQueue.add(new VisionTask()
+                .robotId(message.getRobotId())
                 .algorithm(message.getAlgorithm())
                 .descriptor(message.getDescriptor())
                 .requestId(message.getRequestId())
@@ -806,7 +808,8 @@ Log.i(logTagTag,"after detector.getFiducialToCamera(i, targetToSensor);");
 
 //// TODO - timing here  c[camera_num]-f[frameprocessed]-i[iteration]-t[tagid]
 Log.i(logTagTag,"after applying transformations");
-                        detectedFeaturesClient.reportDetectedFeature(90000+tag_id,
+                        detectedFeaturesClient.reportDetectedFeature(
+                                "no_robot_id_not_a_real_class", "no_request_id_not_a_real_class", 90000+tag_id,
                                 sensorToTargetViaTransform.getX(), sensorToTargetViaTransform.getY(), sensorToTargetViaTransform.getZ(),
                                 sensorToTargetViaTransformQuat.x,sensorToTargetViaTransformQuat.y,sensorToTargetViaTransformQuat.z,sensorToTargetViaTransformQuat.w);
 
@@ -1016,7 +1019,8 @@ Log.i(logTagTag,"after localiseFromAFeatureClient.localiseFromAFeature");
                 Quaternion_F64 meanSensorToTargetViaTransformQuat = new Quaternion_F64();
                 ConvertRotation3D_F64.matrixToQuaternion(meanSensorToTargetTransformRot, meanSensorToTargetViaTransformQuat);
 Log.i(robotId_.idString(), "estimated pose from "+numTagsForRobot+" tag detections");
-                detectedFeaturesClient.reportDetectedFeature(90000+robotId_.idInt(),
+                detectedFeaturesClient.reportDetectedFeature(
+                        "no_robot_id_not_a_real_class", "no_request_id_not_a_real_class", 90000+robotId_.idInt(),
                     xTranslationMean, yTranslationMean, zTranslationMean,
                     meanSensorToTargetViaTransformQuat.x,meanSensorToTargetViaTransformQuat.y,meanSensorToTargetViaTransformQuat.z,meanSensorToTargetViaTransformQuat.w);
             }

@@ -314,7 +314,7 @@ public class MainActivityRosLess extends Activity
     ArrayList<VisionTask> taskQueue = new ArrayList<VisionTask>();
 
     public void dealWithRequestForInformation(WhereIsAsPub message){
-        Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
+        Log.i(TAG,"dealWithRequestForInformation(WhereIsAsPub message) : "+message.getRobotId()+", "+message.getAlgorithm()+", "+message.getDescriptor()+", "+message.getRequestId()+", "+message.toString() );
         synchronized (this) {
             addVisionTaskToQueue(message);
         }
@@ -322,6 +322,7 @@ public class MainActivityRosLess extends Activity
 
     private void addVisionTaskToQueue(WhereIsAsPub message) {
         taskQueue.add(new VisionTask()
+                .robotId(message.getRobotId())
                 .algorithm(message.getAlgorithm())
                 .descriptor(message.getDescriptor())
                 .requestId(message.getRequestId())

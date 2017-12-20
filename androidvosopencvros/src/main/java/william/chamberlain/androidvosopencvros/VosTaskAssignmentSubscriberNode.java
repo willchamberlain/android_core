@@ -23,8 +23,10 @@ import java.util.List;
 
 import actionlib_msgs.GoalStatus;
 import actionlib_msgs.GoalStatusArray;
+import boofcv.alg.segmentation.slic.SegmentSlic;
 import geometry_msgs.PoseStamped;
 import geometry_msgs.PoseWithCovarianceStamped;
+import georegression.struct.se.Se3_F64;
 import vos_aa1.GetTf;
 import vos_aa1.GetTfRequest;
 import vos_aa1.GetTfResponse;
@@ -87,7 +89,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         subscriber.addMessageListener(new MessageListener<WhereIsAsPub>() {                                 // declare inline
             @Override
             public void onNewMessage(WhereIsAsPub message) {
-                log.info("message received: \"" + message.getRequestId() + "\" | \""+message.getAlgorithm()+"\" | \""+message.getDescriptor()+"\" | \"" + message.getReturnUrl() + "\"");
+                log.info("VosTaskAssignmentSubscriberNode: message received: \"" + message.getRobotId() + "\" | \"" + message.getRequestId() + "\" | \""+message.getAlgorithm()+"\" | \""+message.getDescriptor()+"\" | \"" + message.getReturnUrl() + "\"");
                 visionSource_WhereIs.dealWithRequestForInformation(message);
             }
         });
@@ -142,9 +144,28 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         }
     }
 
-    /*** TF by request *******************************/
-    public FrameTransform getTf(String sourceFrameId_, String targetFrameId_, java.util.Date time_) {
+    public void getTfDummy(String sourceFrameId_, String targetFrameId_, java.util.Date time_) {
         GetTfRequest getTfRequest = transformClient.newMessage();
+
+        std_msgs.String sourceFrameId = getTfRequest.getSourceFrameId();
+        sourceFrameId.setData(sourceFrameId_);
+        getTfRequest.setSourceFrameId(sourceFrameId);
+
+        std_msgs.String targetFrameId = getTfRequest.getTargetFrameId();
+        targetFrameId.setData(targetFrameId_);
+        getTfRequest.setTargetFrameId(targetFrameId);
+
+        std_msgs.Time time = getTfRequest.getTime();
+        time.setData(DateAndTime.toRosTime(time_));
+        getTfRequest.setTime(time);
+        GetTfListenerDummy getTfListener = new GetTfListenerDummy(time_);
+        transformClient.call(getTfRequest, getTfListener);
+    }
+
+    /*** TF by request *******************************/
+    public void getTf(String sourceFrameId_, String targetFrameId_, java.util.Date time_, PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_, RobotPoseListener robotPoseListener_) {
+        GetTfRequest getTfRequest = transformClient.newMessage();
+
         std_msgs.String sourceFrameId = getTfRequest.getSourceFrameId();
         sourceFrameId.setData(sourceFrameId_);
         getTfRequest.setSourceFrameId(sourceFrameId);
@@ -157,26 +178,12 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         time.setData(DateAndTime.toRosTime(time_));
         getTfRequest.setTime(time);
 
-        Local_FrameTransform local_FrameTransform = new Local_FrameTransform();
-        GetTfListener getTfListener = new GetTfListener();
-        getTfListener.set_local_FrameTransform(local_FrameTransform, time_);
+        //  GetTfListener(java.util.Date date_, PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_, RobotPoseListener robotPoseListener_) {
+        GetTfListener getTfListener = new GetTfListener(time_, pixelPosition_, transformOfFeatureInVisualModel_, robotPoseListener_);
         transformClient.call(getTfRequest, getTfListener);
-        int iterations = 0;
-        while( ! local_FrameTransform.isSet() ) {
-            iterations++;
-            if(iterations>400) {
-                throw new RuntimeException("VosTaskAssSubNod.getTf: waited too long (200x5ms) for a response getting the robot pose at "+time_+" = "+time_.getTime()+"ms");
-            } else if(0==iterations%100) {
-                System.out.println("VosTaskAssSubNod.getTf: waited ("+iterations+"x5ms) so far for a response getting the robot pose at "+time_+" = "+time_.getTime()+"ms");
-            }
-            try {   Thread.sleep(5);    } catch (InterruptedException e) {
-                e.printStackTrace();
-                throw new RuntimeException("VosTaskAssSubNod.getTf: sleep: ERROR: "+e, e);
-            }
-        }
-        return local_FrameTransform.frameTransform();
     }
 
+    /***************************************************************************/
     class Local_FrameTransform {
         private FrameTransform frameTransform;
         private boolean isSet = false;
@@ -188,21 +195,48 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         FrameTransform frameTransform(){return frameTransform;}
     }
 
-
-
-    class GetTfListener implements ServiceResponseListener<GetTfResponse> {
-        Local_FrameTransform local_FrameTransform = null;
+    /***************************************************************************/
+    class GetTfListenerDummy implements ServiceResponseListener<GetTfResponse> {
         java.util.Date date = null;
-
-        public void set_local_FrameTransform(Local_FrameTransform local_FrameTransform_, java.util.Date date_){
-            this.local_FrameTransform = local_FrameTransform_;
+        GetTfListenerDummy(java.util.Date date_) {
             this.date = date_;
+        }
+        @Override
+        public void onSuccess(GetTfResponse getTfResponse) {
+            System.out.println("GetTfListenerDummy: onSuccess: got response with transform="+getTfResponse.getTransformFound().getTransform()+" for robot pose at "+date+" = "+date.getTime()+"ms");
+        }
+        @Override
+        public void onFailure(RemoteException e) {
+            System.out.println("GetTfListenerDummy: onFailure: for robot pose at "+date+" = "+date.getTime()+"ms: exception: "+e);
+            e.printStackTrace();
+            //  throw new RuntimeException("GetTfListenerDummy: onFailure: ERROR: "+e, e);
+        }
+    }
+
+
+    /***************************************************************************/
+    class GetTfListener implements ServiceResponseListener<GetTfResponse> {
+        java.util.Date date = null;
+        PixelPosition pixelPosition = null;
+        Se3_F64 transformOfFeatureInVisualModel = null;
+        RobotPoseListener robotPoseListener = null;
+        geometry_msgs.TransformStamped transformStamped = null;
+        org.ros.rosjava_geometry.FrameTransform frameTransform = null;
+
+        GetTfListener(java.util.Date date_, PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_, RobotPoseListener robotPoseListener_) {
+            this.date = date_;
+            this.pixelPosition = pixelPosition_;
+            this.transformOfFeatureInVisualModel = transformOfFeatureInVisualModel_;
+            this.robotPoseListener = robotPoseListener_;
         }
 
         @Override
         public void onSuccess(GetTfResponse getTfResponse) {
-            System.out.println("GetTfListener: onSuccess: got response "+getTfResponse+" for robot pose at "+date+" = "+date.getTime()+"ms");
-            this.local_FrameTransform.setFrameTransform(FrameTransform.fromTransformStampedMessage(getTfResponse.getTransformFound()));
+            System.out.println("GetTfListener: onSuccess: got response with transform="+getTfResponse.getTransformFound().getTransform()+" for robot pose at "+date+" = "+date.getTime()+"ms");
+//            this.local_FrameTransform.setFrameTransform(FrameTransform.fromTransformStampedMessage(getTfResponse.getTransformFound()));
+            transformStamped = getTfResponse.getTransformFound();
+            frameTransform   = FrameTransform.fromTransformStampedMessage(transformStamped);
+            this.robotPoseListener.robotPoseObservation(this.date, this.pixelPosition, this.transformOfFeatureInVisualModel, frameTransform);
         }
 
         @Override
@@ -264,7 +298,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         public void onNewMessage(PoseWithCovarianceStamped pose) {
             for (RobotPoseListener poseListener : robotPoseListeners) {
                 if(poseListener.robotIds().contains(robotId)) {
-                    poseListener.robotPose(robotId, pose);
+//                    poseListener.robotPose(robotId, pose);
                 }
             }
         }
@@ -277,7 +311,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         //  https://answers.ros.org/question/250292/in-rosjavahow-can-i-transform-the-odom-frame-to-map-frame/
         //  https://answers.ros.org/question/249861/how-can-i-record-the-robot-trajectory-and-show-it-on-the-android-device/
         // obtain current robot pose
-        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
+        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("/base_link"), GraphName.of("/map"));
         Transform robotPoseInMap = frameTransform.getTransform();
 
         return robotPoseInMap;
@@ -290,13 +324,19 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         // if estimate is good, done
     }
     public FrameTransform askRobotForPoseFrame() {  // see SmartCameraExtrinsicsCalibrator
-        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("base_link"), GraphName.of("map"));
+        FrameTransform frameTransform = frameTransformTree.transform(GraphName.of("/base_link"), GraphName.of("/map"));
         return frameTransform;
     }
-    public FrameTransform askRobotForPoseFrame(java.util.Date date) {  // see SmartCameraExtrinsicsCalibrator
-        FrameTransform local_FrameTransform = null;
-        local_FrameTransform = getTf("base_link", "map", date);
-        return local_FrameTransform;
+
+//    public FrameTransform askRobotForPoseFrameAsync(java.util.Date date) {  // see SmartCameraExtrinsicsCalibrator
+//        FrameTransform local_FrameTransform = null;
+//        local_FrameTransform = getTf("base_link", "map", date);
+//        return local_FrameTransform;
+//    }
+
+
+    public void askRobotForPoseFrameAsync(String robotId_, java.util.Date imageFrameTime_, PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_, RobotPoseListener robotPoseListener) {
+        getTf("/map", "/base_link", imageFrameTime_,pixelPosition_,transformOfFeatureInVisualModel_,robotPoseListener);
     }
 
 

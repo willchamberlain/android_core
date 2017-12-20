@@ -148,26 +148,30 @@ public class VosTaskSet {
 
     public void addVisionTaskToQueue(WhereIsAsPub message) {
         synchronized (this) {
-            taskQueue.add(new VisionTask()
+            VisionTask visionTask = new VisionTask()
                     .robotId(message.getRobotId())
                     .algorithm(message.getAlgorithm())
                     .descriptor(message.getDescriptor())
                     .requestId(message.getRequestId())
                     .relationToBase(message.getRelationToBase())
                     .returnUrl(message.getReturnUrl())
-                    .executionIterations(message.getRate()));
+                    .executionIterations(message.getRate());
+            System.out.println("addVisionTaskToQueue(WhereIsAsPub message) : new VisionTask="+visionTask);
+            taskQueue.add(visionTask);
         }
     }
 
     public void addVisionTaskToQueue(WhereIsAsPubLocal message) {
         synchronized (this) {
-            taskQueue.add(new VisionTask()
+            VisionTask visionTask = new VisionTask()
                     .algorithm(message.getAlgorithm())
                     .descriptor(message.getDescriptor())
                     .requestId(message.getRequestId())
                     .relationToBase(message.getRelationToBase())
                     .returnUrl(message.getReturnUrl())
-                    .executionIterations(message.getRate()));
+                    .executionIterations(message.getRate());
+            System.out.println("addVisionTaskToQueue(WhereIsAsPubLocal message) : new VisionTask="+visionTask);
+            taskQueue.add(visionTask);
         }
     }
 
