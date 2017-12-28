@@ -109,7 +109,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
                     java.util.Date statusTime = DateAndTime.toJavaDate(rosTime);
                     List<GoalStatus> statusList = new ArrayList<GoalStatus>();
                     for (GoalStatus move_base_goalStatus : goalStatusArray.getStatusList()) {
-                        if(move_base_goalStatus.getGoalId().getId().startsWith("/move_base")) {                         // TODO: hardcoding
+                        if(move_base_goalStatus.getGoalId().getId().contains("/move_base")) {                         // TODO: hardcoding
                             statusList.add(move_base_goalStatus);
                             for (RobotStatusChangeListener changeListener : robotStatusChangeListeners) {
                                 changeListener.robotStatusChange(statusTime,statusList);
@@ -241,8 +241,10 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
         @Override
         public void onFailure(RemoteException e) {
+            System.out.println("GetTfListener: onFailure with RemoteException "+e.getMessage());
             e.printStackTrace();
-            throw new RuntimeException("GetTfListener: onFailure: ERROR: "+e, e);
+            // TODO - what to do?
+            // throw new RuntimeException("GetTfListener: onFailure: ERROR: "+e, e);
         }
     }
 
@@ -385,21 +387,25 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
     @Override // RobotGoalPublisher
     public void sendRobotGoalInWorldFrame(Transform transform_) {
+        System.out.println("VosTaskAssignmentSubscriberNode: sendRobotGoalInWorldFrame(Transform transform_): start");
         PoseStamped poseStamped = robot_goal_publisher.newMessage();
         header(poseStamped, "map");
         RosTypes.updatePoseStampedFromTransform(transform_, poseStamped);
 
         robot_goal_publisher.publish(poseStamped);
+        System.out.println("VosTaskAssignmentSubscriberNode: sendRobotGoalInWorldFrame(Transform transform_): end");
     }
 
 
     @Override // RobotGoalPublisher
     public void sendRobotGoalInRobotFrame(Transform transform_) {
+        System.out.println("VosTaskAssignmentSubscriberNode: sendRobotGoalInRobotFrame(Transform transform_): start");
         PoseStamped poseStamped = robot_goal_publisher.newMessage();
         header(poseStamped, "base_link");
         RosTypes.updatePoseStampedFromTransform(transform_, poseStamped);
 
         robot_goal_publisher.publish(poseStamped);
+        System.out.println("VosTaskAssignmentSubscriberNode: sendRobotGoalInRobotFrame(Transform transform_): end");
     }
 
 
