@@ -152,6 +152,7 @@ public class MainActivity
     public static final boolean LOCALISING_CAMERA_FROM_OBSERVED_FEATURES = false;
     public static final boolean TESTING_TRANSFORMATIONS_OF_TRANSFORMS = false;
     public static final String TIME_QUT_EDU_AU = "time.qut.edu.au";
+    public static final String VOS_DATA_DIRECTORY_NAME = "VOS_data";
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
@@ -241,10 +242,14 @@ public class MainActivity
     public static final int MAX_FRAME_SIZE_HEIGHT_INIT = 300;
 
     private SimpleDateFormat filenameDateFormat = new SimpleDateFormat("yyyy_MM_dd_HH_mm_ss");
-    private static final boolean RECORD_DATA = true;
+    private SimpleDateFormat datafileLogDateFormat = filenameDateFormat;
+    private static boolean RECORD_DATA = false;
+    private static boolean RECORD_DATA_RECORDED = false;
+    private static boolean RECORD_DATA_CONTINUOUS = false;
 //    private FileOutputStream detectionDataOutputFile;
 //    private OutputStreamWriter detectionDataOutputStreamWriter;
     private FileWriter detectionDataOutputFile = null;
+    private File dataOutputDirectory = null;
 
     public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
@@ -336,30 +341,6 @@ public class MainActivity
             Log.i("onCreate", "tagDetectorPointer created");
         }
 
-    }
-
-    private FileWriter openFileForData(String fileName_) {
-        try {
-            File documentsDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-            boolean documentsDirectoryExists = documentsDirectory.exists();
-            if( ! documentsDirectoryExists ) {
-                documentsDirectory.mkdir();
-                documentsDirectory.setReadable(true,true);
-                documentsDirectoryExists = documentsDirectory.exists();
-                Log.i("openFileForData","openFileForData(\""+fileName_+"\"): directory is ready at "+documentsDirectory.getAbsoluteFile());
-            }
-            if(documentsDirectoryExists) {
-                File dataFile = new File(documentsDirectory.getAbsoluteFile(), fileName_);
-                dataFile.setReadable(true, true);
-                Log.i("openFileForData","openFileForData(\""+fileName_+"\"): file is ready at "+documentsDirectory.getAbsoluteFile()+"  "+fileName_);
-                return new FileWriter(dataFile);
-            } else {
-                Log.e("openFileForData","openFileForData(\""+fileName_+"\"): could not create the Documents directory at \""+documentsDirectory.getCanonicalPath()+"\".");
-            }
-        } catch (IOException e) {
-            Log.e("openFileForData","openFileForData(\""+fileName_+"\"): could not open the file.", e);
-        }
-        return null;
     }
 
     @Override
@@ -779,23 +760,6 @@ public class MainActivity
     List<Point2D_F64> robotFeatureTrackingAverages = new ArrayList<Point2D_F64>();      // TODO - make this a queue or something that won't overrun
     Object robotFeatureTrackingMonitor = new Object();
 
-
-
-        private void dummyOutputToFile(long frameNumber_) {
-        try {
-            detectionDataOutputFile.append(Long.toString(frameNumber_));
-            try { detectionDataOutputFile.flush(); }
-            catch (IOException e) { Log.e("dummyOutputToFile","dummyOutputToFile: could not flush"); }
-        }
-        catch (IOException e) { Log.e("dummyOutputToFile","dummyOutputToFile: could not append to file", e); }
-//        try {
-//            detectionDataOutputStreamWriter.append(Long.toString(frameNumber_));
-//            try { detectionDataOutputFile.flush(); }
-//            catch (IOException e) { Log.e("dummyOutputToFile","dummyOutputToFile: could not flush"); }
-//        }
-//        catch (IOException e) { Log.e("dummyOutputToFile","dummyOutputToFile: could not append to file", e); }
-    }
-
     /*** implement CameraBridgeViewBase.CvCameraViewListener2 *************************************/
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
@@ -816,6 +780,10 @@ public class MainActivity
         String logTag = "c"+getCamNum()+"-f"+framesProcessed;
 
         Log.i(logTag,"start frame");   //// TODO - timing here  c[camera_num]-f[frameprocessed]
+
+        if(RECORD_DATA) {
+            RECORD_DATA_RECORDED = false;
+        }
 
         registerAsVisionSource(logTag); //// TODO - move into control loop
 
@@ -930,6 +898,10 @@ public class MainActivity
             blankScreenOutput_OpenCV(logTag);
         }
         smartCameraExtrinsicsCalibrator.imageReceived();
+
+        if(RECORD_DATA_RECORDED && !RECORD_DATA_CONTINUOUS) {
+            RECORD_DATA = false;
+        }
 
         Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
         if (displayRgb) {
@@ -1399,7 +1371,12 @@ public class MainActivity
                     Quaternion_F64 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q = new Quaternion_F64();
                     ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
 
-//                      This is the camera-to-marker transform - keep this code, but publish the camera-to-robot-base transform instead
+
+                    Point2D_F64 locationPixel = new Point2D_F64();
+                    detector.getImageLocation(detectionOrder_,locationPixel);
+                    PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
+
+//                      /** This is the camera-to-marker transform */ - keep this code, but publish the camera-to-robot-base transform instead
 //                      /** Report as e.g. 60170, 60155, etc. */
                     for(VisionTask visionTaskInList : visionTaskListToExecute) {
                         detectedFeaturesClient.reportDetectedFeature(visionTaskInList.getRobotId(), visionTaskInList.getRequestId(),
@@ -1407,6 +1384,17 @@ public class MainActivity
                                 // TODO - use this - int tag_id_reported = MARKER_OFFSET_INT+tag_id;
                                 sensorToTarget_ROSFrame_mirrored.getX(), sensorToTarget_ROSFrame_mirrored.getY(), sensorToTarget_ROSFrame_mirrored.getZ(),
                                 sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.x, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.y, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.z, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q.w);
+
+                        if(RECORD_DATA) {
+                            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording detection data: start.");
+                            printlnToFile("\ntag_id:"+tag_id+" [ "+pixelPosition.getU()+" , "+pixelPosition.getV()+" ] ", imageFrameTime);
+                            Se3_F64 trans = sensorToTarget_ROSFrame_mirrored;
+                            printlnToFile("task: {robotId:" + visionTaskInList.getRobotId()+ ", featureDescriptor: " + tag_id + " }, pose: { x: " + trans.getX() + ", y:" + trans.getY() + ", z:" + trans.getZ() + " }", imageFrameTime);
+                            RECORD_DATA_RECORDED = true;
+                            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording detection data: end.");
+                        } else {
+                            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: not recording detection data.");
+                        }
                     }
 
                     Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
@@ -1424,9 +1412,6 @@ public class MainActivity
                     Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
                     transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
 
-                    Point2D_F64 locationPixel = new Point2D_F64();
-                    detector.getImageLocation(detectionOrder_,locationPixel);
-                    PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
                     if(smartCameraExtrinsicsCalibrator_first_notification_this_frame || DETECT_ALL_MARKERS_IN_FRAME) {
                         smartCameraExtrinsicsCalibrator_first_notification_this_frame = false;
 
@@ -1544,9 +1529,11 @@ public class MainActivity
                     // TODO - should not just be part of this algorithm; should be part of the general data recording / logging process
                     if(RECORD_DATA) {
                         Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording data: start.");
-                        configureFileForData(imageFrameTime);
-                        dummyOutputToFile(frameNumber);
-                        saveImageDataToFile(imageFrameTime);
+                        printlnToFile("matGray_size: { width: " + matGray.width() + ", height:" + matGray.height() + " }", imageFrameTime);
+                        printlnToFile("frame: " + Long.toString(frameNumber), imageFrameTime);
+                        saveImageDataToFile(matGray, imageFrameTime, "grey");
+                        saveImageDataToFile(matRgb, imageFrameTime, "RGB");
+                        RECORD_DATA_RECORDED = true;
                         Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording data: end.");
                     } else {
                         Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: not recording data.");
@@ -1584,26 +1571,50 @@ public class MainActivity
         }
     }
 
+
+    private FileWriter openFileForData(Date imageFrameTime_, String fileName_) {
+        try {
+            File documentsDirectory = configureDirectoryForData(imageFrameTime_);
+            File dataFile = new File(documentsDirectory, fileName_);
+            dataFile.setReadable(true, true);
+            Log.i("openFileForData","openFileForData(\""+fileName_+"\"): file is ready at "+documentsDirectory.getAbsoluteFile()+"  "+fileName_);
+            return new FileWriter(dataFile);
+        } catch (IOException e) {
+            Log.e("openFileForData","openFileForData(\""+fileName_+"\"): could not open the file.", e);
+        }
+        return null;
+    }
+
+
+    private File configureDirectoryForData(Date imageFrameTime_) {
+        if (null == dataOutputDirectory) {
+            dataOutputDirectory = dirInExternalStorage(
+                    VOS_DATA_DIRECTORY_NAME + "_" + filenameDateFormat.format(imageFrameTime_));
+        }
+        return dataOutputDirectory;
+    }
+
     /**
      * Idempotent; if detectionDataOutputFile is already configured, this has no effect.
      * @param imageFrameTime_ the time to use to name the data output file: the first iteration / image capture time.
      */
-    private void configureFileForData(Date imageFrameTime_) {
+    private FileWriter configureFileForData(Date imageFrameTime_) {
         if (null == detectionDataOutputFile) {
             String detectionDataOutputFileName = filenameDateFormat.format(imageFrameTime_);
             detectionDataOutputFileName = detectionDataOutputFileName + "_savedData.txt";
-            detectionDataOutputFile = openFileForData(detectionDataOutputFileName);
+            detectionDataOutputFile = openFileForData(imageFrameTime_, detectionDataOutputFileName);
         }
+        return detectionDataOutputFile;
     }
 
-    private boolean configureDirectoryForImages(String directoryName_) {
-        File dir = dirInExternalStorage(directoryName_);
-        boolean success = true;
-        if (!dir.exists()) {
-            success = dir.mkdirs();
-        }
-        return success;
-    }
+//    private boolean configureDirectoryForImages(String directoryName_) {
+//        File dir = dirInExternalStorage(directoryName_);
+//        boolean success = true;
+//        if (!dir.exists()) {
+//            success = dir.mkdirs();
+//        }
+//        return success;
+//    }
 
     @NonNull
     private File dirInExternalStorage(String directoryName_) {
@@ -1612,57 +1623,94 @@ public class MainActivity
             if(!dir.mkdirs()) {
                 Log.e("dirInExternalStorage","dirInExternalStorage directory "+dir.getAbsolutePath()+" does not exist and cannot be created.");
             }
+            dir.setReadable(true,true);
         }
         return dir;
     }
-    private File fileInExternalStorage(String directoryName_, String fileName_) {
-        return new File(dirInExternalStorage(directoryName_), fileName_);
+
+    private File fileInExternalStorage(Date imageFrameTime_, String fileName_) {
+        File dir  = configureDirectoryForData(imageFrameTime_);
+        File file = new File(dir, fileName_);
+        return file;
     }
 
-    private void saveImageDataToFile(Date imageFrameTime_) {
-        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: start.");
-        //  http://answers.opencv.org/question/68206/saving-an-image-using-opencv-android/
-        if(configureDirectoryForImages("VOS_images")) {
-            File dest = fileInExternalStorage("VOS_images", filenameDateFormat.format(imageFrameTime_) + "_image.png");
-            FileOutputStream out = null;
-            //-------------------------------------------------------
-            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: start.");
-            Bitmap bmp = null;
-            try {
-                bmp = Bitmap.createBitmap(matGray.cols(), matGray.rows(), Bitmap.Config.ARGB_8888);
-                Utils.matToBitmap(matGray, bmp);
-            } catch (CvException e) {
-                Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: exception: "+e.getMessage(), e);
-                return;
-            }
-            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: end.");
-            //-------------------------------------------------------
-            try {
-                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: start.");
-                out = new FileOutputStream(dest);
-                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: end.");
-                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: start.");
-                bmp.compress(Bitmap.CompressFormat.PNG, 100, out); // bmp is your Bitmap instance
-                // PNG is a lossless format, the compression factor (100) is ignored
-                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: end.");
-            } catch (Exception e) {
-                e.printStackTrace();
-                Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not output - exception: "+e.getMessage(), e);
-            } finally {
-                try {
-                    if (out != null) {
-                        out.close();
-                        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: out FileOutputStream closed.");
-                    }
-                } catch (IOException e) {
-                    Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not close out FileOutputStream: "+e.getMessage(), e);
-                    e.printStackTrace();
-                }
-            }
-        } else {
-            Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not configure the image saving directory.");
+
+    /** Uses the datetime of image capture: the data saved relates to the image, not to the datetime of the statement execution.
+     * @param text_ text to save to the file.
+     * @param imageFrameTime_ : the datetime of image capture: the data saved relates to the image, not to the datetime of the statement execution.
+     */
+    private void printlnToFile(String text_, Date imageFrameTime_) {
+        configureFileForData(imageFrameTime_);
+        try {
+            detectionDataOutputFile.append(datafileLogDateFormat.format(imageFrameTime_));
+            detectionDataOutputFile.append(" : ");
+            detectionDataOutputFile.append(text_);
+            detectionDataOutputFile.append("\n");
+            try { detectionDataOutputFile.flush(); }
+            catch (IOException e) { Log.e("printlnToFile","printlnToFile: could not flush"); }
         }
-        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: end.");
+        catch (IOException e) { Log.e("printlnToFile","printlnToFile: could not append to file", e); }
+    }
+
+    private void printToFile(String text_, Date imageFrameTime_) {
+        configureFileForData(imageFrameTime_);
+        try {
+            detectionDataOutputFile.append(" : ");
+            detectionDataOutputFile.append(text_);
+            try { detectionDataOutputFile.flush(); }
+            catch (IOException e) { Log.e("printlnToFile","printlnToFile: could not flush"); }
+        }
+        catch (IOException e) { Log.e("printlnToFile","printlnToFile: could not append to file", e); }
+    }
+
+
+    private void saveImageDataToFile(Mat imageToSave_, Date imageFrameTime_, String prefix_) {
+        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: start.");
+//        if( !configureDirectoryForImages(VOS_DATA_DIRECTORY_NAME)) {
+//            Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not configure the image saving directory.");
+//            return;
+//        }
+        if(null==prefix_) {prefix_="";}
+        File dest = fileInExternalStorage(
+                imageFrameTime_,
+                filenameDateFormat.format(imageFrameTime_) + "_" + prefix_ + "_image.png");
+        FileOutputStream out = null;
+        //-------------------------------------------------------
+        //  http://answers.opencv.org/question/68206/saving-an-image-using-opencv-android/
+        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: start.");
+        Bitmap bmp = null;
+        try {
+            bmp = Bitmap.createBitmap(imageToSave_.cols(), imageToSave_.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(imageToSave_, bmp);
+        } catch (CvException e) {
+            Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: exception: "+e.getMessage(), e);
+            return;
+        }
+        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: end.");
+        //-------------------------------------------------------
+        try {
+            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: start.");
+            out = new FileOutputStream(dest);
+            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: end.");
+            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: start.");
+            bmp.compress(Bitmap.CompressFormat.PNG, 100, out); // bmp is your Bitmap instance
+            // PNG is a lossless format, the compression factor (100) is ignored
+            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: end.");
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not output - exception: "+e.getMessage(), e);
+        } finally {
+            try {
+                if (out != null) {
+                    out.close();
+                    Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: out FileOutputStream closed.");
+                }
+            } catch (IOException e) {
+                Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not close out FileOutputStream: "+e.getMessage(), e);
+                e.printStackTrace();
+            }
+        }
+    Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: end.");
     }
 
     private void logAnyMessageFromTheDetector(FiducialDetector<GrayF32> detector, int detectionOrder_) {
@@ -2726,6 +2774,17 @@ public class MainActivity
                 now = nowAsDate();
                 Log.i(TAG,"extrinsicsCalibration: received current robot pose at "+now+" = "+now.getTime()+"ms");
                 Log.i(TAG,"extrinsicsCalibration: received current robot pose = "+frameTransform+" at "+now+" = "+now.getTime()+"ms");
+                break;
+            case RECORD_DATA_ONCE:
+                RECORD_DATA = true;
+                break;
+            case RECORD_DATA_CONTINUOUS:
+                RECORD_DATA = true;
+                RECORD_DATA_CONTINUOUS = true;
+                break;
+            case RECORD_DATA_STOP:
+                RECORD_DATA = false;
+                RECORD_DATA_CONTINUOUS = false;
                 break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");
