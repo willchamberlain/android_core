@@ -1311,6 +1311,8 @@ public class MainActivity
                     detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
                     Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
 
+                    PixelPosition pixelPosition = pixelPositionOfTag(detector, detectionOrder_);
+
                     Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
                     Quaternion_F64 quatBoofCV_TtoS = transform_to_quaternion_boofcv(targetToSensor_boofcvFrame);
                     System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
@@ -1372,8 +1374,6 @@ public class MainActivity
                     ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
 
 
-                    PixelPosition pixelPosition = pixelPositionOfTag(detector, detectionOrder_);
-//                    Point2D_F64 locationPixel;
 
 //                      /** This is the camera-to-marker transform */ - keep this code, but publish the camera-to-robot-base transform instead
 //                      /** Report as e.g. 60170, 60155, etc. */
