@@ -2991,46 +2991,46 @@ System.out.println("imuData(Imu imu): relocalising");
 //                    ConvertNV21.nv21ToInterleaved(bytes, image.width, image.height, (InterleavedF32) image);
 //                else
 //                    throw new RuntimeException("Oh Crap");
-            } else if(typeOfImage.HSV == imageType_) {
-                Log.i(TAG,"convertPreviewForBoofCV: image size: HSV: image.width="+image.width+", image.height="+image.height);
-                if(null == imageRgb || imageRgb.width!=image.width || imageRgb.height!=image.height) {
-                    imageRgb = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
-                }
-                if(null == imageHsv || imageHsv.width!=image.width || imageHsv.height!=image.height) {
-                    imageHsv = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
-                }
-            hsvMatch          = resize(hsvMatch, image.width, image.height);                        // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
+        } else if(typeOfImage.HSV == imageType_) {
+            Log.i(TAG,"convertPreviewForBoofCV: image size: HSV: image.width="+image.width+", image.height="+image.height);
+            if(null == imageRgb || imageRgb.width!=image.width || imageRgb.height!=image.height) {
+                imageRgb = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
+            }
+            if(null == imageHsv || imageHsv.width!=image.width || imageHsv.height!=image.height) {
+                imageHsv = new boofcv.struct.image.Planar<GrayF32>(GrayF32.class,image.width,image.height,3);
+            }
+        hsvMatch          = resize(hsvMatch, image.width, image.height);                        // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
 //                if(null == hsvMatch) {
 //                    hsvMatch = new int[image.width][image.height];
 //                } else if( hsvMatch.length!=image.width || hsvMatch[0].length!=image.height) {
 //                    hsvMatch = new int[image.width][image.height];
 //                }
-            runlengthMatch    = resize(runlengthMatch, image.width, image.height);                  // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
+        runlengthMatch    = resize(runlengthMatch, image.width, image.height);                  // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
 //                if(null == runlengthMatch) {
 //                    runlengthMatch = new int[image.width][image.height];
 //                } else if( runlengthMatch.length!=image.width || runlengthMatch[0].length!=image.height) {
 //                    runlengthMatch = new int[image.width][image.height];
 //                }
-            combinedOutput    = reset(combinedOutput, image.width, image.height);                   // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
-            free_hist         = resize(free_hist, image.width, image.height);                       // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
-            free_space_frozen = resize(free_space_frozen, image.width, image.height);               // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
-            ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
-                Log.i(TAG,"convertPreviewForBoofCV: image size: ConvertNV21.nv21ToMsRgb_F32: image.width="+image.width+", image.height="+image.height);
-            ColorHsv.rgbToHsv_F32(imageRgb, imageHsv);
-                Log.i(TAG,"convertPreviewForBoofCV: image size: ColorHsv.rgbToHsv_F32: image.width="+image.width+", image.height="+image.height);
-            } else {
-                throw new RuntimeException("Unexpected image type: "+ imageTypeGray);
-            }
+        combinedOutput    = reset(combinedOutput, image.width, image.height);                   // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
+        free_hist         = resize(free_hist, image.width, image.height);                       // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
+        free_space_frozen = resize(free_space_frozen, image.width, image.height);               // TODO - Strategy Pattern for Gray/HSV and/or move this initialisation to the free space code
+        ConvertNV21.nv21ToMsRgb_F32(bytes, image.width, image.height, imageRgb);
+            Log.i(TAG,"convertPreviewForBoofCV: image size: ConvertNV21.nv21ToMsRgb_F32: image.width="+image.width+", image.height="+image.height);
+        ColorHsv.rgbToHsv_F32(imageRgb, imageHsv);
+            Log.i(TAG,"convertPreviewForBoofCV: image size: ColorHsv.rgbToHsv_F32: image.width="+image.width+", image.height="+image.height);
+        } else {
+            throw new RuntimeException("Unexpected image type: "+ imageTypeGray);
+        }
 
-            if( previewRotation == 180 ) {                                                          // TODO - Strategy Pattern - is common
-                if( flipHorizontal ) {
-                    GImageMiscOps.flipVertical(image);
-                } else {
-                    GImageMiscOps.flipVertical(image);
-                    GImageMiscOps.flipHorizontal(image);
-                }
-            } else if( flipHorizontal )
+        if( previewRotation == 180 ) {                                                          // TODO - Strategy Pattern - is common
+            if( flipHorizontal ) {
+                GImageMiscOps.flipVertical(image);
+            } else {
+                GImageMiscOps.flipVertical(image);
                 GImageMiscOps.flipHorizontal(image);
+            }
+        } else if( flipHorizontal )
+            GImageMiscOps.flipHorizontal(image);
 //        }
 //        // wake up the thread and tell it to do some processing
 //        thread.interrupt();
