@@ -1372,9 +1372,8 @@ public class MainActivity
                     ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot, sensorToTarget_ROSFrame_mirrored_rotate_around_X_by_180_q);
 
 
-                    Point2D_F64 locationPixel = new Point2D_F64();
-                    detector.getImageLocation(detectionOrder_,locationPixel);
-                    PixelPosition pixelPosition = new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
+                    PixelPosition pixelPosition = pixelPositionOfTag(detector, detectionOrder_);
+//                    Point2D_F64 locationPixel;
 
 //                      /** This is the camera-to-marker transform */ - keep this code, but publish the camera-to-robot-base transform instead
 //                      /** Report as e.g. 60170, 60155, etc. */
@@ -1396,6 +1395,8 @@ public class MainActivity
                             Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: not recording detection data.");
                         }
                     }
+
+
 
                     Se3_F64 sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t = new Se3_F64();
                     sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_t.setRotation(sensorToTarget_ROSFrame_mirrored_rot_rotate_around_X_by_180_rot);
@@ -1499,19 +1500,17 @@ public class MainActivity
                     ConvertRotation3D_F64.matrixToQuaternion(sensorToTarget_testing.getR(), sensorToTarget_testing_quat);
                     Log.i(logTagTag, "onCameraFrame: testing 2017_08_23: sensorToTarget_testing_quat : qx = " + sensorToTarget_testing_quat.x + ", qy = " + sensorToTarget_testing_quat.y + ", qz = " + sensorToTarget_testing_quat.z + ", qw = " + sensorToTarget_testing_quat.w);
 
-                    locationPixel = new Point2D_F64();
-                    detector.getImageLocation(detectionOrder_, locationPixel);        // pixel location in input image
                     if (isPartOfRobotVisualModel(tag_id)) {
                         List<DetectedTag> visionTaskFeaturesDetected = visionTaskFeaturesDetected(robotsDetected_, singleDummyRobotId_);
                         DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, quaternion_to_marker);
                         visionTaskFeaturesDetected.add(detectedTag);
-                        Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
+                        Log.i(logTagTag, "onCameraFrame: isPartOfRobotVisualModel TAG - tag_id " + tag_id + " - 2D Image Location = " + pixelPosition);
                     } else if (isALandmark(tag_id)) {
-                        DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, locationPixel);
+                        DetectedTag detectedTag = new DetectedTag(tag_id, translation_to_marker, new Point2D_F64(pixelPosition.getU(),pixelPosition.getV()));
                         landmarkFeatures.add(detectedTag);
-                        Log.i(logTagTag, "onCameraFrame: isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + locationPixel);
+                        Log.i(logTagTag, "onCameraFrame: isALandmark TAG - tag_id " + tag_id + " landmarkFeatures.size()=" + landmarkFeatures.size() + " - 2D Image Location = " + pixelPosition);
                     } else { // not part of something that we are looking for, so ignore
-                        Log.i(logTagTag, "onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id " + tag_id + " - 2D Image Location = " + locationPixel);
+                        Log.i(logTagTag, "onCameraFrame: IGNORING TAG - not part of robot visual model - tag_id " + tag_id + " - 2D Image Location = " + pixelPosition);
                         continue;
                     }
 
@@ -1569,6 +1568,13 @@ public class MainActivity
             Log.e(TAG, "onCameraFrame: exception running BoofCV fiducial: ", e);
             e.printStackTrace();
         }
+    }
+
+    @NonNull
+    private PixelPosition pixelPositionOfTag(FiducialDetector<GrayF32> detector, int detectionOrder_) {
+        Point2D_F64 locationPixel = new Point2D_F64();
+        detector.getImageLocation(detectionOrder_,locationPixel);
+        return new PixelPosition(locationPixel.getX(),locationPixel.getY(), matGray.size().width, matGray.size().height);
     }
 
 
