@@ -185,19 +185,30 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                             visionSource.resetExtrinsicCalibration();
                             break;
                         case EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE:
-                            visionSource.extrinsicsCalibration(EXTERNAL_CALIBRATION_CAPTURE_ONE_IMAGE);
+                            visionSource.extrinsicsCalibration(command);
                             break;
                         case EXTERNAL_CALIBRATION_CAPTURE_STOP:
-                            visionSource.extrinsicsCalibration(EXTERNAL_CALIBRATION_CAPTURE_STOP);
+                            visionSource.extrinsicsCalibration(command);
                             break;
                         case EXTERNAL_CALIBRATION_CAPTURE_CONTINUOUS:
-                            visionSource.extrinsicsCalibration(EXTERNAL_CALIBRATION_CAPTURE_CONTINUOUS);
+                            visionSource.extrinsicsCalibration(command);
                             break;
                         case EXTERNAL_CALIBRATION_LIST_OBSERVATIONS:
-                            visionSource.extrinsicsCalibration(EXTERNAL_CALIBRATION_LIST_OBSERVATIONS);
+                            visionSource.extrinsicsCalibration(command);
+                            break;
+                        case RECORD_DATA_ONCE:
+                            visionSource.extrinsicsCalibration(command);
+                            break;
+                        case RECORD_DATA_CONTINUOUS:
+                            visionSource.extrinsicsCalibration(command);
+                            break;
+                        case RECORD_DATA_STOP:
+                            visionSource.extrinsicsCalibration(command);
                             break;
                         default:
-                            log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");
+//                            log.warn("management message command not recognised: \"" + commandsFromTopic + "\"");
+                            log.info("management message command: running visionSource.extrinsicsCalibration('"+command.name()+"'): have no specific action for '"+command.name()+"'.");
+                            visionSource.extrinsicsCalibration(command);
                             break;
                     }
                 }

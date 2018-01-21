@@ -23,6 +23,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.hardware.Camera;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
@@ -246,6 +247,7 @@ public class MainActivity
     private static boolean RECORD_DATA = false;
     private static boolean RECORD_DATA_RECORDED = false;
     private static boolean RECORD_DATA_CONTINUOUS = false;
+    private static int RECORD_FRAMES = 0;   // todo; get the feeling that there's a system aspect hiding here w.r.t. recording data related (1) to a set of observations (RECORD_DATA_X) (2) to a time period (RECORD_FRAMES)
 //    private FileOutputStream detectionDataOutputFile;
 //    private OutputStreamWriter detectionDataOutputStreamWriter;
     private FileWriter detectionDataOutputFile = null;
@@ -783,6 +785,7 @@ public class MainActivity
 
         if(RECORD_DATA) {
             RECORD_DATA_RECORDED = false;
+            Log.i(TAG,"onCameraFrame: RECORD_DATA=true: going to be doing some recording on this frame: "+logMessage_recordDataStatus());
         }
 
         registerAsVisionSource(logTag); //// TODO - move into control loop
@@ -822,6 +825,69 @@ public class MainActivity
 
         boolean thereIsAVisionTaskToExecute     = vosTaskSet.isThereAVisionTaskToExecute();
         if(!thereIsAVisionTaskToExecute) { Log.i(logTag, "no vision task to execute"); }
+
+
+        convertPreviewForBoofCV(last_frame_bytes(), camera);                                 // NOTE: inside-out: this is a BoofCV conversion because we know that we're using a BoofCV algorithm
+        Log.i(logTag,"onCameraFrame: IMAGE SIZE CHECK: byte[] size=last_frame_bytes().length="+last_frame_bytes().length+" : image.height="+image.height+", image.width="+image.width+", area="+(image.height*image.width)+" : matGray.height()="+matGray.height()+", matGray.width()="+matGray.width()+", area="+(matGray.height()*matGray.width()));
+        Log.i(logTag,"onCameraFrame: IMAGE RECORD: RECORD_DATA="+RECORD_DATA);
+        Log.i(logTag,"onCameraFrame: IMAGE RECORD: RECORD_FRAMES="+RECORD_FRAMES);
+//        boolean JFDI = true;
+        if(RECORD_FRAMES > 0) { // || JFDI) {  // save 'image' to file
+            Log.i(logTag,"onCameraFrame: IMAGE : RECORD_FRAMES="+RECORD_FRAMES);
+            RECORD_FRAMES--;
+            Log.i(logTag,"onCameraFrame: IMAGE : RECORD_FRAMES="+RECORD_FRAMES);
+            String prefix_="BoofCV";
+            File dest = fileInExternalStorage(
+                    imageFrameTime,
+                    filenameDateFormat.format(imageFrameTime) + "_" + prefix_ + "_image.png");
+            FileOutputStream out = null;
+            Log.i(logTag,"onCameraFrame: IMAGE : RECORD_DATA: destination file = "+dest.getAbsolutePath());
+            Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: destination file = "+dest.getAbsolutePath());
+            try {
+                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: start.");
+                out = new FileOutputStream(dest);
+                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: open FileOutputStream: end.");
+                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: start.");
+                Bitmap bmp = null;
+                int min=128, max=128;
+                try {
+                    bmp = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888); //Bitmap createBitmap(int width, int height, Config config)
+
+                    for( int y = 0; y < image.height; y++ ) {
+                        int indexIn = y*image.width;
+                        int indexOut = image.startIndex + y*image.stride;
+
+                        for( int x = 0; x < image.width; x++ ) {
+                            float val_ = image.data[ indexIn++ ];
+                            int a = (int)val_;
+                            if(a<min){min=a;Log.i("IMAGE","min="+min);} if(a>max){max=a;Log.i("IMAGE","max="+max);}
+                            int colour = Color.rgb(a,a,a);
+                            bmp.setPixel(x,y,colour);           //setPixel(int x, int y, @ColorInt int color)
+                        }
+                    }
+                } catch (CvException e) {
+                    Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: exception: "+e.getMessage(), e);
+                }
+                bmp.compress(Bitmap.CompressFormat.PNG, 100, out); // bmp is your Bitmap instance
+                // PNG is a lossless format, the compression factor (100) is ignored
+                Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: bitmap compress to PNG and output: end.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not output - exception: "+e.getMessage(), e);
+            } finally {
+                try {
+                    if (out != null) {
+                        out.close();
+                        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: out FileOutputStream closed.");
+                    }
+                } catch (IOException e) {
+                    Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not close out FileOutputStream: "+e.getMessage(), e);
+                    e.printStackTrace();
+                }
+            }
+//            RECORD_DATA_RECORDED = true;
+        }
+
 
         if(current_image_bytes_is_not_null  &&  thereIsAVisionTaskToExecute) {
             /* partial implementation: part of robot visual model */
@@ -900,7 +966,9 @@ public class MainActivity
         smartCameraExtrinsicsCalibrator.imageReceived();
 
         if(RECORD_DATA_RECORDED && !RECORD_DATA_CONTINUOUS) {
+            Log.i(TAG,"onCameraFrame: finishing up: RECORD_x status: before: "+logMessage_recordDataStatus());
             RECORD_DATA = false;
+            Log.i(TAG,"onCameraFrame: finishing up: RECORD_x status: after: "+logMessage_recordDataStatus());
         }
 
         Log.i(TAG,"onCameraFrame: END: cameraNumber="+getCamNum()+": frame="+frameNumber);
@@ -1307,24 +1375,38 @@ public class MainActivity
 
                 if (detector.is3D()) {
                     Log.i(logTagTag, "onCameraFrame: start detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
-                    Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
-                    detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
-                    Log.i(logTagTag, "onCameraFrame: after detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);");
-
                     PixelPosition pixelPosition = pixelPositionOfTag(detector, detectionOrder_);
 
-                    convert_BoofCVTagCoordinateSystem_to_robotCoordinateSystem:{
+                    Se3_F64 targetToSensor_boofcvFrame = new Se3_F64();
+                    detector.getFiducialToCamera(detectionOrder_, targetToSensor_boofcvFrame);
 
-                    }
-                    convert_tagToSensorBodyFrame_to_sensorToTagBodyFrame:{
 
-                    }
+                    boolean new__detect_tags_and_report_them_to_VOS_Server_detect_process = false;
+                    if (new__detect_tags_and_report_them_to_VOS_Server_detect_process) {
+                        //convert__tagToSensor_BodyFrame__to__sensorToTag_BodyFrame
+                        Se3_F64 StoT_Se3 = targetToSensor_boofcvFrame.invert(null);
 
-                    boolean detect_tags_and_report_them_to_VOS_Server_detect_process = false;
-                    if (detect_tags_and_report_them_to_VOS_Server_detect_process) {
+                        // convert_BoofCVTag_luf_CoordinateSystem_to_robot_flu_CoordinateSystem:{ // convert from LUF to FLU
+                            Vector3D_F64    StoT_luf_t = StoT_Se3.getTranslation();
+                            Quaternion_F64  StoT_luf_q = transform_to_quaternion_boofcv(StoT_Se3);
+                            Vector3D_F64    StoT_flu_t = new Vector3D_F64(                  StoT_luf_t.z , StoT_luf_t.x , StoT_luf_t.y );  // Vector3D_F64( double x, double y, double z )
+                            Quaternion_F64  StoT_flu_q = new Quaternion_F64( StoT_luf_q.w , StoT_luf_q.z , StoT_luf_q.x , StoT_luf_q.y );  // Quaternion_F64(double w, double x, double y, double z)
+
+                        ask_for_the_robots_pose_via_cache:{
+                            ask_for_robot_pose:{
+                                // this can take time - --> run asynch
+                                // only know which robot to ask after we see it in-frame for the first -
+                                // mind you, in the next frame we'll know, so we can probably ask for the same set of robots again on the next frame; if we don't use it - meh; if we see a new robot, we can get that pose async
+
+                                // async_ask_for_robot_pose(time_of_image)
+                                    // this runs in another thread so that the rest can run on - the callback hooks the observation up to the robot pose, and calls to estimate_camera_pose(current_observation_set)
+                            }
+                        }
+                    } else {
                         // detect tags and report them to VOS Server detect_ process
                         // don't remember why we skip here if this returns false
-                        BoofCVDetectorAndReporter boofcvDetectorAndReporter = new BoofCVDetectorAndReporter(robotsDetected_, singleDummyRobotId_, landmarkFeatures, imageFrameTime, detector, smartCameraExtrinsicsCalibrator_first_notification_this_frame, DETECT_ALL_MARKERS_IN_FRAME, detectionOrder_, tag_id, visionTask, visionTaskListToExecute, logTagTag, targetToSensor_boofcvFrame, pixelPosition).invoke();
+                        BoofCVDetectorAndReporter boofcvDetectorAndReporter = new BoofCVDetectorAndReporter(robotsDetected_, singleDummyRobotId_, landmarkFeatures, imageFrameTime, detector, smartCameraExtrinsicsCalibrator_first_notification_this_frame, DETECT_ALL_MARKERS_IN_FRAME, detectionOrder_, tag_id, visionTask, visionTaskListToExecute, logTagTag, targetToSensor_boofcvFrame, pixelPosition);
+                        boofcvDetectorAndReporter.invoke();
                         if (boofcvDetectorAndReporter.is()) { continue; }
                     }
 
@@ -1365,15 +1447,15 @@ public class MainActivity
 
     private void recordTheImageOrNot(Date imageFrameTime, String logTagTag) {
         if(RECORD_DATA) {
-            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording data: start.");
+            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: RECORD_DATA: recording data: start: "+logMessage_recordDataStatus());
             printlnToFile("matGray_size: { width: " + matGray.width() + ", height:" + matGray.height() + " }", imageFrameTime);
             printlnToFile("frame: " + Long.toString(frameNumber), imageFrameTime);
             saveImageDataToFile(matGray, imageFrameTime, "grey");
             saveImageDataToFile(matRgb, imageFrameTime, "RGB");
             RECORD_DATA_RECORDED = true;
-            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: recording data: end.");
+            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: RECORD_DATA: recording data: end: "+logMessage_recordDataStatus());
         } else {
-            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: not recording data.");
+            Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: RECORD_DATA: NOT recording data: "+logMessage_recordDataStatus());
         }
     }
 
@@ -1478,7 +1560,7 @@ public class MainActivity
 
 
     private void saveImageDataToFile(Mat imageToSave_, Date imageFrameTime_, String prefix_) {
-        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: start.");
+        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: start:"+logMessage_recordDataStatus());
 //        if( !configureDirectoryForImages(VOS_DATA_DIRECTORY_NAME)) {
 //            Log.e("saveImageDataToFile", "MainActivity: saveImageDataToFile: could not configure the image saving directory.");
 //            return;
@@ -1488,6 +1570,7 @@ public class MainActivity
                 imageFrameTime_,
                 filenameDateFormat.format(imageFrameTime_) + "_" + prefix_ + "_image.png");
         FileOutputStream out = null;
+        Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: destination file = "+dest.getAbsolutePath());
         //-------------------------------------------------------
         //  http://answers.opencv.org/question/68206/saving-an-image-using-opencv-android/
         Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: convert to bitmap: start.");
@@ -1523,7 +1606,7 @@ public class MainActivity
                 e.printStackTrace();
             }
         }
-    Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: end.");
+    Log.i("saveImageDataToFile", "MainActivity: saveImageDataToFile: end: "+logMessage_recordDataStatus());
     }
 
     private void logAnyMessageFromTheDetector(FiducialDetector<GrayF32> detector, int detectionOrder_) {
@@ -2590,20 +2673,36 @@ public class MainActivity
                 break;
             case RECORD_DATA_ONCE:
                 RECORD_DATA = true;
+                RECORD_DATA_RECORDED = false;
+                Log.i(TAG, "extrinsicsCalibration: "+command.name()+": " + logMessage_recordDataStatus());
                 break;
             case RECORD_DATA_CONTINUOUS:
                 RECORD_DATA = true;
                 RECORD_DATA_CONTINUOUS = true;
+                RECORD_DATA_RECORDED = false;
+                Log.i(TAG, "extrinsicsCalibration: "+command.name()+": " + logMessage_recordDataStatus());
                 break;
             case RECORD_DATA_STOP:
                 RECORD_DATA = false;
                 RECORD_DATA_CONTINUOUS = false;
+                RECORD_DATA_RECORDED = true;
+                Log.i(TAG, "extrinsicsCalibration: "+command.name()+": " + logMessage_recordDataStatus());
+                break;
+            case RECORD_NEXT_FRAME:
+                RECORD_FRAMES = 1;
                 break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");
                 throw new RuntimeException("extrinsicsCalibration: ManagementCommand '"+command+"' not recognised");
         }
 
+    }
+
+    @NonNull
+    private String logMessage_recordDataStatus() {
+        return "RECORD_DATA = " + RECORD_DATA
+                + ", "+"RECORD_DATA_CONTINUOUS = " + RECORD_DATA_CONTINUOUS
+                + ", "+"RECORD_DATA_RECORDED = " + RECORD_DATA_RECORDED;
     }
 
     @Override
@@ -3181,8 +3280,7 @@ System.out.println("imuData(Imu imu): relocalising");
             Quaternion_F64 sensorToTarget_ROSFrame_mirrored_q = new Quaternion_F64(  /** new Quaternion_F64(w, x, y, z) */
                     tToS_ROS_testing_quat.w, tToS_ROS_testing_quat.x, -tToS_ROS_testing_quat.y, -tToS_ROS_testing_quat.z
             );
-            DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = new DenseMatrix64F(3, 3);
-            ConvertRotation3D_F64.quaternionToMatrix(sensorToTarget_ROSFrame_mirrored_q, sensorToTarget_ROSFrame_mirrored_rot);
+            DenseMatrix64F sensorToTarget_ROSFrame_mirrored_rot = quaternionToNewMAtrix(sensorToTarget_ROSFrame_mirrored_q);
 
             /** Mirror across the XY plane. */
             Se3_F64 sensorToTarget_ROSFrame_mirrored = new Se3_F64();
@@ -3233,8 +3331,7 @@ System.out.println("imuData(Imu imu): relocalising");
             Se3_F64 transformOfFeatureInVisualModel = new Se3_F64();                    // transform from robot to marker, e.g. base_link to feature
             transformOfFeatureInVisualModel.setTranslation(position.getX(), position.getY(), position.getZ());
             Quaternion_F64 rotationOfFeatureInVisualModel_q = convertRosToBoofcvQuaternion(visionTask);
-            DenseMatrix64F rotationOfFeatureInVisualModel_m = new DenseMatrix64F(3, 3);
-            ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m);  // ( Quaternion_F64 quat, DenseMatrix64F R )
+            DenseMatrix64F rotationOfFeatureInVisualModel_m = quaternionToNewMAtrix(rotationOfFeatureInVisualModel_q);
             transformOfFeatureInVisualModel.setRotation(ConvertRotation3D_F64.quaternionToMatrix(rotationOfFeatureInVisualModel_q, rotationOfFeatureInVisualModel_m));
             Se3_F64 transformOfFeatureInVisualModel_inv = new Se3_F64();
             transformOfFeatureInVisualModel.invert(transformOfFeatureInVisualModel_inv); // transform from marker to robot
@@ -3353,6 +3450,13 @@ System.out.println("imuData(Imu imu): relocalising");
             myResult = false;
             return this;
         }
+    }
+
+    @NonNull
+    private DenseMatrix64F quaternionToNewMAtrix(Quaternion_F64 quaternion) {
+        DenseMatrix64F matrix = new DenseMatrix64F(3, 3);
+        ConvertRotation3D_F64.quaternionToMatrix(quaternion, matrix);
+        return matrix;
     }
 }
 
