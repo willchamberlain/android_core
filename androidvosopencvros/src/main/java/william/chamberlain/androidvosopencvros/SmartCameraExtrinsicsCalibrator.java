@@ -671,7 +671,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         return transformBoofCVMat;
     }
 
-    /** @return true if the extrinsics have been calculated and can finish the process.*/
+    /** @return the estimated camera extrinsics (pose: position and orientation) in world coordinates. */
     private Se3_F64 estimateExtrinsics(double width, double height) {
         int i_ = 0;
         /*
@@ -746,45 +746,67 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             655.0000d, 643.5000d, 0.000d };
 
 
-
-    private opencv_core.Mat calculateExtrinsics(double[] IMAGE_PIXEL_2D_DATA_POINTS_, double[] WORLD_3D_DATA_POINTS_, double imageWidth, double imageHeight) {
-        System.out.println("calculateExtrinsics: before opencv_calib3d.solvePnPRansac");
+    public opencv_core.Mat calculateExtrinsics(double[] IMAGE_PIXEL_2D_DATA_POINTS_, double[] WORLD_3D_DATA_POINTS_, double imageWidth, double imageHeight) {
+            System.out.println("calculateExtrinsics: before opencv_calib3d.solvePnPRansac");
         opencv_core.Mat objectPoints   = new opencv_core.Mat(WORLD_3D_DATA_POINTS_.length/3, 3, CV_64FC1); // 10 measurements, 3 dimensions, 1 channel: could also have Mat(10,1,3)
         objectPoints.getDoubleBuffer().put(WORLD_3D_DATA_POINTS_);
-        System.out.println("calculateExtrinsics: objectPoints = "+matToString(objectPoints));
-        System.out.println("calculateExtrinsics: objectPoints.toString()="+objectPoints.toString());
-        System.out.println("calculateExtrinsics: objectPoints.size().toString()="+objectPoints.size().toString());
-        // i.e. a 10-element vector with each element a 3d measurement/point :
-        // Nx3 1-channel or 1xN/Nx1 3-channel
-        // HeadPose example uses coordinates based on the head model centre - relative to camera focal axis - [ x=right , y=up , z=depth/distance=toward-camera]
+            System.out.println("calculateExtrinsics: objectPoints = "+matToString(objectPoints));
+            System.out.println("calculateExtrinsics: objectPoints.toString()="+objectPoints.toString());
+            System.out.println("calculateExtrinsics: objectPoints.size().toString()="+objectPoints.size().toString());
+            // i.e. a 10-element vector with each element a 3d measurement/point :
+            // Nx3 1-channel or 1xN/Nx1 3-channel
+            // HeadPose example uses coordinates based on the head model centre - relative to camera focal axis - [ x=right , y=up , z=depth/distance=toward-camera]
         List<opencv_core.Point2f> imagePointVector = new ArrayList<>();
         double[] pixeldata = IMAGE_PIXEL_2D_DATA_POINTS_;
         opencv_core.Mat imagePoints    = new opencv_core.Mat(WORLD_3D_DATA_POINTS_.length/3, 2, CV_64FC1);
         imagePoints.getDoubleBuffer().put(pixeldata);
-        System.out.println("calculateExtrinsics: imagePoints = "+matToString(imagePoints));
+            System.out.println("calculateExtrinsics: imagePoints = "+matToString(imagePoints));
         imagePoints.getDoubleBuffer().toString();
-        System.out.println("calculateExtrinsics: imagePoints.toString()="+imagePoints.toString());
-        System.out.println("calculateExtrinsics: imagePoints.size().toString()="+imagePoints.size().toString());
+            System.out.println("calculateExtrinsics: imagePoints.toString()="+imagePoints.toString());
+            System.out.println("calculateExtrinsics: imagePoints.size().toString()="+imagePoints.size().toString());
         imagePoints.size().toString();
-//            org.bytedeco.javacpp.Indexer indexer = imagePoints.createIndexer();
-//            indexer.put(row,col,val)
-//            Mat imagePoints    = new Mat(10, 2, CV_64FC1); // pixel coordinates, as [ u=x=right, v=y=down ]
-//            imagePoints.push_back(new Mat(opencv_core.Point2f(1538.0f,589.0f)));
+            //            org.bytedeco.javacpp.Indexer indexer = imagePoints.createIndexer();
+            //            indexer.put(row,col,val)
+            //            Mat imagePoints    = new Mat(10, 2, CV_64FC1); // pixel coordinates, as [ u=x=right, v=y=down ]
+            //            imagePoints.push_back(new Mat(opencv_core.Point2f(1538.0f,589.0f)));
 
-        opencv_core.Mat rVec_Estimated = new opencv_core.Mat(3, 3, CV_64FC1); // Output rotation   _vector_ : world-to-camera
-        opencv_core.Mat tVec_Estimated = new opencv_core.Mat(3, 1, CV_64FC1); // Output translation vector  : world-to-camera
-        opencv_core.Mat cameraIntrinsicsMatrix   = new opencv_core.Mat(3, 3, CV_64FC1);
-        opencv_core.Mat distCoeffs     = new opencv_core.Mat(5, 1, CV_64FC1 );
+        opencv_core.Mat rVec_Estimated          = new opencv_core.Mat(3, 3, CV_64FC1); // Output rotation   _vector_ : world-to-camera
+        opencv_core.Mat tVec_Estimated          = new opencv_core.Mat(3, 1, CV_64FC1); // Output translation vector  : world-to-camera
+        opencv_core.Mat cameraIntrinsicsMatrix  = new opencv_core.Mat(3, 3, CV_64FC1);
+        opencv_core.Mat distCoeffs              = new opencv_core.Mat(5, 1, CV_64FC1 );
 
-        double[] camera_intrinsics_opencv = CAMERA_INTRINSICS_MATRIX;
-        camera_intrinsics_opencv[0] = camera_intrinsics_opencv[0] * imageWidth/Hardcoding.CALIBRATED_IMAGE_WIDTH;
-        camera_intrinsics_opencv[4] = camera_intrinsics_opencv[4] * imageHeight/Hardcoding.CALIBRATED_IMAGE_HEIGHT;
-        camera_intrinsics_opencv[2] = camera_intrinsics_opencv[2] * imageWidth/Hardcoding.CALIBRATED_IMAGE_WIDTH;
-        camera_intrinsics_opencv[5] = camera_intrinsics_opencv[4] * imageHeight/Hardcoding.CALIBRATED_IMAGE_HEIGHT;
-        cameraIntrinsicsMatrix.getDoubleBuffer().put(camera_intrinsics_opencv); System.out.println("calculateExtrinsics: cameraIntrinsicsMatrix = "+matToString(cameraIntrinsicsMatrix));
-        distCoeffs.getDoubleBuffer().put(CAMERA_DISTORTION_COEFFICIENTS_5_OPENCV);     System.out.println("calculateExtrinsics: distCoeffs = "+matToString(distCoeffs));
+//        see /mnt/nixbig/ownCloud/project_AA1__2_extrinsics_calibration/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11_calibration_pattern_Galaxy3_home/intrinsics_matlab_3radial_2tangental_0skew.txt
+//        Radial
+//                [0.004180016841640, 0.136452931271259, -0.638647134308425]
+//        Tangental
+//                //[-0.001666231998527, -8.160213039217031e-05]
+//                [-0.001666231998527, -0.00008160213039217031]
+//        Focal length
+//                //[3.229596901156589e+02, 3.238523693059909e+02]
+//                [322.9596901156589, 323.8523693059909]
+//        Principal point
+//                //[1.768267919600727e+02, 1.467681514313797e+02]
+//                [176.8267919600727, 146.7681514313797]
+        double[] camera_intrinsics_opencv = {
+                322.9596901156589d,  000.0000000000000d,  176.8267919600727d,
+                000.0000000000000d,  323.8523693059909d,  146.7681514313797d,
+                000.0000000000000d,  000.0000000000000d,  001.0000000000000d };
+//                FOCAL_LENGTH_X,               0.0d,  PRINCIPAL_POINT_X,
+//                          0.0d,     FOCAL_LENGTH_Y,  PRINCIPAL_POINT_Y,
+//                          0.0d,               0.0d,               1.0d};
+        cameraIntrinsicsMatrix.getDoubleBuffer().put(camera_intrinsics_opencv);
+            System.out.println("calculateExtrinsics: cameraIntrinsicsMatrix = \n"+matToString(cameraIntrinsicsMatrix));
+        distCoeffs.getDoubleBuffer().put(new double[]{
+                 0.004180016841640d,  0.136452931271259d, /* radial coefficients 1 and 2 */
+                -0.001666231998527d, -0.00008160213039217031d,                             /* tangental coefficients 1 and 2 */
+                -0.638647134308425d}    /*radial coefficient 3*/ );
+//                RADIAL_1,    RADIAL_2, /* radial coefficients 1 and 2 */
+//                TANGENTAL_1, TANGENTAL_2,                             /* tangental coefficients 1 and 2 */
+//                RADIAL_3}    /*radial coefficient 3*/ );
+            System.out.println("calculateExtrinsics: distCoeffs = \n"+matToString(distCoeffs));
 
-        /***************************************************************************************************************
+        //<editor-fold desc="Details and links for OpenCV / JavaCV matrices and solvePnP">
+        /*-----------
                 @param cameraIntrinsicsMatrix Input camera matrix \f$A = \vecthreethree
                       {fx}{0}{cx}
                       {0}{fy}{cy}
@@ -820,8 +842,15 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             I observed a completly different behavior with and without the cast to float but that is not related to your issue, just that a small "noise" produces very different results for the DLT.
 
          note: Matlab is good - use Matlab
+         note: GTSAM works    - could use that
          https://github.com/opencv/opencv/issues/4854  -  solvePnP: is not handling all degenerated cases
          https://github.com/opencv/opencv/issues/6117  -  solvePnP fails with perfect coordinates (and cvPOSIT passes)
+            Read down, and expand the code and the comments:
+            "
+                With solvePnp_P3p (cv::SOLVEPNP_P3P) the error is about 0.02961 pixels and the order does not matter much
+                With solvePnp_Iterative_InitialGuess (cv::SOLVEPNP_ITERATIVE) the error can be 0 pixels if a good initial extrinsic guess is given (otherwise don't hope for any convergence). The order does not matter much with SOLVEPNP_ITERATIVE.
+            "
+            --> might be good to run solvePnp_P3p -> initial guess -> solvePnp_Iterative_InitialGuess
          http://answers.opencv.org/question/87546/solvepnp-fails-with-perfect-coordinates-and-cvposit-passes/
          see https://github.com/pthom/TestSolvePnp
          opencv_calib3d.solvePnP
@@ -839,7 +868,8 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             0.007669604014085d, 0.083222884846111d,
             0.0d, 0.0d,
             -0.412608486749279d};
-         **************************************************************************************************************/
+         -----------*/
+        //</editor-fold>
         opencv_core.Mat inliers = null;
         opencv_calib3d.solvePnPRansac(
                 objectPoints, imagePoints,
@@ -883,6 +913,24 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 inliers, opencv_calib3d.SOLVEPNP_EPNP);
         cameraPoseInWorldCoords = decomposeToCameraPose(rVec_Estimated, tVec_Estimated, "Eff_PNP_ransac");
 
+        opencv_calib3d.solvePnPRansac(
+                objectPoints, imagePoints,
+                cameraIntrinsicsMatrix, distCoeffs,
+                rVec_Estimated, tVec_Estimated,
+                false, 1000,
+                1.0f, 0.99d,
+                inliers, org.bytedeco.javacpp.opencv_calib3d.SOLVEPNP_P3P);
+        cameraPoseInWorldCoords = decomposeToCameraPose(rVec_Estimated, tVec_Estimated, "P3P_ransac");
+
+        opencv_calib3d.solvePnPRansac(
+                objectPoints, imagePoints,
+                cameraIntrinsicsMatrix, distCoeffs,
+                rVec_Estimated, tVec_Estimated,
+                false, 1000,
+                1.0f, 0.99d,
+                inliers, opencv_calib3d.SOLVEPNP_EPNP);
+        cameraPoseInWorldCoords = decomposeToCameraPose(rVec_Estimated, tVec_Estimated, "Eff_PNP_ransac");
+
         opencv_calib3d.solvePnP(objectPoints, imagePoints, cameraIntrinsicsMatrix, distCoeffs, rVec_Estimated, tVec_Estimated
                 ,false, opencv_calib3d.SOLVEPNP_EPNP );
         cameraPoseInWorldCoords = decomposeToCameraPose(rVec_Estimated, tVec_Estimated, "Eff_PNP_plain");
@@ -891,58 +939,58 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     @NonNull
     private opencv_core.Mat decomposeToCameraPose(opencv_core.Mat rVec_Estimated, opencv_core.Mat tVec_Estimated, String method) {
-        System.out.println("calc ext: "+method+":  rVec_Estimated = "+matToString(rVec_Estimated));
+            System.out.println("calc ext: "+method+":  tVec_Estimated = "+matToString(tVec_Estimated));
+            System.out.println("calc ext: "+method+":  rVec_Estimated = "+matToString(rVec_Estimated));
         opencv_core.Mat rotationMatrix = new opencv_core.Mat(3, 3, CV_64FC1);
         opencv_calib3d.Rodrigues(rVec_Estimated,rotationMatrix);
-        System.out.println("calc ext: "+method+":  rotationMatrix = "+matToString(rotationMatrix));
+            System.out.println("calc ext: "+method+":  rotationMatrix = \n"+matToString(rotationMatrix));
 
         opencv_core.MatExpr rotationMatrixTransposeTemp = rotationMatrix.t();
         opencv_core.Mat rotationMatrixTranspose = new opencv_core.Mat(1,1,CV_64FC1);
         rotationMatrixTranspose.put(rotationMatrixTransposeTemp);
-        System.out.println("calc ext: "+method+":  rotationMatrixTranspose = "+matToString(rotationMatrixTranspose));
+            System.out.println("calc ext: "+method+":  rotationMatrixTranspose = \n"+matToString(rotationMatrixTranspose));
 
-        opencv_core.Mat negOne = new opencv_core.Mat(3,3,CV_64FC1);
-        setIdentity(negOne, new opencv_core.Scalar(-1.0d));
-        System.out.println("calc ext: "+method+":  negOne = "+matToString(negOne));
-        negOne.getDoubleBuffer().put(new double[]{
-                -1.0d, -1.0d, -1.0d,
-                -1.0d, -1.0d, -1.0d,
-                -1.0d, -1.0d, -1.0d });
-        System.out.println("calc ext: "+method+":  negOne = "+matToString(negOne));
-        System.out.println("calc ext: "+method+":  tVec_Estimated = "+matToString(tVec_Estimated));
+            //        opencv_core.Mat negOne = new opencv_core.Mat(3,3,CV_64FC1);
+            //        setIdentity(negOne, new opencv_core.Scalar(-1.0d));
+            //            System.out.println("calc ext: "+method+":  negOne = "+matToString(negOne));
+            //        negOne.getDoubleBuffer().put(new double[]{
+            //                -1.0d, -1.0d, -1.0d,
+            //                -1.0d, -1.0d, -1.0d,
+            //                -1.0d, -1.0d, -1.0d });
+            //            System.out.println("calc ext: "+method+":  negOne = "+matToString(negOne));
 
-//            opencv_core.Mat one = new opencv_core.Mat(3,3,CV_64FC1); setIdentity(one, new opencv_core.Scalar(1.0d));
-//            System.out.println("calc ext: "+method+":  one = "+matToString(one));
-//            opencv_core.MatExpr translationInverseTemp_One = one.mul(rotationMatrixTranspose);
-//            System.out.println("calc ext: "+method+":  translationInverseTemp_One.asMat() = "+matToString(translationInverseTemp_One.asMat()));
-//            translationInverseTemp_One = opencv_core.multiply(rotationMatrixTranspose,one);
-//            System.out.println("calc ext: "+method+":  translationInverseTemp_One.asMat() = "+matToString(translationInverseTemp_One.asMat()));
+            //            opencv_core.Mat one = new opencv_core.Mat(3,3,CV_64FC1); setIdentity(one, new opencv_core.Scalar(1.0d));
+            //            System.out.println("calc ext: "+method+":  one = "+matToString(one));
+            //            opencv_core.MatExpr translationInverseTemp_One = one.mul(rotationMatrixTranspose);
+            //            System.out.println("calc ext: "+method+":  translationInverseTemp_One.asMat() = "+matToString(translationInverseTemp_One.asMat()));
+            //            translationInverseTemp_One = opencv_core.multiply(rotationMatrixTranspose,one);
+            //            System.out.println("calc ext: "+method+":  translationInverseTemp_One.asMat() = "+matToString(translationInverseTemp_One.asMat()));
 
-        opencv_core.MatExpr translationInverseTemp = opencv_core.multiply(rotationMatrixTranspose, -1.0); // element-wise
-
-        System.out.println("calc ext: "+method+":  rotationMatrixTranspose negated translationInverseTemp.asMat() = "+matToString(translationInverseTemp.asMat()));
+        opencv_core.MatExpr rotationMatrixTransposeNegated = opencv_core.multiply(rotationMatrixTranspose, -1.0); // element-wise
+            System.out.println("calc ext: "+method+":  rotationMatrixTransposeNegated.asMat() = \n"+matToString(rotationMatrixTransposeNegated.asMat()));
 
         opencv_core.Mat translationInverseTempTemp =new opencv_core.Mat(3,3,CV_64FC1);
-        //gemm( Mat src1,  Mat src2,
-        // double alpha,
-        // opencv_core.Mat src3, double beta,
-        // opencv_core.Mat dst,
-        // int flags/*=0*/);
-        //  https://stackoverflow.com/questions/10168058/basic-matrix-multiplication-in-opencv-for-android
-        //  gemm(src1, src2, alpha, src3, beta, dest, flags)
-        //  dest = alpha * src1 * src2 + beta * src3
-        //  gemm(src1, src2, alpha, src3, beta, dst, GEMM_1_T + GEMM_3_T)   -->  dst = alpha*src1.t()*src2 + beta*src3.t();
+            //gemm( Mat src1,  Mat src2,
+            // double alpha,
+            // opencv_core.Mat src3, double beta,
+            // opencv_core.Mat dst,
+            // int flags/*=0*/);  last argument is sum of flags: each of GEMM_1_T, GEMM_2_T , GEMM_3_T means to transpose src1, src2, src3 before doing the multiplication: default is 0 = no transposing
+            //  https://stackoverflow.com/questions/10168058/basic-matrix-multiplication-in-opencv-for-android
+            //  gemm(src1, src2, alpha, src3, beta, dest, flags)
+            //  dest = alpha * src1 * src2 + beta * src3
+            //    last argument is sum of flags: each of GEMM_1_T, GEMM_2_T , GEMM_3_T means to transpose src1, src2, src3 before doing the multiplication: default is 0 = no transposing
+            //    gemm(src1, src2, alpha, src3, beta, dst, GEMM_1_T + GEMM_3_T)   -->  dst = alpha*src1.t()*src2 + beta*src3.t();
         opencv_core.gemm(
-            translationInverseTemp.asMat(), tVec_Estimated,     // src1, src2,
+            rotationMatrixTransposeNegated.asMat(), tVec_Estimated,     // src1, src2,
             1.0d,                                                           // alpha
             opencv_core.Mat.zeros(3, 3, CV_64FC1).asMat(), 0.0d,            // src3, beta
             translationInverseTempTemp,                                     // dest
-            0 );                                                            // flags = 0 = default
+            0 );                                                            // flags = 0 = default = no transposing
 
-        System.out.println("calc ext: "+method+":  rotationMatrixTranspose negated mult tVec_Estimated translationInverseTempTemp.asMat() = "+matToString(translationInverseTempTemp));
+            System.out.println("calc ext: "+method+":  rotationMatrixTranspose negated mult tVec_Estimated translationInverseTempTemp.asMat() = "+matToString(translationInverseTempTemp));
         opencv_core.Mat translationInverse = new opencv_core.Mat(1,1,CV_64FC1);
         translationInverse.put(translationInverseTempTemp);
-        System.out.println("calc ext: "+method+":  translationInverse = "+matToString(translationInverse));
+            System.out.println("calc ext: "+method+":  translationInverse = \n"+matToString(translationInverse));
 
         opencv_core.Mat cameraPoseInWorldCoords = new opencv_core.Mat(4, 4, CV_64FC1);
         // As in Python, start is an inclusive left boundary of the range and end is an exclusive right boundary of the range. Such a half-opened interval ...
@@ -961,7 +1009,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         cameraPoseInWorldCoords.getDoubleBuffer().put(8, rotationMatrixTranspose.getDoubleBuffer().get(6));
         cameraPoseInWorldCoords.getDoubleBuffer().put(9, rotationMatrixTranspose.getDoubleBuffer().get(7));
         cameraPoseInWorldCoords.getDoubleBuffer().put(10, rotationMatrixTranspose.getDoubleBuffer().get(8));
-        System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after inserting rotation = "+matToString(cameraPoseInWorldCoords));
+            System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after inserting rotation = \n"+matToString(cameraPoseInWorldCoords));
 
         // 0..2,3..3 inclusive
 //            Mat camPoseRightCol = cameraPoseInWorldCoords.apply(new opencv_core.Range(0,3), new opencv_core.Range(3,4));
@@ -972,7 +1020,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         cameraPoseInWorldCoords.getDoubleBuffer().put(3, translationInverse.getDoubleBuffer().get(0));
         cameraPoseInWorldCoords.getDoubleBuffer().put(7, translationInverse.getDoubleBuffer().get(1));
         cameraPoseInWorldCoords.getDoubleBuffer().put(11, translationInverse.getDoubleBuffer().get(2));
-        System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after inserting translation = "+matToString(cameraPoseInWorldCoords));
+            System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after inserting translation = \n"+matToString(cameraPoseInWorldCoords));
 
 // from here
         double[] homogeneousPadding = new double[]{0.0d, 0.0d, 0.0d, 1.0d};
@@ -983,9 +1031,9 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         cameraPoseInWorldCoords.getDoubleBuffer().put(13, homogeneousPadding[1]);
         cameraPoseInWorldCoords.getDoubleBuffer().put(14, homogeneousPadding[2]);
         cameraPoseInWorldCoords.getDoubleBuffer().put(15, homogeneousPadding[3]);
-        System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after padding = "+matToString(cameraPoseInWorldCoords));
+            System.out.println("calc ext: "+method+":  cameraPoseInWorldCoords after padding = \n"+matToString(cameraPoseInWorldCoords));
 
-        System.out.println("calc ext: "+method+":  after opencv_calib3d.solvePnPRansac");
+            System.out.println("calc ext: "+method+":  after opencv_calib3d.solvePnPRansac");
         return cameraPoseInWorldCoords;
     }
 

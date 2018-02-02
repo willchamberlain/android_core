@@ -56,4 +56,13 @@ public class Point implements geometry_msgs.Point {
     public RawMessage toRawMessage() {
         return null;
     }
+
+    @Override
+    public String toString() {
+        return "Point{" +
+                "x=" + x +
+                ", y=" + y +
+                ", z=" + z +
+                '}';
+    }
 }

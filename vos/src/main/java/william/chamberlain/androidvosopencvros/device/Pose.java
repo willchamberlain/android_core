@@ -19,6 +19,11 @@ public class Pose implements geometry_msgs.Pose {
         setOrientation(orientation_);
     }
 
+    public Pose(geometry_msgs.Pose pose_) {
+        setPosition(pose_.getPosition());
+        setOrientation(pose_.getOrientation());
+    }
+
     @Override
     public Point getPosition() {
         return position;
@@ -51,5 +56,13 @@ public class Pose implements geometry_msgs.Pose {
     @Override
     public RawMessage toRawMessage() {
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return "Pose{" +
+                "position=" + position +
+                ", orientation=" + orientation +
+                '}';
     }
 }

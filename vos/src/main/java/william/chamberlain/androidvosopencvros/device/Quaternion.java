@@ -35,11 +35,6 @@ public class Quaternion implements geometry_msgs.Quaternion {
     }
 
     @Override
-    public String toString() {
-        return super.toString();
-    }
-
-    @Override
     protected void finalize() throws Throwable {
         super.finalize();
     }
@@ -99,5 +94,15 @@ public class Quaternion implements geometry_msgs.Quaternion {
         this.y = y;
         this.z = z;
         this.w = w;
+    }
+
+    @Override
+    public String toString() {
+        return "Quaternion{" +
+                "x=" + x +
+                ", y=" + y +
+                ", z=" + z +
+                ", w=" + w +
+                '}';
     }
 }

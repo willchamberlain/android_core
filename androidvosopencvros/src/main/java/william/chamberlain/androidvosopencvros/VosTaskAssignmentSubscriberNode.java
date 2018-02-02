@@ -30,6 +30,10 @@ import georegression.struct.se.Se3_F64;
 import vos_aa1.GetTf;
 import vos_aa1.GetTfRequest;
 import vos_aa1.GetTfResponse;
+import vos_aa1.Observation2D3D;
+import vos_aa1.PoseFrom2D3D;
+import vos_aa1.PoseFrom2D3DRequest;
+import vos_aa1.PoseFrom2D3DResponse;
 import vos_aa1.WhereIsAsPub;
 import william.chamberlain.androidvosopencvros.ros_types.RosTypes;
 
@@ -60,6 +64,104 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
     private ConnectedNode connectedNode;
 
+    //--- Pose2D3D -----------------------------------
+
+    private ServiceClient<PoseFrom2D3DRequest, PoseFrom2D3DResponse> poseFrom2D3D_serviceClient;
+    private PoseFrom2D3DResponseListener poseFrom2D3D_responseListener;
+
+    class PoseFrom2D3DResponseListener implements ServiceResponseListener<PoseFrom2D3DResponse> {
+        @Override
+        public void onSuccess(PoseFrom2D3DResponse poseFrom2D3DResponse) {
+            System.out.println("PoseFrom2D3DResponseListener: onSuccess: start");
+            william.chamberlain.androidvosopencvros.device.Pose poseFrom2D3DResponse_myClass = new william.chamberlain.androidvosopencvros.device.Pose(poseFrom2D3DResponse.getPoseEstimate());
+            System.out.println("PoseFrom2D3DResponseListener: onSuccess: pose = "+poseFrom2D3DResponse_myClass);
+        }
+
+        @Override
+        public void onFailure(RemoteException e) {
+            System.out.println("PoseFrom2D3DResponseListener: onFailure: "+e.getMessage());
+            e.printStackTrace();
+            throw new RosRuntimeException(e);
+        }
+    }
+
+
+    public void atestMatlabPoseEstimation_kitchen_realPixels() {
+        System.out.println("VosTaskAssignmentSubscriberNode: atestMatlabPoseEstimation_kitchen_realPixels: start");
+        if(null==poseFrom2D3D_serviceClient) {
+            System.out.println("WARN: VosTaskAssignmentSubscriberNode: atestMatlabPoseEstimation_kitchen_realPixels: aborting: null==poseFrom2D3D_serviceClient");
+            return;
+        }
+        PoseFrom2D3DRequest request = poseFrom2D3D_serviceClient.newMessage();
+//        sensor_msgs.CameraInfo cameraInfo = new CameraInfo();
+
+        sensor_msgs.CameraInfo cameraInfo = connectedNode.getTopicMessageFactory().newFromType(sensor_msgs.CameraInfo._TYPE);
+        cameraInfo.setDistortionModel("plumb_bob");
+        cameraInfo.setD( new double[]{
+                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/test_camera_pose_estimation_opencv_solvepnp.py
+                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/intrinsics_matlab_3radial_2tangental_0skew.txt
+                 0.004180016841640d, 0.136452931271259d ,           // k_1, k_2
+                -0.001666231998527d, -0.00008160213039217031d ,     // p_1, p_2
+                -0.638647134308425d                                 // k_3
+        } );
+        cameraInfo.setK( new double[]{                                            // calibrated at 352x288 per image passed to BoofCV by OpenCV JavaCameraFrame
+                322.9596901156589d , 000.0000000000000d , 176.8267919600727d ,    //  f_x ,   0 , c_x
+                000.0000000000000d , 323.8523693059909d , 146.7681514313797d ,    //    0 , f_y , c_y
+                  0.0d ,               0.0d ,               1.0d                  //    0 ,   0 ,   1
+        } );
+        request.setCameraInfo(cameraInfo);
+//        List<Observation2D3D> obs2D3D = new ArrayList<Observation2D3D>();
+//        Observation2D3D obs = new william.chamberlain.androidvosopencvros.device.Observation2D3D();
+
+//        int u_=100, v_=200;
+//        double x_=11, y_=22, z_=33;
+//        createObs(request, u_, v_, x_, y_, z_);
+        createObs(request,     56.54614322277916d , 109.06295157200866d, 3.92d ,  1.60d , 0.645d  );  // 1 - 357
+        createObs(request,     52.62135271557739d ,  77.59861887431173d, 3.92d ,  1.60d , 0.252d  );  // 1 - 257
+        createObs(request,     182.8574242089062d , 108.62255574234761d, 3.92d ,  0.00d , 0.645d  );  // 2 - 357
+        createObs(request,     182.41568510974201d , 76.8101381190807d,  3.92d ,  0.00d , 0.252d  );  // 2 - 257
+        createObs(request,     285.879892804077d ,  108.32705433683117d, 3.92d , -1.28d , 0.645d  );  // 3 - 357
+        createObs(request,     288.944522535763d ,   75.79036791913009d, 3.92d , -1.28d , 0.252d  );  // 3 - 257
+        createObs(request,     297.48634983835746d , 92.40217046164975d, 2.64d , -0.96d , 0.645d  );  // 4 - 357
+        createObs(request,     292.9941784546977d , 138.23436515146292d, 2.64d , -0.96d , 0.252d  );  // 4 - 257
+        createObs(request,     312.2281500120752d , 214.16417888299193d, 1.36d , -0.64d , 0.645d  );  // 5 - 357
+        createObs(request,     312.2390321889994d , 214.18113331292741d, 1.36d , -0.64d , 0.645d  );  // 5 - 357
+        createObs(request,     246.04851963779973d ,214.0295061185083d,  1.36d , -0.32d , 0.645d  );  // 6 - 357
+        createObs(request,     251.05223417229467d ,136.82524151860272d, 1.36d , -0.32d , 0.252d  );  // 6 - 257
+        createObs(request,     180.1327822481631d , 213.4655434325827d,  1.36d ,  0.00d , 0.645d  );  // 7 - 357
+        createObs(request,     179.24505599894138d ,136.39673251911438d, 1.36d ,  0.00d , 0.252d  );  // 7 - 257
+        createObs(request,     50.91477856287188d , 212.58922727425147d, 1.36d ,  0.64d , 0.645d  );  // 8 - 357
+        createObs(request,     39.748161293765655d ,136.19683774723288d, 1.36d ,  0.64d , 0.252d  );  // 8 - 257
+        createObs(request,     37.093278687336245d ,138.83215031041536d, 2.64d ,  1.28d , 0.645d  );  // 9 - 357
+        createObs(request,     29.93565957697492d ,  94.52635225774982d, 2.64d ,  1.28d , 0.252d  );  // 9 - 257
+        createObs(request,     182.30592540117604d, 138.4954591343754d,  2.64d ,  0.00d , 0.645d  );  //10 - 357
+        createObs(request,     181.84473615057965d , 93.39524995177273d, 2.64d ,  0.00d , 0.252d  );  //10 - 257
+        poseFrom2D3D_serviceClient.call(request, poseFrom2D3D_responseListener);
+
+        System.out.println("VosTaskAssignmentSubscriberNode: atestMatlabPoseEstimation_kitchen_realPixels: end");
+    }
+
+    /**
+     * Create a feature observation with one 2D point and one 3D point, and add it to the service request.
+     * @param request service request to add the observation to - updated.
+     * @param u_ observed pixel position lateral:  (u,v) = (0,0) at the top left of the image, and (u,v) = (width,height) at the bottom right.
+     * @param v_ observed pixel position vertical: (u,v) = (0,0) at the top left of the image, and (u,v) = (width,height) at the bottom right.
+     * @param x_ observed 3D forward, in the robot/map/world coordinate frame.
+     * @param y_ observed 3D left, in the robot/map/world coordinate frame.
+     * @param z_ observed 3D up, in the robot/map/world coordinate frame.
+     */
+    private void createObs(PoseFrom2D3DRequest request, final double u_, final double v_,   final double x_, final double y_, final double z_) {
+        geometry_msgs.Point point3D = connectedNode.getTopicMessageFactory().newFromType(geometry_msgs.Point._TYPE);
+        point3D.setX(x_);  point3D.setY(y_);  point3D.setZ(z_);
+        Observation2D3D obs = connectedNode.getTopicMessageFactory().newFromType(Observation2D3D._TYPE);
+        obs.setU(u_);  obs.setV(v_);
+        obs.setPoint3D(point3D);
+        obs.setImageTime(DateAndTime.nowAsTime());
+        request.getPoints().add(obs);
+    }
+
+    //--- configuration ----------------------------------
+
     @Override
     public GraphName getDefaultNodeName() {
         return GraphName.of("androidvosopencvros/vos_task_assignment_subscriber");
@@ -78,10 +180,31 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     }
 
     /*** initialise node: set up all the service clients, publishers, and subscribers **********************************/
+
+    public static final String POSE_FROM_2D3D_SERVICE_ROS_NAME = "observations_to_pose_estimates";
     @Override
     public void onStart(ConnectedNode connectedNode_) {
         final Log log = connectedNode_.getLog();
         this.connectedNode = connectedNode_;
+
+        try {
+            poseFrom2D3D_serviceClient = connectedNode.newServiceClient(POSE_FROM_2D3D_SERVICE_ROS_NAME, PoseFrom2D3D._TYPE);
+            poseFrom2D3D_responseListener = new PoseFrom2D3DResponseListener();
+            System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: setup successfully.");
+        } catch (ServiceNotFoundException e) {
+            System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: ServiceNotFoundException for '"+POSE_FROM_2D3D_SERVICE_ROS_NAME +"': "+e.getMessage());
+            e.printStackTrace();
+            throw new RosRuntimeException(e);
+        } catch (Exception e) {
+            if (connectedNode != null) {
+                System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: Exception for '" + POSE_FROM_2D3D_SERVICE_ROS_NAME + "': " + e.getMessage());
+                e.printStackTrace();
+                throw new RosRuntimeException(e);
+            } else {
+                System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: connectedNode_ == null: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
 
         startTransformListener();  // start listening to TF :  TODO : move this to a central/singleton TF node :- only want to spend CPU on one at a time
 
@@ -145,6 +268,10 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     }
 
     public void getTfDummy(String sourceFrameId_, String targetFrameId_, java.util.Date time_) {
+        if (null==transformClient) {
+            System.out.println("WARN: getTfDummy: null==transformClient");
+            return;
+        }
         GetTfRequest getTfRequest = transformClient.newMessage();
 
         std_msgs.String sourceFrameId = getTfRequest.getSourceFrameId();

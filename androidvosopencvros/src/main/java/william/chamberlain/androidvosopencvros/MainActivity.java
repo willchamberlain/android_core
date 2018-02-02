@@ -292,6 +292,14 @@ public class MainActivity
 //        catch(RuntimeException e) { Log.e(TAG,"onCreate: exception initialising TrueTime to NTP host "+ntpHost+": "+e.getMessage(), e); }
 
 
+
+        // normally called via smartCameraExtrinsicsCalibrator.estimateExtrinsicsFromObservations, which loads the data from the smartCameraExtrinsicsCalibrator.observations
+        // private opencv_core.Mat calculateExtrinsics(double[] IMAGE_PIXEL_2D_DATA_POINTS_, double[] WORLD_3D_DATA_POINTS_, double imageWidth, double imageHeight) {
+            System.out.println("----------\n----------\n----------\n----------\nsmartCameraExtrinsicsCalibrator.calculateExtrinsics start");
+        //smartCameraExtrinsicsCalibrator.calculateExtrinsics(Hardcoding.pixel_coordinates__2017_12_29, Hardcoding.world_coordinates__2017_12_29, 352, 288);
+            System.out.println("smartCameraExtrinsicsCalibrator.calculateExtrinsics end\n----------\n----------\n----------\n----------\n");
+
+
         mLocationManager = (LocationManager)this.getSystemService(Context.LOCATION_SERVICE);
         mSensorManager = (SensorManager)this.getSystemService(SENSOR_SERVICE);
         //  cameraManager().getCameraCharacteristics();  -- requires API 21
@@ -427,14 +435,24 @@ public class MainActivity
         nodeConfigurationBase.setMasterUri(masterURI);
         InetAddress ntpServerAddress = null;
         try {
-            List<String> ntpHostnames = new ArrayList<>();  ntpHostnames.add("192.168.1.253"); ntpHostnames.add("192.168.1.164"); ntpHostnames.add("172.19.63.161"); ntpHostnames.add("time.qut.edu.au"); ntpHostnames.add("131.181.100.63"); //TIME_QUT_EDU_AU;
+            List<String> ntpHostnames = new ArrayList<>();
+                ntpHostnames.add(masterURI.getHost());
+                ntpHostnames.add("131.181.33.25"); ntpHostnames.add("172.19.52.243"); ntpHostnames.add("172.19.20.202"); ntpHostnames.add("192.168.1.253"); ntpHostnames.add("192.168.1.164"); ntpHostnames.add("172.19.63.161"); ntpHostnames.add("time.qut.edu.au"); ntpHostnames.add("131.181.100.63"); //TIME_QUT_EDU_AU;
             timeProvider = null;
             for(String ntpHostname:ntpHostnames) {
+                System.out.println("init: ntpHostname");
                 InetAddress ntpServerAddress_ = InetAddress.getByName(ntpHostname);
                 try {
-                    timeProvider = initialiseNtpTimeProvider(ntpServerAddress_);
-                    ntpServerAddress = ntpServerAddress_;
-                    Log.i(TAG,"init: initialiseNtpTimeProvider("+ntpServerAddress_+") succeeded.");
+                    Log.i(TAG, "init: initialiseNtpTimeProvider(" + ntpServerAddress_ + ") start");
+                    NtpTimeProvider timeProvider_found = initialiseNtpTimeProvider(ntpServerAddress_);
+                    if(null != timeProvider_found) {
+                        timeProvider = timeProvider_found;
+                        ntpServerAddress = ntpServerAddress_;
+                        Log.i(TAG, "init: initialiseNtpTimeProvider(" + ntpServerAddress_ + ") succeeded.");
+                        break;
+                    } else {
+                        Log.i(TAG, "init: initialiseNtpTimeProvider(" + ntpServerAddress_ + ") not found.");
+                    }
                 } catch (RuntimeException e) {
                     Log.w(TAG,"init: initialiseNtpTimeProvider("+ntpServerAddress_+") failed: will try the next NTP server in the list.");
                 }
@@ -588,12 +606,16 @@ public class MainActivity
         ntpTimeProvider = new NtpTimeProvider(ntpServerAddress, nodeMainExecutorService.getScheduledExecutorService());
         timeProvider = ntpTimeProvider;
         try {
+            System.out.println("initialiseNtpTimeProvider: start: address="+ntpServerAddress.toString());
             ntpTimeProvider.updateTime();
             Log.i(TAG,"initialiseNtpTimeProvider: NtpTimeProvider: ntpTimeProvider.updateTime() succeeded.");
             return ntpTimeProvider;
+        } catch (java.net.SocketTimeoutException e) {
+            Log.e(TAG,"initialiseNtpTimeProvider: NtpTimeProvider: ntpTimeProvider.updateTime(): "+ntpServerAddress.toString()+": timeout exception"+e, e);
+            return null;
         } catch (IOException e) {
-            Log.e(TAG,"initialiseNtpTimeProvider: NtpTimeProvider: ntpTimeProvider.updateTime() exception"+e, e);
-            throw new RuntimeException("initialiseNtpTimeProvider: initialising ntpTimeProvider failed.",e);
+            Log.e(TAG,"initialiseNtpTimeProvider: NtpTimeProvider: ntpTimeProvider.updateTime(): "+ntpServerAddress.toString()+": exception"+e, e);
+            throw new RuntimeException("initialiseNtpTimeProvider: initialising ntpTimeProvider failed with address "+ntpServerAddress.toString(),e);
         }
     }
 
@@ -2691,12 +2713,34 @@ public class MainActivity
             case RECORD_NEXT_FRAME:
                 RECORD_FRAMES = 1;
                 break;
+            case TEST_MATLAB_POSE_EST_kitchen_realPixels:
+                atestMatlabPoseEstimation_kitchen_realPixels();
+                break;
+            case TEST_MATLAB_POSE_EST_kitchen_projectedPixels:
+                atestMatlabPoseEstimation_kitchen_projectedPixels();
+                break;
+            case TEST_MATLAB_POSE_EST_square_projectedPixels:
+                atestMatlabPoseEstimation_square_projectedPixels();
+                break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");
                 throw new RuntimeException("extrinsicsCalibration: ManagementCommand '"+command+"' not recognised");
         }
-
     }
+
+
+    private void atestMatlabPoseEstimation_kitchen_realPixels() {
+        vosTaskAssignmentSubscriberNode.atestMatlabPoseEstimation_kitchen_realPixels();
+    }
+
+    private void atestMatlabPoseEstimation_kitchen_projectedPixels() {
+        Log.w(TAG,"atestMatlabPoseEstimation_kitchen_projectedPixels: does nothing yet.");
+    }
+
+    private void atestMatlabPoseEstimation_square_projectedPixels() {
+        Log.w(TAG,"atestMatlabPoseEstimation_square_projectedPixels: does nothing yet.");
+    }
+
 
     @NonNull
     private String logMessage_recordDataStatus() {
