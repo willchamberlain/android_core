@@ -2486,6 +2486,7 @@ public class MainActivity
 
     @Override
     public void setPose(double[] poseXyz, double[] orientationQuaternionXyzw_) {
+        System.out.println("setPose( pose xyz="+Arrays.toString(poseXyz)+", quat xyzw="+Arrays.toString(orientationQuaternionXyzw_)+")");
         this.position = poseXyz;
         this.orientation = orientationQuaternionXyzw_;
         this.poseKnown = true;
@@ -2763,6 +2764,7 @@ public class MainActivity
 
     @Override
     public void relocalise() {
+            System.out.println("MainActivity: relocalise()");
         poseKnown   = false;
         position    = new double[]{0.0,0.0,1.0};
         orientation = new double[]{0.0,0.0,0.0,1.0};
@@ -3441,6 +3443,10 @@ System.out.println("imuData(Imu imu): relocalising");
                         ConvertRotation3D_F64.quaternionToMatrix(
                                 worldToCamera_rot_q,  //  (double w, double x, double y, double z)
                                 worldToCamera_rot_m));
+
+                System.out.println("poseKnown: sending id=" + (40000 + tag_id)
+                        +", x="+worldToCamera.getX()+", y="+worldToCamera.getY()+",z="+ worldToCamera.getZ()
+                        +",  qx="+worldToCamera_rot_q.x+", qy="+worldToCamera_rot_q.y+", qz="+worldToCamera_rot_q.z+", qw="+worldToCamera_rot_q.w);
 
                 for(VisionTask visionTaskInList: visionTaskListToExecute) {
                     detectedFeaturesClient.reportDetectedFeature(visionTaskInList.getRobotId(), visionTaskInList.getRequestId(),

@@ -93,6 +93,7 @@ public class DetectedFeaturesClient extends AbstractNodeMain {
      * @param qw orientation of the feature relative to the camera centre frame, applied after the translation to the feature - per Kaess AprilTag library ; expressed as a quaternion because reasons.
      */
     public void reportDetectedFeature(String robotId, String requestId, int tagId, double x,double y,double z,double qx,double qy,double qz,double qw) {
+        System.out.println("reportDetectedFeature(String "+robotId+", String "+requestId+", int "+tagId+", double "+x+",double "+y+",double "+z+",double "+qx+",double "+qy+",double "+qz+",double "+qw+")");
         DetectedFeatureRequest serviceRequest = featureServiceClient.newMessage();
 
         applyVisionTaskDetailsForDetectedFeature(robotId, requestId, serviceRequest);
