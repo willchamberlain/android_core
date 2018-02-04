@@ -38,6 +38,7 @@ public class Observation2 {
         // NOTE: boofcv does this in reverse order from normal matrix mult notation
         this.map_to_tag_transform_boofcv = new Se3_F64();
         this.baselink_to_tag_transform.concat(mtbp_transform_boofcv,this.map_to_tag_transform_boofcv);
+
         Quaternion_F64 map_to_tag_quaterion = new Quaternion_F64();
         ConvertRotation3D_F64.matrixToQuaternion(map_to_tag_transform_boofcv.getRotation(),map_to_tag_quaterion);
         System.out.println("new Observation2:\n\t baselink_to_tag_transform="+baselink_to_tag_transform.toString()+",\n\tmap_to_tag_transform_boofcv="+map_to_tag_transform_boofcv+" ,\n\t map_to_tag_transform_boofcv quaternion = "+map_to_tag_quaterion.toString()+",\n\t"+toString());

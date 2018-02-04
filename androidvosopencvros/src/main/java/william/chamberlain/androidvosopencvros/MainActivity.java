@@ -248,6 +248,7 @@ public class MainActivity
     private static boolean RECORD_DATA_RECORDED = false;
     private static boolean RECORD_DATA_CONTINUOUS = false;
     private static int RECORD_FRAMES = 0;   // todo; get the feeling that there's a system aspect hiding here w.r.t. recording data related (1) to a set of observations (RECORD_DATA_X) (2) to a time period (RECORD_FRAMES)
+    private static int CHECK_TIME_SYNCH = 10;
 //    private FileOutputStream detectionDataOutputFile;
 //    private OutputStreamWriter detectionDataOutputStreamWriter;
     private FileWriter detectionDataOutputFile = null;
@@ -789,7 +790,8 @@ public class MainActivity
 
         incrementFrameCounter();
 
-        java.util.Date imageFrameTime = currentTimeSafe();
+        java.util.Date imageFrameTime = currentTimeSafe(CHECK_TIME_SYNCH > 0);
+        if( CHECK_TIME_SYNCH > 0 ){ CHECK_TIME_SYNCH--; }
 
         //        verifyTime();
         Log.i(TAG,"onCameraFrame: START: cameraNumber="+getCamNum()+": frame="+frameNumber);
@@ -1006,16 +1008,23 @@ public class MainActivity
         framesProcessed++;
     }
 
-    private Date currentTimeSafe() {
+    /**
+     * Returns the current time including the NTP server offset, and optionally checks that TF is
+     * available.
+     * @return the current time including the NTP server offset
+     */
+    private Date currentTimeSafe(boolean checkTf) {
         Date imageFrameTime = nowAsDate();
-        try {
-            if(null != vosTaskAssignmentSubscriberNode) {
-                Log.i("timecheck:ms before=", Long.toString(imageFrameTime.getTime()));
-                vosTaskAssignmentSubscriberNode.getTfDummy("/map", "/base_link", imageFrameTime);    // test the time offset
-                Log.i("timecheck:ms after=", Long.toString(imageFrameTime.getTime()));
+        if(checkTf) {
+            try {
+                if (null != vosTaskAssignmentSubscriberNode) {
+                    Log.i("timecheck:ms before=", Long.toString(imageFrameTime.getTime()));
+                    vosTaskAssignmentSubscriberNode.getTfDummy("/map", "/base_link", imageFrameTime);    // test the time offset
+                    Log.i("timecheck:ms after=", Long.toString(imageFrameTime.getTime()));
+                }
+            } catch (Exception e) {
+                Log.i("timecheck:exception", "Exception running timecheck: " + e, e);
             }
-        } catch (Exception e) {
-            Log.i("timecheck:exception","Exception running timecheck: "+e, e);
         }
         return imageFrameTime;
     }
@@ -2721,6 +2730,9 @@ public class MainActivity
                 break;
             case TEST_MATLAB_POSE_EST_square_projectedPixels:
                 atestMatlabPoseEstimation_square_projectedPixels();
+                break;
+            case CHECK_TIME_SYNCH_AND_TF_AVAILABLE:
+                CHECK_TIME_SYNCH = 50;
                 break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");

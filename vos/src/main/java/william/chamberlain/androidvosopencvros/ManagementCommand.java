@@ -41,7 +41,8 @@ public enum ManagementCommand {
         RECORD_NEXT_FRAME("record next frame"),
         TEST_MATLAB_POSE_EST_kitchen_realPixels("test matlab pose estimation 1"),
         TEST_MATLAB_POSE_EST_kitchen_projectedPixels("test matlab pose estimation 2"),
-        TEST_MATLAB_POSE_EST_square_projectedPixels("test matlab pose estimation 3");
+        TEST_MATLAB_POSE_EST_square_projectedPixels("test matlab pose estimation 3"),
+        CHECK_TIME_SYNCH_AND_TF_AVAILABLE("check time synch");
 
         public final String command_val;
 

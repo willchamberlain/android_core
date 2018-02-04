@@ -32,12 +32,8 @@ import static actionlib_msgs.GoalStatus.RECALLED;
 import static actionlib_msgs.GoalStatus.RECALLING;
 import static actionlib_msgs.GoalStatus.REJECTED;
 import static actionlib_msgs.GoalStatus.SUCCEEDED;
-import static org.bytedeco.javacpp.opencv_calib3d.SOLVEPNP_P3P;
 import static org.bytedeco.javacpp.opencv_core.CV_64FC1;
-import static org.bytedeco.javacpp.opencv_core.setIdentity;
 import static william.chamberlain.androidvosopencvros.Geometry_OpenCV.matToString;
-import static william.chamberlain.androidvosopencvros.Hardcoding.CAMERA_DISTORTION_COEFFICIENTS_5_OPENCV;
-import static william.chamberlain.androidvosopencvros.Hardcoding.CAMERA_INTRINSICS_MATRIX;
 import static william.chamberlain.androidvosopencvros.PlanningStrategy.fixedSet;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.NaN;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.RobotEnterFromImageSide.left;
@@ -46,7 +42,6 @@ import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalib
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.robotMoving;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.uncalibrated;
 import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.waitingForObs;
-import static william.chamberlain.androidvosopencvros.SmartCameraExtrinsicsCalibrator.SelfState.recordObs;
 
 /**
  * Created by will on 24/11/17.

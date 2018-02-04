@@ -23,14 +23,16 @@ public class Hardcoding {
     public static final double[] CAMERA_DISTORTION_COEFFICIENTS_5_MATLAB = {
             0.007669604014085d, 0.083222884846111d, -0.412608486749279d,
             0.0d, 0.0d};
-    public static final double[] CAMERA_DISTORTION_COEFFICIENTS_5_OPENCV = {
+    static final double[] distortion_coefs__2018_01_21 = { 0.004180016841640, 0.136452931271259 , -0.001666231998527, -0.00008160213039217031 , -0.638647134308425};
+    public static final double[] CAMERA_DISTORTION_COEFFICIENTS_5_OPENCV = distortion_coefs__2018_01_21;
+    static final double[] CAMERA_DISTORTION_COEFFICIENTS_5_OPENCV_previous = {
             0.007669604014085d, 0.083222884846111d,
             0.0d, 0.0d,
             -0.412608486749279d};
 
 
     public static final int MARKER_OFFSET_INT = 90000;
-    public static final double BOOFCV_MARKER_SIZE_M = 0.199; //0.128; // 0.257; //0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
+    public static final double BOOFCV_MARKER_SIZE_M = 0.201; // 0.199; //0.128; // 0.257; //0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
 
 
     public static void hardcodeTargetMarkers(VosTaskSet vosTaskSet) {
