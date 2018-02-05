@@ -92,6 +92,7 @@ import boofcv.abst.fiducial.FiducialDetector;
 import boofcv.alg.color.ColorHsv;
 import boofcv.alg.distort.LensDistortionNarrowFOV;
 import boofcv.alg.distort.pinhole.LensDistortionPinhole;
+import boofcv.alg.distort.radtan.LensDistortionRadialTangential;
 import boofcv.alg.misc.GImageMiscOps;
 import boofcv.android.gui.VideoProcessing;
 import boofcv.core.encoding.ConvertNV21;
@@ -1365,10 +1366,23 @@ public class MainActivity
                     new ConfigFiducialBinary(Hardcoding.BOOFCV_MARKER_SIZE_M), ConfigThreshold.local(ThresholdType.LOCAL_SQUARE, 10), GrayF32.class);  // tag size,  type,  ?'radius'?
             //        detector.setLensDistortion(lensDistortion);
 
+            // /mnt/nixbig/ownCloud/project_AA1__2_extrinsics_calibration/project_AA1_2_extrinsics__phone_data_recording__copied_bc/VOS_data_2018_01_21_16_51_11_calibration_pattern_Galaxy3_home/intrinsics_matlab_3radial_2tangental_0skew.txt
+            CameraPinholeRadial cameraPinholeRadial = new CameraPinholeRadial(
+                    322.9596901156589, 323.8523693059909, //fx,fy,
+                    0.0,                                    // skew,
+                    176.8267919600727, 146.7681514313797, // cx, cy,
+                    calcImgDim.getWidth(), calcImgDim.getHeight());
+            cameraPinholeRadial.fsetRadial(0.004180016841640, 0.136452931271259, -0.638647134308425);
+            cameraPinholeRadial.fsetTangental(-0.001666231998527, -0.00008160213039217031);
+            LensDistortionRadialTangential lensDistortionRadialTangential = new LensDistortionRadialTangential(cameraPinholeRadial);
+            detector.setLensDistortion(lensDistortionRadialTangential);
+            
             CameraPinhole pinholeModel = new CameraPinhole(
                     FocalLengthCalculator.getFocal_length_in_pixels_x(matGray.width()),
                     FocalLengthCalculator.getFocal_length_in_pixels_y(matGray.height()),
-                    calcImgDim.getSkew(), calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(), calcImgDim.getWidth(), calcImgDim.getHeight());
+                    calcImgDim.getSkew(),
+                    calcImgDim.getPx_pixels(), calcImgDim.getPy_pixels(),
+                    calcImgDim.getWidth(), calcImgDim.getHeight());
             LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
             detector.setLensDistortion(pinholeDistort);                                             // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
@@ -3467,6 +3481,10 @@ System.out.println("imuData(Imu imu): relocalising");
                             50000 + tag_id,
                             worldToRobotBaseLink.getX(), worldToRobotBaseLink.getY(), worldToRobotBaseLink.getZ(),
                             worldToRobotBaseLink_q.x, worldToRobotBaseLink_q.y, worldToRobotBaseLink_q.z, worldToRobotBaseLink_q.w);
+
+                    System.out.println("poseKnown: sending id=" + (50000 + tag_id)
+                            +", x="+worldToRobotBaseLink.getX()+", y="+worldToRobotBaseLink.getY()+",z="+ worldToRobotBaseLink.getZ()
+                            +",  qx="+worldToRobotBaseLink_q.x+", qy="+worldToRobotBaseLink_q.y+", qz="+worldToRobotBaseLink_q.z+", qw="+worldToRobotBaseLink_q.w);
                 }
 
             } else {
