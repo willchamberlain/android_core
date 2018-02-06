@@ -43,7 +43,7 @@ import static william.chamberlain.androidvosopencvros.ros_types.RosTypes.header;
  * Created by will on 1/09/17.
  */
 
-public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements RobotStatusMonitor, RobotPoseMeasure, RobotGoalPublisher, RobotPoseMonitor {
+public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements PoseEstimator2D3D, RobotStatusMonitor, RobotPoseMeasure, RobotGoalPublisher, RobotPoseMonitor {
 
     public static final String GET_TF_SERVICE_NAME = "/androidvosopencvros/look_up_transform";
     public static final String ROBOT_GRAPHNAME_PREFIX = "";
@@ -70,11 +70,18 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     private PoseFrom2D3DResponseListener poseFrom2D3D_responseListener;
 
     class PoseFrom2D3DResponseListener implements ServiceResponseListener<PoseFrom2D3DResponse> {
+        private SmartCameraExtrinsicsCalibrator smartCameraExtrinsicsCalibrator;
+
+        public void setSmartCameraExtrinsicsCalibrator(SmartCameraExtrinsicsCalibrator calibrator) {
+            this.smartCameraExtrinsicsCalibrator = calibrator;
+        }
+
         @Override
         public void onSuccess(PoseFrom2D3DResponse poseFrom2D3DResponse) {
             System.out.println("PoseFrom2D3DResponseListener: onSuccess: start");
             william.chamberlain.androidvosopencvros.device.Pose poseFrom2D3DResponse_myClass = new william.chamberlain.androidvosopencvros.device.Pose(poseFrom2D3DResponse.getPoseEstimate());
             System.out.println("PoseFrom2D3DResponseListener: onSuccess: pose = "+poseFrom2D3DResponse_myClass);
+            smartCameraExtrinsicsCalibrator.poseEstimate2D3D(poseFrom2D3DResponse_myClass);
         }
 
         @Override
@@ -83,6 +90,24 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
             e.printStackTrace();
             throw new RosRuntimeException(e);
         }
+    }
+
+
+//    public void matlabPoseEstimation()
+    public void estimatePose(List<Observation2> observation2List, SmartCameraExtrinsicsCalibrator calibrator) {
+        System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: start");
+        PoseFrom2D3DRequest request = poseFrom2D3D_serviceClient.newMessage();
+        addCameraInfoToRequest(request);
+        for (Observation2 obs : observation2List) {
+            createObs(
+                    request,
+                    obs.pixelPosition.getU(), obs.pixelPosition.getV(),
+                    obs.map_to_tag_transform_boofcv.getX(), obs.map_to_tag_transform_boofcv.getY(), obs.map_to_tag_transform_boofcv.getZ());
+        }
+        PoseFrom2D3DResponseListener poseFrom2D3D_responseListener_ = new PoseFrom2D3DResponseListener();
+        poseFrom2D3D_responseListener_.setSmartCameraExtrinsicsCalibrator(calibrator);
+        poseFrom2D3D_serviceClient.call(request, poseFrom2D3D_responseListener_);
+        System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: end");
     }
 
 
@@ -97,29 +122,11 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
             return;
         }
         PoseFrom2D3DRequest request = poseFrom2D3D_serviceClient.newMessage();
-//        sensor_msgs.CameraInfo cameraInfo = new CameraInfo();
 
-        sensor_msgs.CameraInfo cameraInfo = connectedNode.getTopicMessageFactory().newFromType(sensor_msgs.CameraInfo._TYPE);
-        cameraInfo.setDistortionModel("plumb_bob");
-        cameraInfo.setD( new double[]{
-                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/test_camera_pose_estimation_opencv_solvepnp.py
-                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/intrinsics_matlab_3radial_2tangental_0skew.txt
-                 0.004180016841640d, 0.136452931271259d ,           // k_1, k_2
-                -0.001666231998527d, -0.00008160213039217031d ,     // p_1, p_2
-                -0.638647134308425d                                 // k_3
-        } );
-        cameraInfo.setK( new double[]{                                            // calibrated at 352x288 per image passed to BoofCV by OpenCV JavaCameraFrame
-                322.9596901156589d , 000.0000000000000d , 176.8267919600727d ,    //  f_x ,   0 , c_x
-                000.0000000000000d , 323.8523693059909d , 146.7681514313797d ,    //    0 , f_y , c_y
-                  0.0d ,               0.0d ,               1.0d                  //    0 ,   0 ,   1
-        } );
-        request.setCameraInfo(cameraInfo);
+        addCameraInfoToRequest(request);
 //        List<Observation2D3D> obs2D3D = new ArrayList<Observation2D3D>();
 //        Observation2D3D obs = new william.chamberlain.androidvosopencvros.device.Observation2D3D();
-
-//        int u_=100, v_=200;
-//        double x_=11, y_=22, z_=33;
-//        createObs(request, u_, v_, x_, y_, z_);
+//        int u_=100, v_=200; //        double x_=11, y_=22, z_=33;//        createObs(request, u_, v_, x_, y_, z_);
         createObs(request,     56.54614322277916d , 109.06295157200866d, 3.92d ,  1.60d , 0.252d  );  // 1 - 357
         createObs(request,     52.62135271557739d ,  77.59861887431173d, 3.92d ,  1.60d , 0.645d  );  // 1 - 257
 
@@ -152,6 +159,24 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         poseFrom2D3D_serviceClient.call(request, poseFrom2D3D_responseListener);
 
         System.out.println("VosTaskAssignmentSubscriberNode: atestMatlabPoseEstimation_kitchen_realPixels: end");
+    }
+
+    private void addCameraInfoToRequest(PoseFrom2D3DRequest request) {
+        sensor_msgs.CameraInfo cameraInfo = connectedNode.getTopicMessageFactory().newFromType(sensor_msgs.CameraInfo._TYPE);
+        cameraInfo.setDistortionModel("plumb_bob");
+        cameraInfo.setD( new double[]{
+                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/test_camera_pose_estimation_opencv_solvepnp.py
+                    // see /mnt/nixbig/data/project_AA1_2_extrinsics__phone_data_recording/VOS_data_2018_01_21_16_51_11/intrinsics_matlab_3radial_2tangental_0skew.txt
+                 0.004180016841640d, 0.136452931271259d ,           // k_1, k_2
+                -0.001666231998527d, -0.00008160213039217031d ,     // p_1, p_2
+                -0.638647134308425d                                 // k_3
+        } );
+        cameraInfo.setK( new double[]{                                            // calibrated at 352x288 per image passed to BoofCV by OpenCV JavaCameraFrame
+                322.9596901156589d , 000.0000000000000d , 176.8267919600727d ,    //  f_x ,   0 , c_x
+                000.0000000000000d , 323.8523693059909d , 146.7681514313797d ,    //    0 , f_y , c_y
+                  0.0d ,               0.0d ,               1.0d                  //    0 ,   0 ,   1
+        } );
+        request.setCameraInfo(cameraInfo);
     }
 
     /**

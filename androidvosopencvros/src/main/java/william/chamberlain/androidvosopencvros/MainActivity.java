@@ -627,6 +627,7 @@ public class MainActivity
         this.vosTaskAssignmentSubscriberNode.addRobotStatusChangeListener(this.smartCameraExtrinsicsCalibrator);
         this.smartCameraExtrinsicsCalibrator.setRobotPoseMeasure(this.vosTaskAssignmentSubscriberNode);
         this.smartCameraExtrinsicsCalibrator.setRobotGoalPublisher(this.vosTaskAssignmentSubscriberNode);
+        this.smartCameraExtrinsicsCalibrator.setPoseEstimator2D3D(this.vosTaskAssignmentSubscriberNode);
         this.smartCameraExtrinsicsCalibrator.setFileLogger(this);
     }
 
@@ -1417,6 +1418,7 @@ public class MainActivity
 
                     //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]-t[tagid]
 
+                visionTask.executedAndDetected();      //
                 drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_, visionTask);
 
                 List<VisionTask> visionTaskListToExecute = vosTaskSet.visionTaskListToExecute(Algorithm.BOOFCV_SQUARE_FIDUCIAL,tag_id);
@@ -2756,6 +2758,12 @@ public class MainActivity
                 break;
             case CHECK_TIME_SYNCH_AND_TF_AVAILABLE:
                 CHECK_TIME_SYNCH = 50;
+                break;
+            case EXPIRE_TASKS_ON_DETECTION_COUNT:
+                vosTaskSet.expireTasksOnDetection(true);
+                break;
+            case EXPIRE_TASKS_ON_EXECUTION_COUNT:
+                vosTaskSet.expireTasksOnDetection(false);
                 break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");

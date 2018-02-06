@@ -58,6 +58,9 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     private List<AssociatedData> associatedData = new ArrayList<>();
 
     /*****************************************************************/
+    private PoseEstimator2D3D poseEstimator2D3D;
+
+    /*****************************************************************/
     private FileLogger fileLogger;
 
 
@@ -635,7 +638,34 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 }
                 fileLogger.printlnToFile(observation3DString, DateAndTime.nowAsDate());
             }
+            this.poseEstimator2D3D.estimatePose(observations, this);
         }
+    }
+
+    public void poseEstimate2D3D(william.chamberlain.androidvosopencvros.device.Pose poseEstimate) {
+        String poseEstimate2D3DString = "poseEstimate2D3D(x, y, z, qx, qy, qz, qw) =\n";
+        poseEstimate2D3DString = poseEstimate2D3DString
+                + poseEstimate.getPosition().getX()
+                + poseEstimate.getPosition().getY() + " , "
+                + poseEstimate.getPosition().getZ() + " , "
+                + poseEstimate.getOrientation().getX() + " , "
+                + poseEstimate.getOrientation().getY() + " , "
+                + poseEstimate.getOrientation().getZ() + " , "
+                + poseEstimate.getOrientation().getW();
+        fileLogger.printlnToFile(poseEstimate2D3DString, DateAndTime.nowAsDate());  // could use the datetime the request was made - have to pass through the loop
+
+        String poseEstimate2D3DString2    = "poseEstimate2D3D=\n";
+        poseEstimate2D3DString2 = poseEstimate2D3DString2
+                + "x=" + poseEstimate.getPosition().getX()
+                + "y=" + poseEstimate.getPosition().getY() + " , "
+                + "z=" + poseEstimate.getPosition().getZ() + " , "
+                + "qx=" + poseEstimate.getOrientation().getX() + " , "
+                + "qy=" + poseEstimate.getOrientation().getY() + " , "
+                + "qz=" + poseEstimate.getOrientation().getZ() + " , "
+                + "qw=" + poseEstimate.getOrientation().getW();
+        fileLogger.printlnToFile(poseEstimate2D3DString2, DateAndTime.nowAsDate());  // could use the datetime the request was made - have to pass through the loop
+
+        System.out.println("\n" + poseEstimate2D3DString + "\n" + poseEstimate2D3DString2 + "\n");
     }
 
     private String formatObservation2D(double[] IMAGE_PIXEL_2D_DATA_POINTS__, int i_) {
@@ -655,6 +685,9 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     public Se3_F64 estimateExtrinsicsFromObservations(double imageWidth, double imageHeight) {
         TEMP_NUM_OBS_EQUAL_NUM_PLANNED = 10;
+        if(true) {
+            return null;
+        }
         if(null == observations  || observations.size() < TEMP_NUM_OBS_EQUAL_NUM_PLANNED) {
             return null;
         }
@@ -1078,6 +1111,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         this.fileLogger = fileLogger_;
     }
 
+
+    public void setPoseEstimator2D3D(PoseEstimator2D3D poseEstimator2D3D_) {
+        this.poseEstimator2D3D = poseEstimator2D3D_;
+    }
 }
 
 

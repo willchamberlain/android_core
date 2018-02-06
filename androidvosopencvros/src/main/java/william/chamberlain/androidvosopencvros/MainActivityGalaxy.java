@@ -1233,7 +1233,7 @@ Log.i(logTag,"after matRgb.setTo(blackScalar);");
         synchronized (this) {
             for (VisionTask task : taskQueue) {  // TODO - wrap this up in a VisionTaskQueue, and probably move to top or tail of the process , and look at e.g. ArrayBlockingQueue
                 Log.i("MainActivityGalaxy","removeExpiredVisionTask: vision task is now "+task);
-                if(!task.canBeExecuted()) {
+                if(!task.executionsExpired()) {
                     toRemove.add(task);     // could leave them in and only remove once a few have built up
                     Log.i("MainActivityGalaxy","removeExpiredVisionTask: removed vision task "+task);
                 }

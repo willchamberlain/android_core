@@ -15,6 +15,7 @@ public class VisionTask {
     private String returnUrl;
     private int numberOfTimesToExecute=0;
     private int executions=0;
+    private int detections=0;
 
     public VisionTask(String algorithm, String descriptor, String requestId, Pose relationToBase, String returnUrl) {
         this.algorithm = algorithm;
@@ -43,8 +44,16 @@ public class VisionTask {
         executions++;
     }
 
-    public boolean canBeExecuted() {
-        return numberOfTimesToExecute > executions;
+    public void executedAndDetected() {
+        detections++;
+    }
+
+    public boolean executionsExpired() {
+        return numberOfTimesToExecute <= executions;
+    }
+
+    public boolean detectionsExpired() {
+        return numberOfTimesToExecute <= detections;
     }
 
     public String getAlgorithm() {

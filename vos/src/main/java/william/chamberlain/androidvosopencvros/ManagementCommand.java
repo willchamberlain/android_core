@@ -42,7 +42,10 @@ public enum ManagementCommand {
         TEST_MATLAB_POSE_EST_kitchen_realPixels("test matlab pose estimation 1"),
         TEST_MATLAB_POSE_EST_kitchen_projectedPixels("test matlab pose estimation 2"),
         TEST_MATLAB_POSE_EST_square_projectedPixels("test matlab pose estimation 3"),
-        CHECK_TIME_SYNCH_AND_TF_AVAILABLE("check time synch");
+        CHECK_TIME_SYNCH_AND_TF_AVAILABLE("check time synch"),
+        EXPIRE_TASKS_ON_DETECTION_COUNT("tasks expire on detection count"),
+        EXPIRE_TASKS_ON_EXECUTION_COUNT("tasks expire on execution count");
+
 
         public final String command_val;
 
