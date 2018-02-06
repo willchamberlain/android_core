@@ -57,6 +57,9 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     private ArrayList<PoseFromRobotData> robotPoses = new ArrayList<>(100);
     private List<AssociatedData> associatedData = new ArrayList<>();
 
+    /*****************************************************************/
+    private FileLogger fileLogger;
+
 
     /*****************************************************************/
     private RobotGoalPublisher robotGoalPublisher;
@@ -591,7 +594,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     public void listObservations() {
         System.out.println("listObservations(): start");
         synchronized (observations_LOCK) {
-            System.out.println("listObservations(): in synchronized block: observations.size()="+observations.size());
+            System.out.println("listObservations(): in synchronized block: observations.size()=" + observations.size());
             double[] IMAGE_PIXEL_2D_DATA_POINTS__ = new double[observations.size() * 2];
             double[] WORLD_3D_DATA_POINTS__ = new double[observations.size() * 3];
 
@@ -604,13 +607,48 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
                 WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
 
-                System.out.println(
-                        "observations(" + i_ + ") = " +
-                                "pixels_2D=(" + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] + ", " + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] + ") " +
-                                "world_3D=(" + WORLD_3D_DATA_POINTS__[i_ + 0] + ", " + WORLD_3D_DATA_POINTS__[i_ + 1] + ", " + WORLD_3D_DATA_POINTS__[i_ + 2] + ")" );
+                printObservation(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
                 i_++;
             }
+            {
+                i_ = 0;
+                String observation2DString = "pixels_2D:\n";
+                for (Observation2 obs : observations) {
+                    IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] = obs.pixelPosition.getU();
+                    IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] = obs.pixelPosition.getV();
+                    observation2DString = observation2DString + "\n" + formatObservation2D(IMAGE_PIXEL_2D_DATA_POINTS__, i_);
+                    i_++;
+                }
+                fileLogger.printlnToFile(observation2DString, DateAndTime.nowAsDate());
+            }
+            {
+                i_ = 0;
+                String observation3DString = "points_3D:\n";
+                for (Observation2 obs : observations) {
+
+                    WORLD_3D_DATA_POINTS__[i_ + 0] = obs.map_to_tag_transform_boofcv.getT().getX();
+                    WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
+                    WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
+
+                    observation3DString = observation3DString + "\n" + formatObservation3D(WORLD_3D_DATA_POINTS__, i_);
+                    i_++;
+                }
+                fileLogger.printlnToFile(observation3DString, DateAndTime.nowAsDate());
+            }
         }
+    }
+
+    private String formatObservation2D(double[] IMAGE_PIXEL_2D_DATA_POINTS__, int i_) {
+        return "pixels_2D=(" + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] + ", " + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] + ") ";
+    }
+    private String formatObservation3D(double[] WORLD_3D_DATA_POINTS__, int i_) {
+        return "world_3D=(" + WORLD_3D_DATA_POINTS__[i_ + 0] + ", " + WORLD_3D_DATA_POINTS__[i_ + 1] + ", " + WORLD_3D_DATA_POINTS__[i_ + 2] + ")";
+    }
+    private void printObservation(double[] IMAGE_PIXEL_2D_DATA_POINTS__, double[] WORLD_3D_DATA_POINTS__, int i_) {
+        System.out.println(
+                "observations(" + i_ + ") = \n" +
+                        "pixels_2D=(" + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] + ", " + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] + ") " +
+                        "world_3D=(" + WORLD_3D_DATA_POINTS__[i_ + 0] + ", " + WORLD_3D_DATA_POINTS__[i_ + 1] + ", " + WORLD_3D_DATA_POINTS__[i_ + 2] + ")" );
     }
 
     private final Object associatedData_LOCK = new Object();
@@ -650,10 +688,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
                 WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
 
-                System.out.println(
-                "observations(" + i_ + ") = " +
-                "pixels_2D=(" + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] + ", " + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] + ") " +
-                "world_3D=(" + WORLD_3D_DATA_POINTS__[i_ + 0] + ", " + WORLD_3D_DATA_POINTS__[i_ + 1] + ", " + WORLD_3D_DATA_POINTS__[i_ + 2] + ")" );
+                printObservation(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
 
                 i_++;
             }
@@ -1037,6 +1072,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         Mat worldPoints = null;
         Mat imagePoints = null;
         Mat homography = org.opencv.imgproc.Imgproc.getPerspectiveTransform(worldPoints, imagePoints);
+    }
+
+    public void setFileLogger(FileLogger fileLogger_) {
+        this.fileLogger = fileLogger_;
     }
 
 }

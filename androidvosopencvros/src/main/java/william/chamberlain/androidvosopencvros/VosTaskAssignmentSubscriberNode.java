@@ -316,7 +316,9 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     }
 
     /*** TF by request *******************************/
-    public void getTf(String sourceFrameId_, String targetFrameId_, java.util.Date time_, PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_, RobotPoseListener robotPoseListener_) {
+    public void getTf(String sourceFrameId_, String targetFrameId_, java.util.Date time_,
+                      PixelPosition pixelPosition_, Se3_F64 transformOfFeatureInVisualModel_,
+                      RobotPoseListener robotPoseListener_) {
         GetTfRequest getTfRequest = transformClient.newMessage();
 
         std_msgs.String sourceFrameId = getTfRequest.getSourceFrameId();

@@ -147,7 +147,8 @@ public class MainActivity
             DetectedFeaturesHolder,
         ImuCallback,
         DimmableScreen, VariableResolution, VisionSource,
-        ResilientNetworkActivity, VisionSource_WhereIs {
+        ResilientNetworkActivity, VisionSource_WhereIs,
+        FileLogger {
 
     //public static final double BOOFCV_TAG_SIZE_M = 0.189;  // 0.20  // 0.14 // 0.13;             ////  TODO - list of tags and sizes, and tag-groups and sizes
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
@@ -254,6 +255,7 @@ public class MainActivity
 //    private OutputStreamWriter detectionDataOutputStreamWriter;
     private FileWriter detectionDataOutputFile = null;
     private File dataOutputDirectory = null;
+    private FileWriter observationDataOutputFile = null;
 
     public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
@@ -625,6 +627,7 @@ public class MainActivity
         this.vosTaskAssignmentSubscriberNode.addRobotStatusChangeListener(this.smartCameraExtrinsicsCalibrator);
         this.smartCameraExtrinsicsCalibrator.setRobotPoseMeasure(this.vosTaskAssignmentSubscriberNode);
         this.smartCameraExtrinsicsCalibrator.setRobotGoalPublisher(this.vosTaskAssignmentSubscriberNode);
+        this.smartCameraExtrinsicsCalibrator.setFileLogger(this);
     }
 
 
@@ -734,7 +737,12 @@ public class MainActivity
 //        try { detectionDataOutputStreamWriter.close(); detectionDataOutputFile.close(); }
         if(null != detectionDataOutputFile) {
             try { detectionDataOutputFile.close();
-            } catch (IOException e) { Log.e("onDestroy", "MainActivity: onDestroy: could not close the data file stream or file.", e);
+            } catch (IOException e) { Log.e("onDestroy", "MainActivity: onDestroy: could not close the detectionDataOutputFile data file stream or file.", e);
+            }
+        }
+        if(null != observationDataOutputFile) {
+            try { observationDataOutputFile.close();
+            } catch (IOException e) { Log.e("onDestroy", "MainActivity: onDestroy: could not close the observationDataOutputFile data file stream or file.", e);
             }
         }
     }
@@ -1376,7 +1384,7 @@ public class MainActivity
             cameraPinholeRadial.fsetTangental(-0.001666231998527, -0.00008160213039217031);
             LensDistortionRadialTangential lensDistortionRadialTangential = new LensDistortionRadialTangential(cameraPinholeRadial);
             detector.setLensDistortion(lensDistortionRadialTangential);
-            
+
             CameraPinhole pinholeModel = new CameraPinhole(
                     FocalLengthCalculator.getFocal_length_in_pixels_x(matGray.width()),
                     FocalLengthCalculator.getFocal_length_in_pixels_y(matGray.height()),
@@ -1579,7 +1587,7 @@ public class MainActivity
      * @param text_ text to save to the file.
      * @param imageFrameTime_ : the datetime of image capture: the data saved relates to the image, not to the datetime of the statement execution.
      */
-    private void printlnToFile(String text_, Date imageFrameTime_) {
+    public void printlnToFile(String text_, Date imageFrameTime_) {
         configureFileForData(imageFrameTime_);
         try {
             detectionDataOutputFile.append(datafileLogDateFormat.format(imageFrameTime_));
