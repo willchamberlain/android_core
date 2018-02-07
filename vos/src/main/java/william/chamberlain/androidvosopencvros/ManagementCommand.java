@@ -35,6 +35,7 @@ public enum ManagementCommand {
         EXTERNAL_CALIBRATION_TAKE_OBSERVATION("external calibration take observation"),
         EXTERNAL_CALIBRATION_LIST_OBSERVATIONS("external calibration list observations"),
         EXTERNAL_CALIBRATION_RESET("external calibration reset"),
+        EXTERNAL_CALIBRATION_CALIBRATE_AND_USE("external calibration calibrate"),
         RECORD_DATA_ONCE("record once"),
         RECORD_DATA_CONTINUOUS("record start"),
         RECORD_DATA_STOP("record stop"),

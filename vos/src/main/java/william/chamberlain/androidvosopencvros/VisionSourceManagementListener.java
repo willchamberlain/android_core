@@ -196,6 +196,9 @@ public class VisionSourceManagementListener extends AbstractNodeMain {
                         case EXTERNAL_CALIBRATION_LIST_OBSERVATIONS:
                             visionSource.extrinsicsCalibration(command);
                             break;
+                        case EXTERNAL_CALIBRATION_CALIBRATE_AND_USE:
+                            visionSource.extrinsicsCalibration(command);
+                            break;
                         case RECORD_DATA_ONCE:
                             visionSource.extrinsicsCalibration(command);
                             break;

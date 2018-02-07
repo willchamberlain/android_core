@@ -629,6 +629,7 @@ public class MainActivity
         this.smartCameraExtrinsicsCalibrator.setRobotGoalPublisher(this.vosTaskAssignmentSubscriberNode);
         this.smartCameraExtrinsicsCalibrator.setPoseEstimator2D3D(this.vosTaskAssignmentSubscriberNode);
         this.smartCameraExtrinsicsCalibrator.setFileLogger(this);
+        this.smartCameraExtrinsicsCalibrator.setPosedEntity(this);
     }
 
 
@@ -1402,7 +1403,7 @@ public class MainActivity
 
             boolean smartCameraExtrinsicsCalibrator_first_notification_this_frame = true;
             final boolean DETECT_ALL_MARKERS_IN_FRAME = true;
-
+            boolean hasDetectedMarker = false;
             // see https://boofcv.org/index.php?title=Example_Fiducial_Square_Image
             for (int detectionOrder_ = 0; detectionOrder_ < detector.totalFound(); detectionOrder_++) {
                     //// TODO - timing here  c[camera_num]-f[frameprocessed]-detectionOrder_[iteration]
@@ -1422,6 +1423,7 @@ public class MainActivity
                 drawMarkeLocationOnDisplay_BoofCV(detector, detectionOrder_, visionTask);
 
                 List<VisionTask> visionTaskListToExecute = vosTaskSet.visionTaskListToExecute(Algorithm.BOOFCV_SQUARE_FIDUCIAL,tag_id);
+                hasDetectedMarker = true;
 
                     String logTagTag = logTagIteration + "-t" + tag_id;
                     Log.i(logTagTag, "onCameraFrame: finished checking tag_id");
@@ -1467,7 +1469,7 @@ public class MainActivity
 
                     //--- record image and detection details to file -------------------------------
                     // TODO - should not just be part of this algorithm; should be part of the general data recording / logging process
-                    recordTheImageOrNot(imageFrameTime, logTagTag);
+                    recordTheImageOrNot(imageFrameTime, logTagTag, hasDetectedMarker);
 
                 } else {  // 3D info not available for tag/marker
                     drawMarkeLocationOnDisplay_BoofCV_no3dData(detector, detectionOrder_);
@@ -1500,8 +1502,8 @@ public class MainActivity
         }
     }
 
-    private void recordTheImageOrNot(Date imageFrameTime, String logTagTag) {
-        if(RECORD_DATA) {
+    private void recordTheImageOrNot(Date imageFrameTime, String logTagTag, boolean override_hasDetectedMarker) {
+        if(RECORD_DATA || override_hasDetectedMarker) {
             Log.i(logTagTag, "detectAndEstimate_BoofCV_Fiducial: RECORD_DATA: recording data: start: "+logMessage_recordDataStatus());
             printlnToFile("matGray_size: { width: " + matGray.width() + ", height:" + matGray.height() + " }", imageFrameTime);
             printlnToFile("frame: " + Long.toString(frameNumber), imageFrameTime);
@@ -2727,6 +2729,9 @@ public class MainActivity
                 Log.i(TAG,"extrinsicsCalibration: received current robot pose at "+now+" = "+now.getTime()+"ms");
                 Log.i(TAG,"extrinsicsCalibration: received current robot pose = "+frameTransform+" at "+now+" = "+now.getTime()+"ms");
                 break;
+            case EXTERNAL_CALIBRATION_CALIBRATE_AND_USE:
+//                smartCameraExtrinsicsCalibrator.
+                break;
             case RECORD_DATA_ONCE:
                 RECORD_DATA = true;
                 RECORD_DATA_RECORDED = false;
@@ -2965,6 +2970,11 @@ System.out.println("imuData(Imu imu): relocalising");
 //        if( thread == null )
 //            return;
         if(null == matGray) {
+            Log.w(TAG,"convertPreviewForBoofCV: null == matGray: returning.");
+            return;
+        }
+        if(null == bytes) {
+            Log.w(TAG,"convertPreviewForBoofCV: null == bytes: returning.");
             return;
         }
         int width_  = (int)Math.ceil(matGray.size().width);

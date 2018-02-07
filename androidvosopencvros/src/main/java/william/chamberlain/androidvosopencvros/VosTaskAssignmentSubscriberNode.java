@@ -56,6 +56,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
     Publisher<PoseStamped> robot_goal_publisher = null;
     private Subscriber<GoalStatusArray> robot_move_base_status_subscriber = null;        // SEE detect_feature_server_3.py  handle_move_base_status()
     private List<Subscriber<PoseWithCovarianceStamped>> robot_pose_covar_subscriber_List = new ArrayList<>();
+//    private Publisher<Observation2D3D> map_to_robot_publisher = null;
 
     static final byte MOVE_BASE_STATUS_INIT = -1;
     byte move_base_status = MOVE_BASE_STATUS_INIT;
@@ -68,6 +69,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 
     private ServiceClient<PoseFrom2D3DRequest, PoseFrom2D3DResponse> poseFrom2D3D_serviceClient;
     private PoseFrom2D3DResponseListener poseFrom2D3D_responseListener;
+    private Publisher<Observation2D3D> observation2D3D_publisher = null;    // publish the observations so that can log them externally
 
     class PoseFrom2D3DResponseListener implements ServiceResponseListener<PoseFrom2D3DResponse> {
         private SmartCameraExtrinsicsCalibrator smartCameraExtrinsicsCalibrator;
@@ -107,7 +109,30 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         PoseFrom2D3DResponseListener poseFrom2D3D_responseListener_ = new PoseFrom2D3DResponseListener();
         poseFrom2D3D_responseListener_.setSmartCameraExtrinsicsCalibrator(calibrator);
         poseFrom2D3D_serviceClient.call(request, poseFrom2D3D_responseListener_);
+        publishAllObservation2D3D(observation2List);
         System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: end");
+    }
+
+    private void publishAllObservation2D3D(List<Observation2> observation2List) {
+        try {
+            System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: publishing observation2List: start");
+            for (Observation2 obs : observation2List) {
+                Observation2D3D obs2D3D = observation2D3D_publisher.newMessage();
+                obs2D3D.setU(obs.pixelPosition.getU());
+                obs2D3D.setV(obs.pixelPosition.getV());
+                geometry_msgs.Point point3D = obs2D3D.getPoint3D();
+                point3D.setX(obs.map_to_tag_transform_boofcv.getX());
+                point3D.setY(obs.map_to_tag_transform_boofcv.getY());
+                point3D.setZ(obs.map_to_tag_transform_boofcv.getZ());
+                obs2D3D.setPoint3D(point3D);
+                obs2D3D.setImageTime(DateAndTime.nowAsTime());
+                observation2D3D_publisher.publish(obs2D3D);
+            }
+            System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: publishing observation2List: end ");
+        } catch (Throwable e) {
+            System.out.println("ERROR:  VosTaskAssignmentSubscriberNode: estimatePose: exception publishing observation2List: "+e.getMessage());
+            e.printStackTrace();
+        }
     }
 
 
@@ -240,8 +265,9 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
             }
         });
 
-        robot_goal_publisher = connectedNode.newPublisher("/move_base_simple/goal", PoseStamped._TYPE);
+        robot_goal_publisher = connectedNode.newPublisher("/move_base_simple/goal", PoseStamped._TYPE); // 2018_02_07 - conflict??
         robot_goal_publisher.setLatchMode(true);
+        observation2D3D_publisher = connectedNode.newPublisher(nodeNamespace+"/observation2D3D", Observation2D3D._TYPE);
 
         /*** Behaviour ?  Input to/from a task/behaviour : TODO: move to a UncalibratedBehaviour instance? TODO: instance per-robot-that-has-task(s) ************************************/
         robot_move_base_status_subscriber = connectedNode_.newSubscriber("/move_base/status",GoalStatusArray._TYPE);     // TODO: hardcoding

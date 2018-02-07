@@ -1,6 +1,7 @@
 package william.chamberlain.androidvosopencvros;
 
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +13,6 @@ import georegression.struct.se.Se3_F64;
 import georegression.struct.so.Quaternion_F64;
 import william.chamberlain.androidvosopencvros.ros_types.RosTypes;
 
-import org.bytedeco.javacpp.annotation.ByVal;
 import org.bytedeco.javacpp.opencv_calib3d;
 import org.bytedeco.javacpp.opencv_core;
 import org.ejml.data.DenseMatrix64F;
@@ -59,6 +59,8 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     /*****************************************************************/
     private PoseEstimator2D3D poseEstimator2D3D;
+
+    private PosedEntity posedEntity;
 
     /*****************************************************************/
     private FileLogger fileLogger;
@@ -204,6 +206,12 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
             }
             Observation2 observation2 = new Observation2("", time_, pixelPosition_, transform_.getTransform(), transformOfFeatureInVisualModel_);
             observations.add(observation2);
+            try {
+                logObservations2ToFile();
+            } catch (Throwable e) {
+                System.out.println("ERROR:  robotPoseObservation: exception logging Observation2 list to file; exception in in logObservations2ToFile()"+e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
 
@@ -610,37 +618,71 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
                 WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
 
-                printObservation(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
+                printToConsole(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
                 i_++;
             }
-            {
-                i_ = 0;
-                String observation2DString = "pixels_2D:\n";
-                for (Observation2 obs : observations) {
-                    IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] = obs.pixelPosition.getU();
-                    IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] = obs.pixelPosition.getV();
-                    observation2DString = observation2DString + "\n" + formatObservation2D(IMAGE_PIXEL_2D_DATA_POINTS__, i_);
-                    i_++;
-                }
-                fileLogger.printlnToFile(observation2DString, DateAndTime.nowAsDate());
-            }
-            {
-                i_ = 0;
-                String observation3DString = "points_3D:\n";
-                for (Observation2 obs : observations) {
-
-                    WORLD_3D_DATA_POINTS__[i_ + 0] = obs.map_to_tag_transform_boofcv.getT().getX();
-                    WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
-                    WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
-
-                    observation3DString = observation3DString + "\n" + formatObservation3D(WORLD_3D_DATA_POINTS__, i_);
-                    i_++;
-                }
-                fileLogger.printlnToFile(observation3DString, DateAndTime.nowAsDate());
-            }
+            logObservations2ToFile();
             this.poseEstimator2D3D.estimatePose(observations, this);
         }
     }
+
+
+    private void logObservations2ToFile() {
+        double[] IMAGE_PIXEL_2D_DATA_POINTS__ = new double[observations.size() * 2];
+        double[] WORLD_3D_DATA_POINTS__ = new double[observations.size() * 3];
+        int i_;
+        {
+            i_ = 0;
+            String observation2DString = "pixels_2D:\n";
+            for (Observation2 obs : observations) {
+                IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] = obs.pixelPosition.getU();
+                IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] = obs.pixelPosition.getV();
+                observation2DString = observation2DString + "\n" + formatObservation2D(IMAGE_PIXEL_2D_DATA_POINTS__, i_);
+                i_++;
+            }
+            fileLogger.printlnToFile(observation2DString, DateAndTime.nowAsDate());
+        }
+        {
+            i_ = 0;
+            String observation3DString = "points_3D:\n";
+            for (Observation2 obs : observations) {
+                WORLD_3D_DATA_POINTS__[i_ + 0] = obs.map_to_tag_transform_boofcv.getT().getX();
+                WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
+                WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
+                observation3DString = observation3DString + "\n" + formatObservation3D(WORLD_3D_DATA_POINTS__, i_);
+                i_++;
+            }
+            fileLogger.printlnToFile(observation3DString, DateAndTime.nowAsDate());
+        }
+        {
+            i_ = 0;
+            String observation2DString = "pixels_2D=[...\n";
+            for (Observation2 obs : observations) {
+                observation2DString = observation2DString
+                        + "\t"  + obs.pixelPosition.getU()
+                        + " , " + obs.pixelPosition.getV()
+                        + " ;";
+                i_++;
+            }
+            observation2DString = observation2DString + " ]; ";
+            fileLogger.printlnToFile(observation2DString, DateAndTime.nowAsDate());
+        }
+        {
+            i_ = 0;
+            String observation3DString = "points_3D:\n";
+            for (Observation2 obs : observations) {
+                observation3DString = observation3DString
+                        + "\t"  + obs.map_to_tag_transform_boofcv.getT().getX()
+                        + " , " + obs.map_to_tag_transform_boofcv.getT().getY()
+                        + " , " + obs.map_to_tag_transform_boofcv.getT().getZ()
+                        + " ;";
+                i_++;
+            }
+            observation3DString = observation3DString + " ]; ";
+            fileLogger.printlnToFile(observation3DString, DateAndTime.nowAsDate());
+        }
+    }
+
 
     public void poseEstimate2D3D(william.chamberlain.androidvosopencvros.device.Pose poseEstimate) {
         String poseEstimate2D3DString = "poseEstimate2D3D(x, y, z, qx, qy, qz, qw) =\n";
@@ -666,6 +708,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         fileLogger.printlnToFile(poseEstimate2D3DString2, DateAndTime.nowAsDate());  // could use the datetime the request was made - have to pass through the loop
 
         System.out.println("\n" + poseEstimate2D3DString + "\n" + poseEstimate2D3DString2 + "\n");
+
+        //
+        //  public void setPose(double[] poseXyz, double[] orientationQuaternionXyzw_)
+        //  posedEntity.setPose(poseEstimate);
     }
 
     private String formatObservation2D(double[] IMAGE_PIXEL_2D_DATA_POINTS__, int i_) {
@@ -674,7 +720,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     private String formatObservation3D(double[] WORLD_3D_DATA_POINTS__, int i_) {
         return "world_3D=(" + WORLD_3D_DATA_POINTS__[i_ + 0] + ", " + WORLD_3D_DATA_POINTS__[i_ + 1] + ", " + WORLD_3D_DATA_POINTS__[i_ + 2] + ")";
     }
-    private void printObservation(double[] IMAGE_PIXEL_2D_DATA_POINTS__, double[] WORLD_3D_DATA_POINTS__, int i_) {
+    private void printToConsole(double[] IMAGE_PIXEL_2D_DATA_POINTS__, double[] WORLD_3D_DATA_POINTS__, int i_) {
         System.out.println(
                 "observations(" + i_ + ") = \n" +
                         "pixels_2D=(" + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 0] + ", " + IMAGE_PIXEL_2D_DATA_POINTS__[i_ + 1] + ") " +
@@ -721,7 +767,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
                 WORLD_3D_DATA_POINTS__[i_ + 1] = obs.map_to_tag_transform_boofcv.getT().getY();
                 WORLD_3D_DATA_POINTS__[i_ + 2] = obs.map_to_tag_transform_boofcv.getT().getZ();
 
-                printObservation(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
+                printToConsole(IMAGE_PIXEL_2D_DATA_POINTS__, WORLD_3D_DATA_POINTS__, i_);
 
                 i_++;
             }
@@ -1114,6 +1160,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
     public void setPoseEstimator2D3D(PoseEstimator2D3D poseEstimator2D3D_) {
         this.poseEstimator2D3D = poseEstimator2D3D_;
+    }
+
+    public void setPosedEntity(PosedEntity posedEntity_) {
+        this.posedEntity = posedEntity_;
     }
 }
 
