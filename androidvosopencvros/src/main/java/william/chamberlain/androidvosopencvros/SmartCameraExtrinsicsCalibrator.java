@@ -400,7 +400,9 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     }
 
     SmartCameraExtrinsicsCalibrator uncalibrated() {             System.out.println("SCEC: uncalibrated: start: "+stateString());
-        //        observations = new ArrayList<>(4);  //        robotGoalPoses = new ArrayList<>(1);
+        synchronized (observations_LOCK) {
+            observations = new ArrayList<>();  //        robotGoalPoses = new ArrayList<>(1);
+        }
         state = uncalibrated;                                           System.out.println("SCEC: uncalibrated: end: "+stateString());
         return this;
     }
@@ -627,7 +629,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     }
 
 
-    private void logObservations2ToFile() {
+    public void logObservations2ToFile() {
         double[] IMAGE_PIXEL_2D_DATA_POINTS__ = new double[observations.size() * 2];
         double[] WORLD_3D_DATA_POINTS__ = new double[observations.size() * 3];
         int i_;
@@ -684,6 +686,10 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
     }
 
 
+    /**
+     * Callback for pose estimates: receives the pose estimate from the estimation process (EPnP, etc.).
+     * @param poseEstimate the pose estimate from the estimation process (EPnP, etc.).
+     */
     public void poseEstimate2D3D(william.chamberlain.androidvosopencvros.device.Pose poseEstimate) {
         String poseEstimate2D3DString = "poseEstimate2D3D(x, y, z, qx, qy, qz, qw) =\n";
         poseEstimate2D3DString = poseEstimate2D3DString
@@ -711,7 +717,7 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
 
         //
         //  public void setPose(double[] poseXyz, double[] orientationQuaternionXyzw_)
-        //  posedEntity.setPose(poseEstimate);
+        posedEntity.setPose(poseEstimate);
     }
 
     private String formatObservation2D(double[] IMAGE_PIXEL_2D_DATA_POINTS__, int i_) {
@@ -778,6 +784,12 @@ public class SmartCameraExtrinsicsCalibrator implements RobotStatusChangeListene
         Se3_F64 transformBoofCVMat = convert_Mat_OpenCV_to_Se3_f64_BoofCV(transformOpenCVMat);
 
         return transformBoofCVMat;
+    }
+
+    public void estimateExtrinsics() {
+        System.out.println("SCEC: estimateExtrinsics(): logging observations then estimating the pose.");
+        logObservations2ToFile();
+        this.poseEstimator2D3D.estimatePose(observations, this);
     }
 
     /** @return the estimated camera extrinsics (pose: position and orientation) in world coordinates. */

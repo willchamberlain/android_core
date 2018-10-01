@@ -32,7 +32,7 @@ public class Hardcoding {
 
 
     public static final int MARKER_OFFSET_INT = 90000;
-    public static final double BOOFCV_MARKER_SIZE_M = 0.201; // 0.199; //0.128; // 0.257; //0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
+    public static final double BOOFCV_MARKER_SIZE_M = 0.135; //0.201; // 0.199; //0.128; // 0.257; //0.189;  // 0.20  // 0.14             ////  TODO - list of tags and sizes, and tag-groups and sizes
 
 
     public static void hardcodeTargetMarkers(VosTaskSet vosTaskSet) {
@@ -109,12 +109,13 @@ public class Hardcoding {
     private static HashMap<Integer, double[][]> fixedCameraPoses = new HashMap<Integer, double[][]>(1);
 
     private static void initialiseFixedCameraPoses() {
-        fixedCameraPoses.put(607, new double[][]{                   // double[] poseXyz, double[] orientationQuaternionXyzw_
-                {19.6833705902d, -3.55735754967d,  1.2d     },
-                {0d,  0d,  0.906324d,   0.422583d}});
+        fixedCameraPoses.put(603, new double[][]{                   // double[] poseXyz, double[] orientationQuaternionXyzw_
+                {0.00d,     0.00d,  1.2d     },
+                {0.00d,     0.00d,  0.00d,   1.00d}});
     }
 
     public static void fixedCameraPose(int camNum_, PosedEntity posedEntity) {
+        initialiseFixedCameraPoses();
         double[][] pose = fixedCameraPoses.get(camNum_);
         if(null != pose) {
             posedEntity.setPose(pose[0],pose[1]);                   // double[] poseXyz, double[] orientationQuaternionXyzw_

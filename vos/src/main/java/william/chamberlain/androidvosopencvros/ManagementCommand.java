@@ -40,12 +40,15 @@ public enum ManagementCommand {
         RECORD_DATA_CONTINUOUS("record start"),
         RECORD_DATA_STOP("record stop"),
         RECORD_NEXT_FRAME("record next frame"),
+        RECORD_RESET_OUTPUT_DIRECTORY("record new run"),
         TEST_MATLAB_POSE_EST_kitchen_realPixels("test matlab pose estimation 1"),
         TEST_MATLAB_POSE_EST_kitchen_projectedPixels("test matlab pose estimation 2"),
         TEST_MATLAB_POSE_EST_square_projectedPixels("test matlab pose estimation 3"),
         CHECK_TIME_SYNCH_AND_TF_AVAILABLE("check time synch"),
         EXPIRE_TASKS_ON_DETECTION_COUNT("tasks expire on detection count"),
-        EXPIRE_TASKS_ON_EXECUTION_COUNT("tasks expire on execution count");
+        EXPIRE_TASKS_ON_EXECUTION_COUNT("tasks expire on execution count"),
+        FIDUCIAL_MASK_WITH_HSV_ON("hsv mask on"),
+        FIDUCIAL_MASK_WITH_HSV_OFF("hsv mask off");
 
 
         public final String command_val;

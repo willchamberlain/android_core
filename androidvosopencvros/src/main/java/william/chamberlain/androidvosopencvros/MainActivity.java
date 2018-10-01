@@ -143,8 +143,8 @@ public class MainActivity
         extends         RosActivity
         implements      CameraBridgeViewBase.CvCameraViewListener2,
         ActivityCompat.OnRequestPermissionsResultCallback,  // to deal with runtime permissions checks - from API 23 oward
-            PosedEntity,                                    // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
-            DetectedFeaturesHolder,
+        PosedEntity,                                    // Camera has a pose in the world; defaults to aligned with the map coordinate frame origin and axes.
+        DetectedFeaturesHolder,
         ImuCallback,
         DimmableScreen, VariableResolution, VisionSource,
         ResilientNetworkActivity, VisionSource_WhereIs,
@@ -156,6 +156,8 @@ public class MainActivity
     public static final boolean TESTING_TRANSFORMATIONS_OF_TRANSFORMS = false;
     public static final String TIME_QUT_EDU_AU = "time.qut.edu.au";
     public static final String VOS_DATA_DIRECTORY_NAME = "VOS_data";
+    public static final double[] NULL_POSITION = {0.0, 0.0, 1.0};
+    public static final double[] NULL_ORIENTATION = {0.0, 0.0, 0.0, 1.0};
     private final LandmarkFeatureLoader landmarkFeatureLoader = new LandmarkFeatureLoader();
 
     HashMap<String,Boolean> allocatedTargets = new HashMap<String,Boolean>();
@@ -180,8 +182,8 @@ public class MainActivity
 //    private Mat mRgbaFlipped;         // rotate image as preview rotates with device
 
 
-    private double[] position    = {0.0,0.0,1.0};     // = new double[3]
-    private double[] orientation = {0.0,0.0,0.0,1.0}; // = new double[4]
+    private double[] position    = NULL_POSITION;     // = new double[3]
+    private double[] orientation = NULL_ORIENTATION; // = new double[4]
     private boolean  poseKnown   = false;
 
     long framesProcessed = 0;
@@ -255,7 +257,6 @@ public class MainActivity
 //    private OutputStreamWriter detectionDataOutputStreamWriter;
     private FileWriter detectionDataOutputFile = null;
     private File dataOutputDirectory = null;
-    private FileWriter observationDataOutputFile = null;
 
     public MainActivity() {
         super("ROS Sensors Driver", "ROS Sensors Driver");
@@ -441,7 +442,8 @@ public class MainActivity
         try {
             List<String> ntpHostnames = new ArrayList<>();
                 ntpHostnames.add(masterURI.getHost());
-                ntpHostnames.add("131.181.33.25"); ntpHostnames.add("172.19.52.243"); ntpHostnames.add("172.19.20.202"); ntpHostnames.add("192.168.1.253"); ntpHostnames.add("192.168.1.164"); ntpHostnames.add("172.19.63.161"); ntpHostnames.add("time.qut.edu.au"); ntpHostnames.add("131.181.100.63"); //TIME_QUT_EDU_AU;
+            ntpHostnames.add("131.181.33.25");
+            ntpHostnames.add("192.168.86.100"); ntpHostnames.add("172.19.52.243"); ntpHostnames.add("172.19.20.202"); ntpHostnames.add("192.168.1.253"); ntpHostnames.add("192.168.1.164"); ntpHostnames.add("172.19.63.161"); ntpHostnames.add("time.qut.edu.au"); ntpHostnames.add("131.181.100.63"); //TIME_QUT_EDU_AU;
             timeProvider = null;
             for(String ntpHostname:ntpHostnames) {
                 System.out.println("init: ntpHostname");
@@ -737,14 +739,13 @@ public class MainActivity
 //        deleteTagDetectorKaess(tagDetectorPointer);
         disableCamera();
 //        try { detectionDataOutputStreamWriter.close(); detectionDataOutputFile.close(); }
+        closeDataOutputFile();
+    }
+
+    private void closeDataOutputFile() {
         if(null != detectionDataOutputFile) {
             try { detectionDataOutputFile.close();
             } catch (IOException e) { Log.e("onDestroy", "MainActivity: onDestroy: could not close the detectionDataOutputFile data file stream or file.", e);
-            }
-        }
-        if(null != observationDataOutputFile) {
-            try { observationDataOutputFile.close();
-            } catch (IOException e) { Log.e("onDestroy", "MainActivity: onDestroy: could not close the observationDataOutputFile data file stream or file.", e);
             }
         }
     }
@@ -1369,6 +1370,14 @@ public class MainActivity
         Log.i(TAG, "onCameraFrame: after SURF feature processing.");
     }
 
+
+    boolean FIDUCIAL_MASK_WITH_HSV = false;
+
+    public void manage_maskFiducialWithHSV(boolean maskFiducialWithHSV_) {
+        FIDUCIAL_MASK_WITH_HSV = maskFiducialWithHSV_;
+        Log.i(TAG,"manage_maskFiducialWithHSV: FIDUCIAL_MASK_WITH_HSV = "+FIDUCIAL_MASK_WITH_HSV);
+    }
+
     private void detectAndEstimate_BoofCV_Fiducial_Binary(HashMap<RobotId, List<DetectedTag>> robotsDetected_, RobotId singleDummyRobotId_, List<DetectedTag> robotFeatures, List<DetectedTag> landmarkFeatures, String logTag, FocalLengthCalculator focalLengthCalc, CalcImageDimensions calcImgDim, java.util.Date imageFrameTime) {
         Log.i(logTag, "detectAndEstimate_BoofCV_Fiducial_Binary: start: matGray.width()="+matGray.width()+", matGray.height()="+matGray.height()); //// TODO - timing here  c[camera_num]-f[frameprocessed]
         try {
@@ -1396,8 +1405,30 @@ public class MainActivity
             LensDistortionNarrowFOV pinholeDistort = new LensDistortionPinhole(pinholeModel);
             detector.setLensDistortion(pinholeDistort);                                             // TODO - do BoofCV calibration - but assume perfect pinhole camera for now
 
+
+            boofcv.struct.image.GrayF32 image2 = image;
+            if(FIDUCIAL_MASK_WITH_HSV) {
+                image2 = image.clone();
+                convertPreviewBoofCVHsv(last_frame_bytes(), null);
+                GrayF32 V = imageHsv.getBand(2);
+                GrayF32 S = imageHsv.getBand(1);
+                // checks H.getHeight() H.getWidth()
+
+                for (int y = 0; y < imageHsv.height; y++) {            // https://boofcv.org/index.php?title=Example_Color_Segmentation
+                    for (int x = 0; x < imageHsv.width; x++) {
+//                      if( V.get(x,y) > 0.3 && S.get(x,y) > 0.2 ) {   // bright enough not to be black, colourful enough not to be white
+                      if( S.get(x,y) > 0.4 ) {   // bright enough not to be black, colourful enough not to be white
+                            image2.set(x,y,127.0f);
+                            double[] colour = new double[] {127d,127d,127d,255d};
+                            matRgb.put(y, x, colour);
+                        }
+                    }
+                }
+            }
+
+
                 Log.i(logTag, "start detector.detect(image);"); //// TODO - timing here  c[camera_num]-f[frameprocessed]
-            detector.detect(image);
+            detector.detect(image2);
                 Log.i(TAG, "onCameraFrame: found " + detector.totalFound() + " tags via BoofCV");
                 Log.i(logTag, "finished detector.detect(image);"); //// TODO - timing here  c[camera_num]-f[frameprocessed]
 
@@ -1552,11 +1583,40 @@ public class MainActivity
      */
     private FileWriter configureFileForData(Date imageFrameTime_) {
         if (null == detectionDataOutputFile) {
-            String detectionDataOutputFileName = filenameDateFormat.format(imageFrameTime_);
-            detectionDataOutputFileName = detectionDataOutputFileName + "_savedData.txt";
-            detectionDataOutputFile = openFileForData(imageFrameTime_, detectionDataOutputFileName);
+            openDataOutputFile(imageFrameTime_);
         }
         return detectionDataOutputFile;
+    }
+
+    public void resetDataOutputDirectory() {
+        Date time_now = DateAndTime.nowAsDate();
+        Log.i(TAG, "resetDataOutputDirectory(): "+time_now);
+        configureDirectoryForDataReconfigureImmediate(time_now);
+        configureFileForDataReconfigureImmediate(time_now);
+    }
+
+    private File configureDirectoryForDataReconfigureImmediate(Date imageFrameTime_) {
+        dataOutputDirectory = dirInExternalStorage(
+            VOS_DATA_DIRECTORY_NAME + "_" + filenameDateFormat.format(imageFrameTime_));
+        return dataOutputDirectory;
+    }
+
+    /**
+     * Idempotent; if detectionDataOutputFile is already configured, this has no effect.
+     * @param imageFrameTime_ the time to use to name the data output file: the first iteration / image capture time.
+     */
+    private FileWriter configureFileForDataReconfigureImmediate(Date imageFrameTime_) {
+        if (null != detectionDataOutputFile) {
+            closeDataOutputFile();
+        }
+        openDataOutputFile(imageFrameTime_);
+        return detectionDataOutputFile;
+    }
+
+    private void openDataOutputFile(Date imageFrameTime_) {
+        String detectionDataOutputFileName = filenameDateFormat.format(imageFrameTime_);
+        detectionDataOutputFileName = detectionDataOutputFileName + "_savedData.txt";
+        detectionDataOutputFile = openFileForData(imageFrameTime_, detectionDataOutputFileName);
     }
 
 //    private boolean configureDirectoryForImages(String directoryName_) {
@@ -2524,6 +2584,14 @@ public class MainActivity
                 new double[]{pose_.getOrientation().getX(),pose_.getOrientation().getY(),pose_.getOrientation().getZ(),pose_.getOrientation().getW()});
     }
 
+
+    public void resetToPoseUnknown() {
+        Log.i(TAG,"resetToPoseUnknown(): resetting to null pose, and poseKnown   = false");
+        this.position    = NULL_POSITION;
+        this.orientation = NULL_ORIENTATION;
+        this.poseKnown   = false;
+    }
+
     public double[] getPositionXyz() {
         return position;
     }
@@ -2693,7 +2761,11 @@ public class MainActivity
 
     @Override
     public void resetExtrinsicCalibration(){
-        this.smartCameraExtrinsicsCalibrator.uncalibrated();
+        Log.i(TAG,"resetExtrinsicCalibration(): recording observations, then reseting the pose and observations, and starting a new recording directory.");
+        this.smartCameraExtrinsicsCalibrator.logObservations2ToFile();  // check that the observation data is recorded ...
+        this.smartCameraExtrinsicsCalibrator.uncalibrated();            // ... observations dropped ...
+        this.resetToPoseUnknown();                                      // ... pose is now unknown ...
+        this.resetDataOutputDirectory();                                // ... start recording to a new dir
     }
 
     private enum DetectionType {
@@ -2730,7 +2802,7 @@ public class MainActivity
                 Log.i(TAG,"extrinsicsCalibration: received current robot pose = "+frameTransform+" at "+now+" = "+now.getTime()+"ms");
                 break;
             case EXTERNAL_CALIBRATION_CALIBRATE_AND_USE:
-//                smartCameraExtrinsicsCalibrator.
+                smartCameraExtrinsicsCalibrator.estimateExtrinsics();
                 break;
             case RECORD_DATA_ONCE:
                 RECORD_DATA = true;
@@ -2752,6 +2824,10 @@ public class MainActivity
             case RECORD_NEXT_FRAME:
                 RECORD_FRAMES = 1;
                 break;
+            case RECORD_RESET_OUTPUT_DIRECTORY:
+                Log.i(TAG,"RECORD_RESET_OUTPUT_DIRECTORY --> resetDataOutputDirectory()");
+                resetDataOutputDirectory();
+                break;
             case TEST_MATLAB_POSE_EST_kitchen_realPixels:
                 atestMatlabPoseEstimation_kitchen_realPixels();
                 break;
@@ -2769,6 +2845,12 @@ public class MainActivity
                 break;
             case EXPIRE_TASKS_ON_EXECUTION_COUNT:
                 vosTaskSet.expireTasksOnDetection(false);
+                break;
+            case FIDUCIAL_MASK_WITH_HSV_ON:
+                manage_maskFiducialWithHSV(true);
+                break;
+            case FIDUCIAL_MASK_WITH_HSV_OFF:
+                manage_maskFiducialWithHSV(false);
                 break;
             default:
                 Log.e(TAG,"extrinsicsCalibration: ManagementCommand not recognised: '"+command+"': throwing a RuntimeException.");
@@ -3338,10 +3420,38 @@ System.out.println("imuData(Imu imu): relocalising");
         }
 
         public BoofCVDetectorAndReporter invoke() {
+
+            System.out.println("onCameraFrame: 3D Location: start for this tag "+tag_id+"---------------------------------------------------------");
             Vector3D_F64 transBoofCV_TtoS = targetToSensor_boofcvFrame.getTranslation();
             Quaternion_F64 quatBoofCV_TtoS = transform_to_quaternion_boofcv(targetToSensor_boofcvFrame);
-            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
-            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame : qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame "
+                    +tag_id+": x = " + transBoofCV_TtoS.getX() + ", y = " + transBoofCV_TtoS.getY() + ", z = " + transBoofCV_TtoS.getZ());
+            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame "
+                    +tag_id+": qx = " + quatBoofCV_TtoS.x + ", qy = " + quatBoofCV_TtoS.y + ", qz = " + quatBoofCV_TtoS.z + ", qw = " + quatBoofCV_TtoS.w);
+            double x = transBoofCV_TtoS.getX();  double y = transBoofCV_TtoS.getY();  double z = transBoofCV_TtoS.getZ();
+            double qx = quatBoofCV_TtoS.x;  double qy = quatBoofCV_TtoS.y;  double qz = quatBoofCV_TtoS.z;  double qw = quatBoofCV_TtoS.w;
+            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame "
+                    +tag_id+": figure(f1); temp__plot_boofcv_StoT_inVOS_rot("+qw+","+qx+","+qy+","+qz+",  "+x+","+y+","+z+")  % "+tag_id);
+
+            DenseMatrix64F rot = targetToSensor_boofcvFrame.getR();
+            System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame : "+tag_id+": rotation matrix= [ "+
+                rot.get(0,0) +", "+rot.get(0,1)+", "+rot.get(0,2)+"; "+ //get(row, column)
+                rot.get(1,0) +", "+rot.get(1,1)+", "+rot.get(1,2)+"; "+
+                rot.get(2,0) +", "+rot.get(2,1)+", "+rot.get(2,2)+" ]");
+            System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame : "+tag_id+": rotation matrix= "
+                    +targetToSensor_boofcvFrame.getR());
+
+            Se3_F64 sensorToTarget_boofcvFrame = targetToSensor_boofcvFrame.invert(null);
+            Vector3D_F64 sensorToTarget_boofcvFrame_transl = sensorToTarget_boofcvFrame.getTranslation();
+            Quaternion_F64 sensorToTarget_boofcvFrame_quat = transform_to_quaternion_boofcv(sensorToTarget_boofcvFrame);
+            System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame "
+                    +tag_id+": x = " + sensorToTarget_boofcvFrame_transl.getX() + ", y = " + sensorToTarget_boofcvFrame_transl.getY() + ", z = " + sensorToTarget_boofcvFrame_transl.getZ());
+            System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame "
+                    +tag_id+": qx = " + sensorToTarget_boofcvFrame_quat.x + ", qy = " + sensorToTarget_boofcvFrame_quat.y + ", qz = " + sensorToTarget_boofcvFrame_quat.z + ", qw = " + sensorToTarget_boofcvFrame_quat.w);
+
+
+
+            System.out.println("onCameraFrame: 3D Location: end for this tag "+tag_id+"---------------------------------------------------------");
 
 
             // testing 2017_08_23

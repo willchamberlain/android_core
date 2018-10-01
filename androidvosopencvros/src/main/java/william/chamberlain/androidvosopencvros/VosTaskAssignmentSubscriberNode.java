@@ -17,6 +17,7 @@ import org.ros.node.topic.Subscriber;
 import org.ros.rosjava_geometry.FrameTransform;
 import org.ros.rosjava_geometry.FrameTransformTree;
 import org.ros.rosjava_geometry.Transform;
+import org.yaml.snakeyaml.nodes.Tag;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -98,6 +99,7 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
 //    public void matlabPoseEstimation()
     public void estimatePose(List<Observation2> observation2List, SmartCameraExtrinsicsCalibrator calibrator) {
         System.out.println("VosTaskAssignmentSubscriberNode: estimatePose: start");
+        connect_to_POSE_FROM_2D3D_SERVICE_ROS();  // todo - CAN FAIL
         PoseFrom2D3DRequest request = poseFrom2D3D_serviceClient.newMessage();
         addCameraInfoToRequest(request);
         for (Observation2 obs : observation2List) {
@@ -316,32 +318,40 @@ public class VosTaskAssignmentSubscriberNode extends AbstractNodeMain implements
         }
     }
 
-    private void connect_to_POSE_FROM_2D3D_SERVICE_ROS() {
-        if(null !=poseFrom2D3D_serviceClient) {
-            return;
-        }
-        if(connected_to_POSE_FROM_2D3D_SERVICE_ROS) {
-            return;
-        }
+    private boolean connect_to_POSE_FROM_2D3D_SERVICE_ROS() {
         try {
-            poseFrom2D3D_serviceClient = connectedNode.newServiceClient(POSE_FROM_2D3D_SERVICE_ROS_NAME, PoseFrom2D3D._TYPE);
-            poseFrom2D3D_responseListener = new PoseFrom2D3DResponseListener();
-            connected_to_POSE_FROM_2D3D_SERVICE_ROS = true;
-            System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: setup successfully.");
-        } catch (ServiceNotFoundException e) {
-            System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: ServiceNotFoundException for '"+POSE_FROM_2D3D_SERVICE_ROS_NAME +"': "+e.getMessage());
-            e.printStackTrace();
-            throw new RosRuntimeException(e);
-        } catch (Exception e) {
-            if (connectedNode != null) {
-                System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: Exception for '" + POSE_FROM_2D3D_SERVICE_ROS_NAME + "': " + e.getMessage());
-                e.printStackTrace();
-                throw new RosRuntimeException(e);
+            if(null !=poseFrom2D3D_serviceClient && poseFrom2D3D_serviceClient.isConnected()) {
+                return true;
+            } else if(null !=poseFrom2D3D_serviceClient && !poseFrom2D3D_serviceClient.isConnected()) {
+                System.out.println("WARN: VosTaskAssignmentSubscriberNode: connect_to_POSE_FROM_2D3D_SERVICE_ROS: poseFrom2D3D_serviceClient is disconnected: reconnecting");
+                make_connection_to_POSE_FROM_2D3D_SERVICE_ROS();
+                return true;
             } else {
-                System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: connectedNode_ == null: " + e.getMessage());
+                System.out.println("INFO: VosTaskAssignmentSubscriberNode: connect_to_POSE_FROM_2D3D_SERVICE_ROS: poseFrom2D3D_serviceClient was null: connecting");
+                make_connection_to_POSE_FROM_2D3D_SERVICE_ROS();
+                return true;
+            }
+        } catch (ServiceNotFoundException e) {
+            System.out.println("ERROR: VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: ServiceNotFoundException for '"+POSE_FROM_2D3D_SERVICE_ROS_NAME +"': "+e.getMessage());
+            e.printStackTrace();
+//            throw new RosRuntimeException(e);
+        } catch (Throwable e) {
+            if (connectedNode != null) {
+                System.out.println("ERROR: VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: Exception for '" + POSE_FROM_2D3D_SERVICE_ROS_NAME + "': " + e.getMessage());
+                e.printStackTrace();
+//                throw new RosRuntimeException(e);
+            } else {
+                System.out.println("ERROR: VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: connectedNode_ == null: " + e.getMessage());
                 e.printStackTrace();
             }
         }
+        return false;
+    }
+
+    private void make_connection_to_POSE_FROM_2D3D_SERVICE_ROS() throws ServiceNotFoundException {
+        poseFrom2D3D_serviceClient = connectedNode.newServiceClient(POSE_FROM_2D3D_SERVICE_ROS_NAME, PoseFrom2D3D._TYPE);
+        poseFrom2D3D_responseListener = new PoseFrom2D3DResponseListener();
+        System.out.println("VosTaskAssignmentSubscriberNode: onStart: poseFrom2D3D: setup successfully.");
     }
 
     public void getTfDummy(String sourceFrameId_, String targetFrameId_, java.util.Date time_) {
