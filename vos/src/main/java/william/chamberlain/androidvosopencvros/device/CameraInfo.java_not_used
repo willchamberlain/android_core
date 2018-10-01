@@ -1,0 +1,162 @@
+/*
+ *  Licensed under variant of 3-Clause BSD License / BSD-3-Clause
+ *
+ *  Copyright (c) 2018; William Chamberlain; ARC Centre of Excellence for Robotic Vision, Queensland University of Technology
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+ *
+ *  1. Redistributions of source code must retain the above copyright notice, the above attributions of authorship and contribution, this list of conditions and the following disclaimer.
+ *
+ *  2. Redistributions in binary form must reproduce the above copyright notice, the above attributions of authorship and contribution, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+ *
+ *  3. Neither the name of the copyright holder nor the names of its authors nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *
+ */
+
+package william.chamberlain.androidvosopencvros.device;
+
+import org.ros.internal.message.RawMessage;
+
+import sensor_msgs.RegionOfInterest;
+import std_msgs.Header;
+
+/**
+ * Created by will on 31/01/18.
+ */
+
+public class CameraInfo implements sensor_msgs.CameraInfo {
+
+    Header header;
+    int height;
+    int width;
+    String distortionModel;
+    double[] d;
+    double[] k;
+    double[] r;
+    double[] p;
+    int binningX;
+    int binningY;
+    RegionOfInterest roi;
+
+    @Override
+    public Header getHeader() {
+        return header;
+    }
+
+    @Override
+    public void setHeader(Header header) {
+        this.header = header;
+    }
+
+    @Override
+    public int getHeight() {
+        return height;
+    }
+
+    @Override
+    public void setHeight(int height) {
+        this.height = height;
+    }
+
+    @Override
+    public int getWidth() {
+        return width;
+    }
+
+    @Override
+    public void setWidth(int width) {
+        this.width = width;
+    }
+
+    @Override
+    public String getDistortionModel() {
+        return distortionModel;
+    }
+
+    @Override
+    public void setDistortionModel(String distortionModel) {
+        this.distortionModel = distortionModel;
+    }
+
+    @Override
+    public double[] getD() {
+        return d;
+    }
+
+    @Override
+    public void setD(double[] d) {
+        this.d = d;
+    }
+
+    @Override
+    public double[] getK() {
+        return k;
+    }
+
+    @Override
+    public void setK(double[] k) {
+        this.k = k;
+    }
+
+    @Override
+    public double[] getR() {
+        return r;
+    }
+
+    @Override
+    public void setR(double[] r) {
+        this.r = r;
+    }
+
+    @Override
+    public double[] getP() {
+        return p;
+    }
+
+    @Override
+    public void setP(double[] p) {
+        this.p = p;
+    }
+
+    @Override
+    public int getBinningX() {
+        return binningX;
+    }
+
+    @Override
+    public void setBinningX(int binningX) {
+        this.binningX = binningX;
+    }
+
+    @Override
+    public int getBinningY() {
+        return binningY;
+    }
+
+    @Override
+    public void setBinningY(int binningY) {
+        this.binningY = binningY;
+    }
+
+    @Override
+    public RegionOfInterest getRoi() {
+        return roi;
+    }
+
+    @Override
+    public void setRoi(RegionOfInterest roi) {
+        this.roi = roi;
+    }
+
+    @Override
+    public RawMessage toRawMessage() {
+        return null;
+    }
+
+
+
+}
