@@ -133,6 +133,20 @@ import static william.chamberlain.androidvosopencvros.Algorithm.APRIL_TAGS_KAESS
 import static william.chamberlain.androidvosopencvros.DataExchange.tagPattern_trans_quat;
 import static william.chamberlain.androidvosopencvros.DateAndTime.nowAsDate;
 
+
+
+
+//-----------
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
+
 /**
  * @author chadrockey@gmail.com (Chad Rockey)
  * @author axelfurlan@gmail.com (Axel Furlan)
@@ -149,6 +163,87 @@ public class MainActivity
         DimmableScreen, VariableResolution, VisionSource,
         ResilientNetworkActivity, VisionSource_WhereIs,
         FileLogger {
+
+
+
+
+
+//    //---------------------------------
+//    private Socket socket;
+//
+//    private static final int SERVERPORT = 5000;
+//    private static final String SERVER_IP = "192.168.43.252";
+//    class ClientThread implements Runnable {
+//        @Override
+//        public void run() {
+//            try {
+//                InetAddress serverAddr = InetAddress.getByName(SERVER_IP);
+//                socket = new Socket(serverAddr, SERVERPORT);
+//            } catch (UnknownHostException e1) {
+//                e1.printStackTrace();
+//            } catch (IOException e1) {
+//                e1.printStackTrace();
+//            }
+//        }
+//    }
+//
+//    //---------------------------------
+//    //   https://stackoverflow.com/questions/22271207/socket-programming-with-python-server-and-android-client
+//    Socket client;
+//    PrintWriter printwriter;
+//    boolean connection = false;
+//    public void connect() {
+//        new Thread(new Runnable(){
+//
+//            @Override
+//            public void run() {
+//                try {
+//
+//                    client = new Socket(SERVER_IP, SERVERPORT);
+//
+//                    printwriter = new PrintWriter(client.getOutputStream(), true);
+//                    printwriter.write("HI "); // write the message to output stream
+//                    printwriter.flush();
+//                    printwriter.close();
+//                    connection = true;
+//                    Log.d("socket", "connected " + connection);
+//
+//                    // Toast in background becauase Toast cannnot be in main thread you have to create runOnuithread.
+//                    // this is run on ui thread where dialogs and all other GUI will run.
+//                    if (client.isConnected()) {
+//                        MainActivity.this.runOnUiThread(new Runnable() {
+//                            public void run() {
+//                                //Do your UI operations like dialog opening or Toast here
+////                                connect.setText("Connected");
+//                                Toast.makeText(getApplicationContext(), "Messege send", Toast.LENGTH_SHORT).show();
+//                            }
+//                        });
+//                    }
+//                }
+//                catch (UnknownHostException e2){
+//                    MainActivity.this.runOnUiThread(new Runnable() {
+//                        public void run() {
+//                            //Do your UI operations like dialog opening or Toast here
+//                            Toast.makeText(getApplicationContext(), "Unknown host please make sure IP address", Toast.LENGTH_SHORT).show();
+//                        }
+//                    });
+//
+//                }
+//                catch (IOException e1) {
+//                    Log.d("socket", "IOException");
+//                    MainActivity.this.runOnUiThread(new Runnable() {
+//                        public void run() {
+//                            //Do your UI operations like dialog opening or Toast here
+//                            Toast.makeText(getApplicationContext(), "Error Occured"+ "  ", Toast.LENGTH_SHORT).show();
+//                        }
+//                    });
+//                }
+//
+//            }
+//        }).start();
+//    }
+//
+//    //---------------------------------
 
     //public static final double BOOFCV_TAG_SIZE_M = 0.189;  // 0.20  // 0.14 // 0.13;             ////  TODO - list of tags and sizes, and tag-groups and sizes
     public static final int FOUR_POINTS_REQUIRED_FOR_PNP = 4;
@@ -320,6 +415,10 @@ public class MainActivity
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
 
+
+//        new Thread(new ClientThread()).start();  //  https://stackoverflow.com/questions/22271207/socket-programming-with-python-server-and-android-client
+//        connect();  // https://stackoverflow.com/questions/22271207/socket-programming-with-python-server-and-android-client
+
 //      Does not work to turn the screen off programmatically
 //      - can set the wake_setting time to 1 second,
 //          but that can cause problems if the application is stopped or fails before reseting it to something reasonable like 10 minutes:
@@ -373,6 +472,11 @@ public class MainActivity
 
         allocatedTargets.put(ROBOT_ALLOCATION_KEY,true);
         allocatedTargets.put(TARGET_ALLOCATION_KEY,true);
+
+
+//        new Thread(new ClientThread()).start();  //  https://stackoverflow.com/questions/22271207/socket-programming-with-python-server-and-android-client
+//        connect();  // https://stackoverflow.com/questions/22271207/socket-programming-with-python-server-and-android-client
+
 
 //        System.out.println("MainActivity: onResume: before running AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution()");
 //        AndroidCameraAdapterForDepricatedApi.setCameraToLowestResolution();
@@ -1387,9 +1491,9 @@ public class MainActivity
 
             // /mnt/nixbig/ownCloud/project_AA1__2_extrinsics_calibration/project_AA1_2_extrinsics__phone_data_recording__copied_bc/VOS_data_2018_01_21_16_51_11_calibration_pattern_Galaxy3_home/intrinsics_matlab_3radial_2tangental_0skew.txt
             CameraPinholeRadial cameraPinholeRadial = new CameraPinholeRadial(
-                    322.9596901156589, 323.8523693059909, //fx,fy,
-                    0.0,                                    // skew,
-                    176.8267919600727, 146.7681514313797, // cx, cy,
+                    Hardcoding.cam_FX, Hardcoding.cam_FY, //fx,fy,
+                    Hardcoding.cam_SKEW,                                    // skew,
+                    Hardcoding.cam_CX, Hardcoding.cam_CY, // cx, cy,
                     calcImgDim.getWidth(), calcImgDim.getHeight());
             cameraPinholeRadial.fsetRadial(0.004180016841640, 0.136452931271259, -0.638647134308425);
             cameraPinholeRadial.fsetTangental(-0.001666231998527, -0.00008160213039217031);
