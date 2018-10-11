@@ -3441,6 +3441,21 @@ System.out.println("imuData(Imu imu): relocalising");
             System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame : "+tag_id+": rotation matrix= "
                     +targetToSensor_boofcvFrame.getR());
 
+            //  % 1) see if we can get rot, trans of inverted transform straight from BoofCV
+            Se3_F64 sensorToTarget_boofcvFrame_ = targetToSensor_boofcvFrame.invert(null);
+            Vector3D_F64 transBoofCV_StoT_ = sensorToTarget_boofcvFrame_.getTranslation();
+            System.out.println("onCameraFrame: 3D Location: targetToSensor_boofcvFrame : BoofCV frame "
+                    +tag_id+": transBoofCV_StoT_: x = " + transBoofCV_StoT_.getX() + ", y = " + transBoofCV_StoT_.getY() + ", z = " + transBoofCV_StoT_.getZ());
+            DenseMatrix64F rotBoofCV_StoT_ = sensorToTarget_boofcvFrame_.getR();
+            System.out.println("onCameraFrame: 3D Location: sensorToTarget_boofcvFrame : BoofCV frame : "+tag_id+": rotation matrix rotBoofCV_StoT_= [ "+
+                    rotBoofCV_StoT_.get(0,0) +", "+rotBoofCV_StoT_.get(0,1)+", "+rotBoofCV_StoT_.get(0,2)+"; "+ //get(row, column)
+                    rotBoofCV_StoT_.get(1,0) +", "+rotBoofCV_StoT_.get(1,1)+", "+rotBoofCV_StoT_.get(1,2)+"; "+
+                    rotBoofCV_StoT_.get(2,0) +", "+rotBoofCV_StoT_.get(2,1)+", "+rotBoofCV_StoT_.get(2,2)+" ]");
+
+            /*-----------------------------------------------------------------------------*/
+
+            /*-----------------------------------------------------------------------------*/
+
             Se3_F64 sensorToTarget_boofcvFrame = targetToSensor_boofcvFrame.invert(null);
             Vector3D_F64 sensorToTarget_boofcvFrame_transl = sensorToTarget_boofcvFrame.getTranslation();
             Quaternion_F64 sensorToTarget_boofcvFrame_quat = transform_to_quaternion_boofcv(sensorToTarget_boofcvFrame);
